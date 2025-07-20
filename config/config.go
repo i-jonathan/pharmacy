@@ -1,6 +1,10 @@
 package config
 
-import "github.com/ilyakaznacheev/cleanenv"
+import (
+	"sync"
+
+	"github.com/ilyakaznacheev/cleanenv"
+)
 
 type Config struct {
 	DBUser string `env:"POSTGRES_USER"`
@@ -10,18 +14,11 @@ type Config struct {
 	DBPort string `env:"DB_PORT" env-default:"5432"`
 }
 
-var c *Config
-
-func LoadConfig() error {
-	var conf Config
-	err := cleanenv.ReadEnv(&conf)
+var Conf = func() *Config {
+	var c Config
+	err := cleanenv.ReadEnv(&c)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	c = &conf
-	return nil
-}
-
-func GetConfig() *Config {
-	return c
+	return &c
 }
