@@ -1,8 +1,6 @@
 package config
 
 import (
-	"sync"
-
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -21,4 +19,4 @@ var Conf = func() *Config {
 		panic(err)
 	}
 	return &c
-}
+}()
