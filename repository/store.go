@@ -13,8 +13,7 @@ type repo struct {
 }
 
 func InitStore() (*repo, error) {
-	c := config.GetConfig()
-	
+	c := config.Conf
 	dsn := fmt.Sprintf(
         "postgres://%s:%s@%s:%s/%s?sslmode=disable",
         c.DBUser, c.DBPass, c.DBHost, c.DBPort, c.DBName,
