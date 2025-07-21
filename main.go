@@ -1,16 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"pharmacy/adapter/http/router"
+	"pharmacy/config"
 	"pharmacy/repository"
+	"pharmacy/service"
 )
 
 func main() {
-	_, err := repository.InitStore()
+	store, err := repository.InitStore()
+	fmt.Println(config.Conf)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_ = router.InitRouter()
+	userService := service.NewUserService(store)
+	userController := router.InitUserRouter(userService)
+
+	router := router.InitRouter()
+	router.Handle("/user/", userController)
 }
