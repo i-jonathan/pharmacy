@@ -1,17 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"net/http"
 	"pharmacy/adapter/http/router"
-	"pharmacy/config"
 	"pharmacy/repository"
 	"pharmacy/service"
 )
 
 func main() {
 	store, err := repository.InitStore()
-	fmt.Println(config.Conf)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,4 +19,7 @@ func main() {
 
 	router := router.InitRouter()
 	router.Handle("/user/", userController)
+
+	log.Println("Listening on port 8000...")
+	log.Fatal(http.ListenAndServe(":8000", router))
 }
