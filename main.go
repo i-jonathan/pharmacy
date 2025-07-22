@@ -39,9 +39,15 @@ func main() {
 	userController := router.InitUserRouter(userService, tmpl)
 	r.Handle("/user/", userController)
 
+	
+	middlewareStack := middleware.CreateStack(
+		middleware.CSRFMiddleware,
+		middleware.Logging,
+	)
+	
 	server := http.Server{
 		Addr:    ":8000",
-		Handler: middleware.Logging(r),
+		Handler: middlewareStack(r),
 	}
 	log.Println("Listening on port 8000...")
 	server.ListenAndServe()

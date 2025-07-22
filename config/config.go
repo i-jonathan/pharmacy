@@ -10,6 +10,7 @@ type Config struct {
 	DBPass string `env:"POSTGRES_PASSWORD"`
 	DBHost string `env:"DB_HOST" env-default:"localhost"`
 	DBPort string `env:"DB_PORT" env-default:"5432"`
+	CSRFKey string `env:"CSRF_KEY"`
 }
 
 var Conf = func() *Config {
