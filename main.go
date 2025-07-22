@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"pharmacy/adapter/http/middleware"
 	"pharmacy/adapter/http/router"
 	"pharmacy/repository"
 	"pharmacy/service"
@@ -20,6 +21,10 @@ func main() {
 	router := router.InitRouter()
 	router.Handle("/user/", userController)
 
+	server := http.Server{
+		Addr: ":8000",
+		Handler: middleware.Logging(router),
+	}
 	log.Println("Listening on port 8000...")
-	log.Fatal(http.ListenAndServe(":8000", router))
+	server.ListenAndServe()
 }
