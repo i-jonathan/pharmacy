@@ -1,6 +1,7 @@
 package httperror
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -26,6 +27,12 @@ func (e *HTTPError) Error() string {
 
 func (e *HTTPError) Unwrap() error {
 	return e.Err
+}
+
+func (e *HTTPError) JSONRespond(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(e.Code)
+	json.NewEncoder(w).Encode(map[string]string{"error": e.Error()})
 }
 
 func BadRequest(msg string, err error) *HTTPError {

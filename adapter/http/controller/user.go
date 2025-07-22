@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
+	"pharmacy/httperror"
 	"pharmacy/model"
 	"pharmacy/service"
 )
@@ -15,5 +17,11 @@ func NewUserController(svc service.UserService) *userController {
 }
 
 func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
-	c.service.CreateUserAccount(model.User{})
+	var u model.User
+
+	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
