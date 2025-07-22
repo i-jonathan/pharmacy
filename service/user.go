@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 	"pharmacy/httperror"
 	"pharmacy/model"
 	"pharmacy/repository"
@@ -21,19 +22,26 @@ func (s *userService) CreateUserAccount(ctx context.Context, user model.User) er
 	
 	err := user.ValidateUsername()
 	if err != nil {
+		log.Println(err)
 		return httperror.BadRequest("invalid username", err)
 	}
 	
 	usernameExists, err := s.repo.CheckUserNameExists(ctx, user.UserName)
 	if err != nil || usernameExists {
+		log.Println(err)
 		return httperror.BadRequest("username already exists", err)
 	}
 	
 	err = user.ValidatePassword()
 	if err != nil {
+		log.Println(err)
 		return httperror.BadRequest("invalid password", err)
 	}
 	
 	user.HashPassword()
-	return s.repo.CreateUserAccount(ctx, user)
+	err = s.repo.CreateUserAccount(ctx, user)
+	if err != nil {
+		log.Println(err)
+	}
+	return nil
 }
