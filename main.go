@@ -1,6 +1,9 @@
 package main
 
 import (
+	"embed"
+	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"pharmacy/adapter/http/middleware"
@@ -9,22 +12,45 @@ import (
 	"pharmacy/service"
 )
 
+//go:embed template/*.html
+var templateFS embed.FS
+
+//go:embed template/static/**
+var embeddedStatic embed.FS
+
+var tmpl *template.Template
+
 func main() {
+	parseTemplates()
+	subFS, err := fs.Sub(embeddedStatic, "template/static")
+	if err != nil {
+		log.Fatal(err)
+	}
 	store, err := repository.InitStore()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	userService := service.NewUserService(store)
-	userController := router.InitUserRouter(userService)
+	r := router.InitRouter()
+	staticHandler := http.FileServer(http.FS(subFS))
+	r.Handle("/static/", http.StripPrefix("/static/", staticHandler))
 
-	router := router.InitRouter()
-	router.Handle("/user/", userController)
+	userService := service.NewUserService(store)
+	userController := router.InitUserRouter(userService, tmpl)
+	r.Handle("/user/", userController)
 
 	server := http.Server{
-		Addr: ":8000",
-		Handler: middleware.Logging(router),
+		Addr:    ":8000",
+		Handler: middleware.Logging(r),
 	}
 	log.Println("Listening on port 8000...")
 	server.ListenAndServe()
+}
+
+func parseTemplates() {
+	var err error
+	tmpl, err = template.ParseFS(templateFS, "template/*.html")
+	if err != nil {
+		panic("failed to parse templates: " + err.Error())
+	}
 }

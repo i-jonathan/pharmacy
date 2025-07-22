@@ -7,4 +7,7 @@ create-migration:
 migrate-up:
 	migrate -path $(MIGRATIONS_DIR) -database "$(DB_URL)" up
 
-.PHONY: create-migrations
+tailwind:
+	npx tailwindcss -i template/static/css/input.css -o ./template/static/css/tailwind.css --minify
+	
+.PHONY: create-migrations migrate-up
