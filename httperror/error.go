@@ -1,11 +1,19 @@
 package httperror
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 type HTTPError struct {
 	Code int
 	Message string
 	Err error
+}
+
+
+func NewHttpError(code int, message string, err error) *HTTPError {
+	return &HTTPError{Code: code, Message: message, Err: err}
 }
 
 func (e *HTTPError) Error() string {
@@ -20,3 +28,14 @@ func (e *HTTPError) Unwrap() error {
 	return e.Err
 }
 
+func BadRequest(msg string, err error) *HTTPError {
+	return NewHttpError(http.StatusBadRequest, msg, err)
+}
+
+func ServerError(msg string, err error) *HTTPError {
+	return NewHttpError(http.StatusInternalServerError, msg, err)
+}
+
+func NotFound(msg string, err error) *HTTPError {
+	return NewHttpError(http.StatusNotFound, msg, err)
+}
