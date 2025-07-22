@@ -1,10 +1,14 @@
 package repository
 
-import "pharmacy/model"
+import (
+	"context"
+	"pharmacy/model"
+)
 
 type UserRepository interface {
-	FetchUserWithPassword(userName string) (model.User, error)
-	CreateUserAccount(user model.User) error
+	FetchUserWithPassword(ctx context.Context, userName string) (model.User, error)
+	CheckUserNameExists(ctx context.Context, userName string) (bool, error)
+	CreateUserAccount(ctx context.Context, user model.User) error
 }
 
 type PharmacyRepository interface {
