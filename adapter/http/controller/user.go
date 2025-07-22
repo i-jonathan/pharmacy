@@ -8,6 +8,8 @@ import (
 	"pharmacy/httperror"
 	"pharmacy/model"
 	"pharmacy/service"
+
+	"github.com/gorilla/csrf"
 )
 
 type userController struct {
@@ -42,7 +44,9 @@ func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Reques
 
 func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := c.template.ExecuteTemplate(w, "login.html", nil)
+	err := c.template.ExecuteTemplate(w, "login.html", map[string]any{
+		"CSRFField": csrf.TemplateField(r),
+	})
 	if err != nil {
 		http.Error(w, "render error", http.StatusInternalServerError)
 	}
