@@ -1,7 +1,10 @@
 package service
 
-import "pharmacy/model"
+import (
+	"context"
+	"pharmacy/model"
+)
 
 type UserService interface {
-	CreateUserAccount(user model.User) error
+	CreateUserAccount(ctx context.Context, user model.User) error
 }
