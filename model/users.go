@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -76,4 +78,22 @@ func (u *User) VerifyPassword(hash string) (bool, error) {
 	comparisonHash := argon2.IDKey([]byte(u.Password), salt, passConfig.time, passConfig.memory, passConfig.threads, passConfig.keyLength)
 
 	return subtle.ConstantTimeCompare(decodedHash, comparisonHash) == 1, nil
+}
+
+func (u *User) ValidatePassword() error {
+	if len(u.Password) < 8 {
+		return errors.New("password is too short")
+	}
+	return nil
+}
+
+func (u *User) ValidateUsername() error {
+	if len(u.UserName) < 3 || len(u.UserName) > 15 {
+		return errors.New("come on. username is either too short or long")
+	}
+	
+	if !regexp.MustCompile(`^[a-zA-Z0-9_]+$`).MatchString(u.UserName) {
+		return errors.New("username contains invalid characters")
+	}
+	return nil
 }
