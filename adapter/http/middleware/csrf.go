@@ -9,4 +9,6 @@ import (
 var CSRFMiddleware = csrf.Protect(
 	[]byte(config.Conf.CSRFKey),
 	csrf.Secure(false),
+	csrf.Path("/"),
+	csrf.TrustedOrigins([]string{"*"}),
 )
