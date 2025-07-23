@@ -5,6 +5,8 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"pharmacy/config"
+	"pharmacy/constant"
 	"pharmacy/httperror"
 	"pharmacy/model"
 	"pharmacy/service"
@@ -50,4 +52,32 @@ func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "render error", http.StatusInternalServerError)
 	}
+}
+
+func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	u := model.User{
+		UserName: r.FormValue("username"),
+		Password: r.FormValue("password"),
+	}
+
+	// actually authenticate user
+	err := c.service.AuthenticateUser(r.Context(), &u)
+	if err != nil {
+		http.Redirect(w, r, "/user/login?error=" + err.Error(), http.StatusSeeOther)
+		return
+	}
+
+	session, err := config.SessionStore.Get(r, "session")
+	if err != nil {
+		session, _ = config.SessionStore.New(r, "session")
+	}
+
+	session.Values[constant.UserSessionKey] = u.ID
+	session.Save(r, w)
+	http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
 }

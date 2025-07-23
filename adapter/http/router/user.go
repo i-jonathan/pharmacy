@@ -13,6 +13,7 @@ func InitUserRouter(svc service.UserService, tmpl *template.Template) http.Handl
 	
 	userMux.HandleFunc(http.MethodPost + " /register", userController.CreateUserAccount)
 	userMux.HandleFunc(http.MethodGet + " /login", userController.GetLoginPage)
+	userMux.HandleFunc(http.MethodPost + " /login", userController.HandleLogin)
 	
 	return http.StripPrefix("/user", userMux)
 }
