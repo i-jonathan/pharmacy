@@ -46,3 +46,7 @@ func ServerError(msg string, err error) *HTTPError {
 func NotFound(msg string, err error) *HTTPError {
 	return NewHttpError(http.StatusNotFound, msg, err)
 }
+
+func Unauthorized(msg string, err error) *HTTPError {
+	return NewHttpError(http.StatusUnauthorized, msg, err)
+}
