@@ -41,7 +41,7 @@ func main() {
 
 	
 	middlewareStack := middleware.CreateStack(
-		middleware.CSRFMiddleware,
+		// middleware.CSRFMiddleware,
 		middleware.Logging,
 	)
 	
