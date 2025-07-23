@@ -7,4 +7,5 @@ import (
 
 type UserService interface {
 	CreateUserAccount(ctx context.Context, user model.User) error
+	AuthenticateUser(ctx context.Context, user *model.User) error
 }
