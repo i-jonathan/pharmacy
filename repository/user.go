@@ -7,8 +7,13 @@ import (
 )
 
 func (r *repo) FetchUserWithPassword(ctx context.Context, username string) (model.User, error) {
-	// todo implement
-	return model.User{}, nil
+	var user model.User
+	err := r.Data.GetContext(ctx, &user, fetchUserByNameQuery, username)
+	if err != nil {
+		return model.User{}, err
+	}
+	
+	return user, nil
 }
 
 func (r *repo) CheckUserNameExists(ctx context.Context, userName string) (bool, error) {
