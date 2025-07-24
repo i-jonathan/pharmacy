@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" class="">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Dashboard with Sub Navigation</title>
+        <link href="/static/css/tailwind.css" rel="stylesheet">
+        <style>
+            html {
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+            }
+        </style>
+    </head>
+    <body
+        class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
+    >
+        <!-- Top Nav -->
+        <nav
+            class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between"
+        >
+            <div class="flex items-center gap-6">
+                <div class="text-xl font-bold text-primary">PharmaPOS</div>
+                <div class="hidden md:flex space-x-6">
+                    <a
+                        href="/app/dashboard"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Dashboard</a
+                    >
+                    <a
+                        href="#"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Inventory</a
+                    >
+                </div>
+            </div>
+
+            <!-- Right: Search and Theme Toggle -->
+            <div
+                class="flex items-center space-x-4 max-w-md w-full justify-end"
+            >
+                <div class="relative w-full">
+                    <span
+                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
+                        >🔍</span
+                    >
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                </div>
+                <button
+                    id="theme-toggle"
+                    class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
+                >
+                    🌙
+                </button>
+                <button
+                    class="text-gray-500 dark:text-gray-300 hover:text-primary text-xl"
+                >
+                    🔔
+                </button>
+                <div
+                    class="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600"
+                ></div>
+            </div>
+        </nav>
+
+        <!-- Sub Navigation -->
+        <nav
+            class="bg-gray-50 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 px-6 py-3"
+        >
+            <div class="flex space-x-6">
+                <a
+                    href="#"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Overview</a
+                >
+                <a
+                    href="#"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Recent Sales</a
+                >
+                <a
+                    href="#"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Analytics</a
+                >
+                <a
+                    href="#"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Settings</a
+                >
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="p-6 flex-1">
+            <h1 class="text-2xl font-semibold mb-4">Dashboard</h1>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                This is the main content area.
+            </div>
+        </main>
+
+        <!-- Scripts -->
+        <script src="/static/js/theme.js"></script>
+    </body>
+</html>
