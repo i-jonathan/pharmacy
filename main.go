@@ -39,6 +39,8 @@ func main() {
 	userController := router.InitUserRouter(userService, tmpl)
 	r.Handle("/user/", userController)
 
+	appController := router.InitAppRouter(tmpl)
+	r.Handle("/app/", middleware.AuthMiddleware(appController))
 	
 	middlewareStack := middleware.CreateStack(
 		// middleware.CSRFMiddleware,
