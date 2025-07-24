@@ -63,5 +63,6 @@ func (s *userService) AuthenticateUser(ctx context.Context, user *model.User) er
 		log.Println(err)
 		return httperror.Unauthorized("invalid username or password", err)
 	}
+	user.ID = storedUser.ID
 	return nil
 }

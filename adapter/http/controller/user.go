@@ -45,8 +45,18 @@ func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Reques
 }
 
 func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
+	session, err := config.SessionStore.Get(r, "session")
+	if err != nil {
+		session, _ = config.SessionStore.New(r, "session")
+	}
+
+	if userID, ok := session.Values[constant.UserSessionKey]; ok && userID != nil {
+		http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := c.template.ExecuteTemplate(w, "login.html", map[string]any{
+	err = c.template.ExecuteTemplate(w, "login.html", map[string]any{
 		"CSRFField": csrf.TemplateField(r),
 	})
 	if err != nil {
@@ -68,7 +78,7 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// actually authenticate user
 	err := c.service.AuthenticateUser(r.Context(), &u)
 	if err != nil {
-		http.Redirect(w, r, "/user/login?error=" + err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/user/login?error="+err.Error(), http.StatusSeeOther)
 		return
 	}
 
@@ -78,6 +88,6 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Values[constant.UserSessionKey] = u.ID
-	session.Save(r, w)
+	_ = session.Save(r, w)
 	http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
 }
