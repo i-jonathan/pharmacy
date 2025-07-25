@@ -1,5 +1,5 @@
 ALTER TABLE product
-ADD COLUMN default_price_id integer;
+ADD COLUMN default_price_id integer not null;
 
 ALTER TABLE product
 ADD CONSTRAINT fk_default_price_id 

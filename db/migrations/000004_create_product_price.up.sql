@@ -1,9 +1,8 @@
 CREATE TABLE IF NOT EXISTS product_price (
     id integer generated always as identity unique,
-    product_id integer references product(id) on delete CASCADE,
-    unit_name varchar(50) not null,
+    product_id integer not null references product(id) on delete CASCADE,
     quantity_per_unit integer not null,
-    selling_price decimal(10,2) not null,
+    selling_price integer not null,
     is_default boolean default false,
     created_at timestamp default current_timestamp
 );
