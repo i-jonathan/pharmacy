@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Product struct {
 	baseModel
@@ -18,11 +21,32 @@ type Product struct {
 
 type ProductPrice struct {
 	baseModel
-	ProductID        int
 	UnitName         string
+	ProductID        int
 	QuantityPerUnit  int
 	SellingPriceKobo int
 	IsDefault        bool
+}
+
+type ReceivingBatch struct {
+	baseModel
+	SupplierName string  `db:"supplier_name"`
+	ReceviedByID int     `db:"received_by_id"`
+	Note         *string `db:"note"`
+	ReceivedBy   User    `db:"user"`
+}
+
+type ProductBatch struct {
+	baseModel
+	ProductID        int        `db:"product_id"`
+	PriceID          int        `db:"price_id"`
+	Quantity         int        `db:"quantity"`
+	CostPriceKobo    int        `db:"cost_price"`
+	ReceivingBatchID int        `db:"receiving_batch_id"`
+	BatchNo          string     `db:"batch_no"`
+	ExpiryDate       *time.Time `db:"expiry_date"`
+	Product          Product
+	ReceivingBatch   ReceivingBatch
 }
 
 func (p ProductPrice) PriceString() string {
