@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 	"pharmacy/config"
-	"pharmacy/constant"
+	"pharmacy/internal/constant"
 )
 
 func AuthMiddleware(next http.Handler) http.Handler {

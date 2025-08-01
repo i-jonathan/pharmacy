@@ -6,8 +6,8 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/config"
-	"pharmacy/constant"
 	"pharmacy/httperror"
+	"pharmacy/internal/constant"
 	"pharmacy/model"
 	"pharmacy/service"
 
