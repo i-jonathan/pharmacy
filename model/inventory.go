@@ -25,7 +25,6 @@ type ProductPrice struct {
 	ProductID        int
 	QuantityPerUnit  int
 	SellingPriceKobo int
-	IsDefault        bool
 }
 
 type ReceivingBatch struct {
