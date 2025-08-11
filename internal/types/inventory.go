@@ -1,11 +1,11 @@
 package types
 
 type CreateProductRequest struct {
-	Name         string
-	Barcode      string
-	Manufacturer string
-	CategoryID   int
-	ReorderLevel int
-	CostPrice    float64
-	SellingPrice float64
+	Name         string  `json:"name"`
+	Barcode      string  `json:"barcode"`
+	Manufacturer string  `json:"manufacturer"`
+	CategoryID   int     `json:"category_id"`
+	ReorderLevel int     `json:"reorder_level"`
+	CostPrice    float64 `json:"cost_price"`
+	SellingPrice float64 `json:"selling_price"`
 }
