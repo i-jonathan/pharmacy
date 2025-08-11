@@ -9,3 +9,8 @@ type CreateProductRequest struct {
 	CostPrice    float64 `json:"cost_price"`
 	SellingPrice float64 `json:"selling_price"`
 }
+
+type AddItemResponse struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}

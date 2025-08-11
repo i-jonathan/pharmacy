@@ -12,5 +12,5 @@ type UserService interface {
 }
 
 type InventoryService interface {
-	CreateProduct(ctx context.Context, params types.CreateProductRequest) error
+	CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error)
 }
