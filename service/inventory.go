@@ -22,7 +22,7 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("could not begin transaction", err)
+		return types.AddItemResponse{}, httperror.ServerError("could not begin transaction", err)
 	}
 
 	product := model.Product{
