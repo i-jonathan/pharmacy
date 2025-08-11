@@ -5,6 +5,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"pharmacy/adapter/http/helper"
 	"pharmacy/httperror"
 	"pharmacy/internal/types"
 	"pharmacy/service"
@@ -26,7 +27,7 @@ func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err := c.service.CreateProduct(r.Context(), params)
+	itemResponse, err := c.service.CreateProduct(r.Context(), params)
 	if err != nil {
 		var httperr *httperror.HTTPError
 		if errors.As(err, &httperr) {
@@ -37,5 +38,6 @@ func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Reque
 		json.NewEncoder(w).Encode(map[string]any{"error": err})
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+
+	helper.JSONResponse(w, http.StatusOK, itemResponse)
 }

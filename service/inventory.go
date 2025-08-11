@@ -18,13 +18,13 @@ func NewInventoryService(repo repository.PharmacyRepository) *inventoryService {
 	return &inventoryService{repo: repo}
 }
 
-func (s *inventoryService) CreateProduct(ctx context.Context, params types.CreateProductRequest) error {
+func (s *inventoryService) CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error) {
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("could not begin transaction", err)
 	}
-	
+
 	product := model.Product{
 		Name:          params.Name,
 		Barcode:       &params.Barcode,
@@ -36,7 +36,7 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 	productID, err := s.repo.CreateProductTx(ctx, tx, product)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("failed to create product", err)
+		return types.AddItemResponse{}, httperror.ServerError("failed to create product", err)
 	}
 
 	productPrice := model.ProductPrice{
@@ -48,20 +48,23 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 	priceID, err := s.repo.CreateProductPriceTx(ctx, tx, productPrice)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("failed to create base price", err)
+		return types.AddItemResponse{}, httperror.ServerError("failed to create base price", err)
 	}
 
 	err = s.repo.UpdateProductDefaultPriceTx(ctx, tx, priceID, productID)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("failed to update product default price", err)
+		return types.AddItemResponse{}, httperror.ServerError("failed to update product default price", err)
 	}
 
 	err = s.repo.CommitTx(tx)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("failed to commit transaction", err)
+		return types.AddItemResponse{}, httperror.ServerError("failed to commit transaction", err)
 	}
 
-	return nil
+	return types.AddItemResponse{
+		ID:   productID,
+		Name: product.Name,
+	}, nil
 }
