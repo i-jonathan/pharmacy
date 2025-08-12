@@ -12,3 +12,4 @@ const createProductPriceQuery = `INSERT INTO product_price
 	VALUES ($1, $2, $3)
 	RETURNING id`
 const updateProductDefaultPrice = `UPDATE product SET default_price_id = $1 WHERE id = $2`
+const fetchCategoriesQuery = `SELECT id, name, created_at FROM category ORDER BY name ASC;`

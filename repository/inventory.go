@@ -37,3 +37,12 @@ func (r *repo) UpdateProductDefaultPriceTx(ctx context.Context, tx *sqlx.Tx, pri
 	_, err := tx.ExecContext(ctx, updateProductDefaultPrice, price_id, product_id)
 	return err
 }
+
+func (r *repo) FetchProductCategories(ctx context.Context) ([]model.Category, error) {
+	var categories []model.Category
+	err := r.Data.SelectContext(ctx, &categories, fetchCategoriesQuery)
+	if err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
