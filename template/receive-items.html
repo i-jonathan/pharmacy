@@ -117,10 +117,9 @@
         <select id="category-id"
           class="col-span-2 w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600">
           <option value="">Select Category</option>
-          <option value="1">Pain Relief</option>
-          <option value="2">Antibiotics</option>
-          <option value="3">Vitamins</option>
-          <option value="4">Other</option>
+          {{range .Categories}} 
+              <option value="{{.ID}}">{{.Name}}</option>
+          {{end}}
         </select>
       </div>
   
@@ -144,7 +143,7 @@
   </div>
 
   <!-- Script -->
-  <script src="static/js/theme.js"></script>
-  <script src="static/js/receive-items.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/receive-items.js"></script>
 </body>
 </html>

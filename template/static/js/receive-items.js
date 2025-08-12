@@ -83,7 +83,7 @@ document.getElementById("save-item").onclick = async () => {
   };
 
   try {
-    const res = await fetch("/add-item", {
+    const res = await fetch("/inventory/add-item", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

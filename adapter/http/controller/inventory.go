@@ -41,3 +41,24 @@ func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Reque
 
 	helper.JSONResponse(w, http.StatusOK, itemResponse)
 }
+
+func (c *inventoryController) GetReceiveItems(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	categories, err := c.service.FetchCategories(r.Context())
+	if err != nil {
+		http.Error(w, "error fetching categories", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Categories []types.CategoriesResponse
+	}{
+		Categories: categories,
+	}
+	
+	err = c.template.ExecuteTemplate(w, "receive-items.html", data)
+	if err != nil {
+		http.Error(w, "receive items render error", http.StatusInternalServerError)
+	}
+}
