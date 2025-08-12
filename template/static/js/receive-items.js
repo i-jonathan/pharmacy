@@ -20,9 +20,10 @@ function updateSubtotal() {
   subtotalDisplay.textContent = total.toLocaleString();
 }
 
-function addItemToTable(name) {
+function addItemToTable(id, name) {
   const row = document.createElement("tr");
   row.classList.add("receiving-row");
+  row.dataset.itemId = id;
   row.innerHTML = `
       <td class="px-4 py-2">${name}</td>
       <td class="px-4 py-2"><input type="text" placeholder="e.g. 0123456789012" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
@@ -89,12 +90,14 @@ document.getElementById("save-item").onclick = async () => {
       },
       body: JSON.stringify(payload),
     });
-
-    if (res.status === 204) {
-      showFeedbackModal("Success", "Product saved successfully.", true);
-    } else {
+    
+    if (!res.ok) {
       throw new Error(`Server error: ${res.status}`);
     }
+    
+    // showFeedbackModal("Success", "Product saved successfully.", true);
+    const { id, name } = await res.json()
+    addItemToTable(id, name)
 
     addItemModal.classList.add("hidden");
     addItemModal
