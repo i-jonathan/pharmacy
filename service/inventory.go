@@ -68,3 +68,20 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 		Name: product.Name,
 	}, nil
 }
+
+func (s *inventoryService) FetchCategories(ctx context.Context) ([]types.CategoriesResponse, error) {
+	categories, err := s.repo.FetchProductCategories(ctx)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch categories", err)
+	}
+
+	response := make([]types.CategoriesResponse, len(categories))
+	for i, value := range categories {
+		response[i] = types.CategoriesResponse{
+			ID:   value.ID,
+			Name: value.Name,
+		}
+	}
+	return response, nil
+}

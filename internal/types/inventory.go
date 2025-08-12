@@ -14,3 +14,8 @@ type AddItemResponse struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
+
+type CategoriesResponse struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
