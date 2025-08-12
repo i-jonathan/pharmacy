@@ -36,17 +36,21 @@ func main() {
 	r.Handle("/static/", http.StripPrefix("/static/", staticHandler))
 
 	userService := service.NewUserService(store)
-	userController := router.InitUserRouter(userService, tmpl)
-	r.Handle("/user/", userController)
+	userRouter := router.InitUserRouter(userService, tmpl)
+	r.Handle("/user/", userRouter)
 
-	appController := router.InitAppRouter(tmpl)
-	r.Handle("/app/", middleware.AuthMiddleware(appController))
-	
+	appRouter := router.InitAppRouter(tmpl)
+	r.Handle("/app/", middleware.AuthMiddleware(appRouter))
+
+	inventoryService := service.NewInventoryService(store)
+	inventoryRouter := router.InitInventoryRouter(inventoryService, tmpl)
+	r.Handle("/inventory/", inventoryRouter)
+
 	middlewareStack := middleware.CreateStack(
 		// middleware.CSRFMiddleware,
 		middleware.Logging,
 	)
-	
+
 	server := http.Server{
 		Addr:    ":8000",
 		Handler: middlewareStack(r),

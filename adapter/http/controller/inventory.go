@@ -16,8 +16,8 @@ type inventoryController struct {
 	template *template.Template
 }
 
-func NewInventoryController(tmpl *template.Template) *inventoryController {
-	return &inventoryController{template: tmpl}
+func NewInventoryController(svc service.InventoryService, tmpl *template.Template) *inventoryController {
+	return &inventoryController{service: svc, template: tmpl}
 }
 
 func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Request) {
