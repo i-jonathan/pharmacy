@@ -78,6 +78,7 @@ document.getElementById("save-item").onclick = async () => {
     name: document.getElementById("name").value.trim(),
     manufacturer: document.getElementById("manufacturer").value.trim(),
     category_id: parseInt(document.getElementById("category-id").value) || 0,
+    barcode: document.getElementById("barcode").value.trim(),
     reorder_level:
       parseInt(document.getElementById("reorder-level").value) || 0,
   };
