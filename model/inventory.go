@@ -56,10 +56,18 @@ func (p Product) CostPriceString() string {
 	return fmt.Sprintf("₦%.2f", float64(p.CostPriceKobo)/100)
 }
 
+func (p Product) CostPriceFloat() float64 {
+	return float64(p.CostPriceKobo) / 100
+}
+
 func (p Product) DefaultSellingPriceKobo() int {
 	return p.DefaultPrice.SellingPriceKobo
 }
 
 func (p Product) DefaultSellingPriceString() string {
 	return p.DefaultPrice.PriceString()
+}
+
+func (pp ProductPrice) SellingPriceFloat() float64 {
+	return float64(pp.SellingPriceKobo) / 100
 }
