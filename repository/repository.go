@@ -18,6 +18,7 @@ type InventoryRepository interface {
 	CreateProductPriceTx(ctx context.Context, tx *sqlx.Tx, productPrice model.ProductPrice) (int, error)
 	UpdateProductDefaultPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int, productID int) error
 	FetchProductCategories(ctx context.Context) ([]model.Category, error)
+	SearchProductByName(ctx context.Context, searchTerm string) ([]model.Product, error)
 }
 
 type PharmacyRepository interface {

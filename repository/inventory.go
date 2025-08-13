@@ -24,7 +24,7 @@ func (r *repo) CreateProductTx(ctx context.Context, tx *sqlx.Tx, product model.P
 func (r *repo) CreateProductPriceTx(ctx context.Context, tx *sqlx.Tx, productPrice model.ProductPrice) (int, error) {
 	var id int
 	err := tx.QueryRowContext(
-		ctx, createProductPriceQuery, productPrice.ProductID, 
+		ctx, createProductPriceQuery, productPrice.ProductID,
 		productPrice.QuantityPerUnit, productPrice.SellingPriceKobo,
 	).Scan(&id)
 	if err != nil {
@@ -45,4 +45,14 @@ func (r *repo) FetchProductCategories(ctx context.Context) ([]model.Category, er
 		return nil, err
 	}
 	return categories, nil
+}
+
+func (r *repo) SearchProductByName(ctx context.Context, searchTerm string) ([]model.Product, error) {
+	var products []model.Product
+
+	err := r.Data.SelectContext(ctx, &products, searchProductsQuery, searchTerm)
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }

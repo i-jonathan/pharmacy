@@ -24,7 +24,7 @@ type ProductPrice struct {
 	UnitName         string
 	ProductID        int
 	QuantityPerUnit  int
-	SellingPriceKobo int
+	SellingPriceKobo int `db:"selling_price"`
 }
 
 type ReceivingBatch struct {

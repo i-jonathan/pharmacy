@@ -13,3 +13,11 @@ const createProductPriceQuery = `INSERT INTO product_price
 	RETURNING id`
 const updateProductDefaultPrice = `UPDATE product SET default_price_id = $1 WHERE id = $2`
 const fetchCategoriesQuery = `SELECT id, name, created_at FROM category ORDER BY name ASC;`
+const searchProductsQuery = `SELECT 
+	p.id, p.name, p.barcode, p.cost_price, p.manufacturer, 
+	pp.id as default_price.id, pp.selling_price as default_price.selling_price
+	FROM product p
+	LEFT JOIN product_price pp ON p.default_price_id = pp.id
+	WHERE p.name ILIKE '%' || $1 || '%'
+	OR p.barcode ILIKE '%' || $1 || '%'`
+
