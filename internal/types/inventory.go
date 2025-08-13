@@ -19,3 +19,17 @@ type CategoriesResponse struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
+
+type ProductPriceResult struct {
+	ID           int     `json:"id"`
+	SellingPrice float64 `json:"selling_price"`
+}
+
+type ProductResult struct {
+	ID           int                `json:"id"`
+	Name         string             `json:"name"`
+	Manufacturer string             `json:"manufacturer"`
+	Barcode      string             `json:"barcode"`
+	CostPrice    float64            `json:"cost_price"`
+	DefaultPrice ProductPriceResult `json:"default_price"`
+}

@@ -8,6 +8,7 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/repository"
+	"strings"
 )
 
 type inventoryService struct {
@@ -81,6 +82,30 @@ func (s *inventoryService) FetchCategories(ctx context.Context) ([]types.Categor
 		response[i] = types.CategoriesResponse{
 			ID:   value.ID,
 			Name: value.Name,
+		}
+	}
+	return response, nil
+}
+
+func (s *inventoryService) SearchProducts(ctx context.Context, query string) ([]types.ProductResult, error) {
+	products, err := s.repo.SearchProductByName(ctx, strings.ToLower(query))
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to execute search", err)
+	}
+
+	response := make([]types.ProductResult, len(products))
+	for i, value := range products {
+		response[i] = types.ProductResult{
+			ID:           value.ID,
+			Name:         value.Name,
+			Manufacturer: *value.Manufacturer,
+			Barcode:      *value.Barcode,
+			CostPrice:    value.CostPriceFloat(),
+			DefaultPrice: types.ProductPriceResult{
+				ID:           value.DefaultPrice.ID,
+				SellingPrice: value.DefaultPrice.SellingPriceFloat(),
+			},
 		}
 	}
 	return response, nil

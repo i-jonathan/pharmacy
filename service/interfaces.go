@@ -14,4 +14,5 @@ type UserService interface {
 type InventoryService interface {
 	CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error)
 	FetchCategories(ctx context.Context) ([]types.CategoriesResponse, error)
+	SearchProducts(ctx context.Context, query string) ([]types.ProductResult, error)
 }
