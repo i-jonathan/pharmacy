@@ -56,9 +56,31 @@ func (c *inventoryController) GetReceiveItems(w http.ResponseWriter, r *http.Req
 	}{
 		Categories: categories,
 	}
-	
+
 	err = c.template.ExecuteTemplate(w, "receive-items.html", data)
 	if err != nil {
 		http.Error(w, "receive items render error", http.StatusInternalServerError)
 	}
+}
+
+func (c *inventoryController) SearchForProduct(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("search")
+	if query == "" {
+		httperror.BadRequest("Missing query string", nil).JSONRespond(w)
+		return
+	}
+
+	products, err := c.service.SearchProducts(r.Context(), query)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"error": err})
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, products)
 }

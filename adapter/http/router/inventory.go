@@ -10,9 +10,10 @@ import (
 func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) http.Handler {
 	inventoryController := controller.NewInventoryController(svc, tmpl)
 	inventoryMux := http.NewServeMux()
-	
-	inventoryMux.HandleFunc(http.MethodPost + " /add-item", inventoryController.CreateProduct)
-	inventoryMux.HandleFunc(http.MethodGet + " /receive-items", inventoryController.GetReceiveItems)
-	
+
+	inventoryMux.HandleFunc(http.MethodPost+" /add-item", inventoryController.CreateProduct)
+	inventoryMux.HandleFunc(http.MethodGet+" /receive-items", inventoryController.GetReceiveItems)
+	inventoryMux.HandleFunc(http.MethodGet+" /search", inventoryController.SearchForProduct)
+
 	return http.StripPrefix("/inventory", inventoryMux)
 }
