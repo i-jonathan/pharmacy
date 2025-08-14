@@ -20,51 +20,89 @@ function updateSubtotal() {
   subtotalDisplay.textContent = total.toLocaleString();
 }
 
-function addItemToTable(id, name) {
+function addItemToTable(product) {
   const row = document.createElement("tr");
   row.classList.add("receiving-row");
-  row.dataset.itemId = id;
+  row.dataset.itemId = product.id;
+
   row.innerHTML = `
-      <td class="px-4 py-2">${name}</td>
-      <td class="px-4 py-2"><input type="text" placeholder="e.g. 0123456789012" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
-      <td class="px-4 py-2"><input type="number" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
-      <td class="px-4 py-2"><input type="number" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
-      <td class="px-4 py-2"><input type="number" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
-      <td class="px-4 py-2"><input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
-      <td class="px-4 py-2"><input type="text" placeholder="optional" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" /></td>
+      <td class="px-4 py-2">${product.name}</td>
+      <td class="px-4 py-2">
+        <input type="text" value="${product.barcode || ""}" placeholder="e.g. 0123456789012"
+          class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+      </td>
+      <td class="px-4 py-2">
+        <input type="number" value="${product.cost_price || ""}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+      </td>
+      <td class="px-4 py-2">
+        <input type="number" value="${product.default_price?.selling_price || ""}" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+      </td>
+      <td class="px-4 py-2">
+        <input type="number" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+      </td>
+      <td class="px-4 py-2">
+        <input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+      </td>
+      <td class="px-4 py-2">
+        <input type="text" placeholder="optional" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+      </td>
       <td class="px-4 py-2 text-center">
         <button onclick="this.closest('tr').remove(); updateSubtotal();" class="text-red-500 hover:text-red-700">🗑️</button>
       </td>
     `;
+
   row.querySelectorAll(".cost, .qty").forEach((input) => {
     input.addEventListener("input", updateSubtotal);
   });
+
   receivingRows.appendChild(row);
   searchInput.value = "";
   searchResults.classList.add("hidden");
 }
 
+let debounceTimer;
+
 searchInput.addEventListener("input", () => {
-  const value = searchInput.value.toLowerCase();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runProductSearch, 300);
+});
+
+async function runProductSearch() {
+  const value = searchInput.value.toLowerCase().trim();
   searchResults.innerHTML = "";
   if (!value) return searchResults.classList.add("hidden");
 
-  const matches = items.filter((item) => item.toLowerCase().includes(value));
-  if (matches.length === 0) {
-    searchResults.innerHTML =
-      '<li class="px-4 py-2 text-sm text-gray-500">No items found</li>';
-  } else {
-    matches.forEach((item) => {
+  try {
+    const res = await fetch(
+      `/inventory/search?query=${encodeURIComponent(value)}`,
+    );
+    if (!res.ok) {
+      throw new Error(
+        `Search error: ${res.status}, ${JSON.stringify(res.json())}`,
+      );
+    }
+
+    const data = await res.json();
+    if (data.length === 0) {
+      searchResults.innerHTML =
+        '<li class="px-4 py-2 text-sm text-gray-500">No items found</li>';
+      searchResults.classList.remove("hidden");
+      return;
+    }
+    data.forEach((item) => {
       const li = document.createElement("li");
-      li.textContent = item;
+      li.textContent = item.name;
       li.className =
         "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
       li.addEventListener("click", () => addItemToTable(item));
       searchResults.appendChild(li);
     });
+  } catch (err) {
+    console.error("search for product failed: ", err);
+    showFeedbackModal("Error", "Search Failed", false);
   }
   searchResults.classList.remove("hidden");
-});
+}
 
 // Modal functionality
 document.getElementById("add-item-btn").onclick = () =>
@@ -91,14 +129,14 @@ document.getElementById("save-item").onclick = async () => {
       },
       body: JSON.stringify(payload),
     });
-    
+
     if (!res.ok) {
       throw new Error(`Server error: ${res.status}`);
     }
-    
+
     // showFeedbackModal("Success", "Product saved successfully.", true);
-    const { id, name } = await res.json()
-    addItemToTable(id, name)
+    const product = await res.json();
+    addItemToTable(product);
 
     addItemModal.classList.add("hidden");
     addItemModal
