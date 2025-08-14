@@ -138,11 +138,11 @@ document.getElementById("save-item").onclick = async () => {
   form.querySelectorAll("[required]").forEach((input) => {
     const errorText = input.nextElementSibling;
     if (input.value.trim() === "") {
-      input.classList.add("border-red-500");
+      input.classList.add("border-red-500", "dark:border-red-500");
       if (errorText) errorText.classList.remove("hidden");
       isValid = false;
     } else {
-      input.classList.remove("border-red-500");
+      input.classList.remove("border-red-500", "dark:border-red-500");
       if (errorText) errorText.classList.add("hidden");
     }
   });
@@ -207,7 +207,7 @@ form.querySelectorAll("[required]").forEach((input) => {
   input.addEventListener("input", () => {
     const errorText = input.nextElementSibling;
     if (input.value.trim() !== "") {
-      input.classList.remove("border-red-500");
+      input.classList.remove("border-red-500", "dark:border-red-500");
       if (errorText) errorText.classList.add("hidden");
     }
   });
@@ -216,7 +216,7 @@ form.querySelectorAll("[required]").forEach((input) => {
     input.addEventListener("change", () => {
       const errorText = input.nextElementSibling;
       if (input.value.trim() !== "") {
-        input.classList.remove("border-red-500");
+        input.classList.remove("border-red-500", "dark:border-red-500");
         if (errorText) errorText.classList.add("hidden");
       }
     });
@@ -238,17 +238,34 @@ function collectTableData() {
       selling: parseFloat(cells[2].value) || 0,
       qty: parseInt(cells[3].value) || 0,
       expiry: cells[4].value || null,
-      notes: cells[5].value.trim(),
     });
   });
 
-  console.log("Table Data:", data);
   return data;
 }
 
 receiveButton.addEventListener("click", function () {
-  const rows = document.querySelectorAll("#receiving-table tbody tr");
+  const supplierInput = document.getElementById("supplier-input");
   let allValid = true;
+
+  // Supplier validation
+  supplierInput.classList.remove("border-red-500", "dark:border-red-500");
+  if (!nonEmpty(supplierInput.value)) {
+    supplierInput.classList.add("border-red-500", "dark:border-red-500");
+    allValid = false;
+
+    // Real-time supplier validation
+    supplierInput.addEventListener(
+      "input",
+      () => {
+        if (nonEmpty(supplierInput.value)) {
+          supplierInput.classList.remove("border-red-500", "dark:border-red-500");
+        }
+      },
+      { once: true },
+    );
+  }
+  const rows = document.querySelectorAll("#receiving-table tbody tr");
 
   rows.forEach((row) => {
     const inputs = row.querySelectorAll("td input");
@@ -258,43 +275,46 @@ receiveButton.addEventListener("click", function () {
     const expiryInput = inputs[4];
 
     function attachRealtimeValidation(input, checkFn) {
-      input.addEventListener("input", () => {
-        if (checkFn(input.value)) {
-          input.classList.remove("border-red-500");
-        }
-      });
+      input.addEventListener(
+        "input",
+        () => {
+          if (checkFn(input.value)) {
+            input.classList.remove("border-red-500", "dark:border-red-500");
+          }
+        },
+        { once: true },
+      );
     }
 
     // Reset borders first
     [costInput, sellingInput, qtyInput, expiryInput].forEach((input) => {
-      input.classList.remove("border-red-500");
+      input.classList.remove("border-red-500", "dark:border-red-500");
     });
 
     // Validation checks
     if (!greaterThanZero(costInput.value)) {
-      costInput.classList.add("border-red-500");
+      costInput.classList.add("border-red-500", "dark:border-red-500");
       attachRealtimeValidation(costInput, greaterThanZero);
       allValid = false;
     }
     if (!greaterThanZero(sellingInput.value)) {
-      sellingInput.classList.add("border-red-500");
+      sellingInput.classList.add("border-red-500", "dark:border-red-500");
       attachRealtimeValidation(sellingInput, greaterThanZero);
       allValid = false;
     }
     if (!greaterThanZero(qtyInput.value)) {
-      qtyInput.classList.add("border-red-500");
+      qtyInput.classList.add("border-red-500", "dark:border-red-500");
       attachRealtimeValidation(qtyInput, greaterThanZero);
       allValid = false;
     }
     if (!nonEmpty(expiryInput.value)) {
-      expiryInput.classList.add("border-red-500");
+      expiryInput.classList.add("border-red-500", "dark:border-red-500");
       attachRealtimeValidation(expiryInput, nonEmpty);
       allValid = false;
     }
   });
 
   if (allValid) {
-    console.log("✅ All rows valid. Sending to backend...");
     const data = collectTableData();
     console.log(data);
     // fetch(...) here
