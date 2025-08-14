@@ -7,6 +7,7 @@ const feedbackModal = document.getElementById("feedback-modal");
 const feedbackTitle = document.getElementById("feedback-title");
 const feedbackMessage = document.getElementById("feedback-message");
 const feedbackClose = document.getElementById("feedback-close");
+const form = document.getElementById("add-item-form");
 
 let items = ["Paracetamol 500mg", "Amoxicillin 250mg", "Ibuprofen 200mg"];
 
@@ -32,16 +33,16 @@ function addItemToTable(product) {
           class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
       </td>
       <td class="px-4 py-2">
-        <input type="number" step="0.01" value="${product.cost_price != null ? product.cost_price.toFixed(2) : "0.00"}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+        <input type="number" step="0.01" min="1.00" value="${product.cost_price != null ? product.cost_price.toFixed(2) : "0.00"}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2">
-        <input type="number" step="0.01" value="${product.default_price?.selling_price != null ? product.default_price?.selling_price.toFixed(2) : "0.00"}" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+        <input type="number" step="0.01" min="1.00" value="${product.default_price?.selling_price != null ? product.default_price?.selling_price.toFixed(2) : "0.00"}" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2">
-        <input type="number" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+        <input type="number" min="1" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2">
-        <input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+        <input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2">
         <input type="text" placeholder="optional" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
@@ -128,6 +129,22 @@ document.getElementById("cancel-modal").onclick = () =>
   addItemModal.classList.add("hidden");
 
 document.getElementById("save-item").onclick = async () => {
+  let isValid = true;
+
+  form.querySelectorAll("[required]").forEach((input) => {
+    const errorText = input.nextElementSibling;
+    if (input.value.trim() === "") {
+      input.classList.add("border-red-500");
+      if (errorText) errorText.classList.remove("hidden");
+      isValid = false;
+    } else {
+      input.classList.remove("border-red-500");
+      if (errorText) errorText.classList.add("hidden");
+    }
+  });
+
+  if (!isValid) return; // stop execution here
+
   const payload = {
     name: document.getElementById("name").value.trim(),
     manufacturer: document.getElementById("manufacturer").value.trim(),
@@ -155,9 +172,8 @@ document.getElementById("save-item").onclick = async () => {
     addItemToTable(product);
 
     addItemModal.classList.add("hidden");
-    addItemModal
-      .querySelectorAll("input, select")
-      .forEach((el) => (el.value = ""));
+    form.reset();
+    form.classList.remove("validate");
   } catch (err) {
     console.error("failed to save product: ", err);
     showFeedbackModal(
@@ -181,4 +197,24 @@ function showFeedbackModal(title, message, isSuccess = true) {
 
 feedbackClose.addEventListener("click", () => {
   feedbackModal.classList.add("hidden");
+});
+
+form.querySelectorAll("[required]").forEach((input) => {
+  input.addEventListener("input", () => {
+    const errorText = input.nextElementSibling;
+    if (input.value.trim() !== "") {
+      input.classList.remove("border-red-500");
+      if (errorText) errorText.classList.add("hidden");
+    }
+  });
+
+  if (input.tagName === "SELECT") {
+    input.addEventListener("change", () => {
+      const errorText = input.nextElementSibling;
+      if (input.value.trim() !== "") {
+        input.classList.remove("border-red-500");
+        if (errorText) errorText.classList.add("hidden");
+      }
+    });
+  }
 });
