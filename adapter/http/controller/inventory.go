@@ -64,7 +64,7 @@ func (c *inventoryController) GetReceiveItems(w http.ResponseWriter, r *http.Req
 }
 
 func (c *inventoryController) SearchForProduct(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("search")
+	query := r.URL.Query().Get("query")
 	if query == "" {
 		httperror.BadRequest("Missing query string", nil).JSONRespond(w)
 		return
