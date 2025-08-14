@@ -32,10 +32,10 @@ function addItemToTable(product) {
           class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
       </td>
       <td class="px-4 py-2">
-        <input type="number" value="${product.cost_price || ""}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+        <input type="number" step="0.01" value="${product.cost_price != null ? product.cost_price.toFixed(2) : "0.00"}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
       </td>
       <td class="px-4 py-2">
-        <input type="number" value="${product.default_price?.selling_price || ""}" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+        <input type="number" step="0.01" value="${product.default_price?.selling_price != null ? product.default_price?.selling_price.toFixed(2) : "0.00"}" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
       </td>
       <td class="px-4 py-2">
         <input type="number" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
