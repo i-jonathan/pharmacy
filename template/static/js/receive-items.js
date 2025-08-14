@@ -9,6 +9,10 @@ const feedbackMessage = document.getElementById("feedback-message");
 const feedbackClose = document.getElementById("feedback-close");
 const form = document.getElementById("add-item-form");
 const receiveButton = document.getElementById("receive-button");
+const supplierInput = document.getElementById("supplier-input");
+const supplierResults = document.getElementById("supplier-results");
+const clearSupplierBtn = document.getElementById("clear-supplier");
+let supplierTimeout = null;
 
 const greaterThanZero = (val) => val.trim() !== "" && parseFloat(val) > 0;
 const nonEmpty = (val) => val.trim() !== "";
@@ -296,5 +300,66 @@ receiveButton.addEventListener("click", function () {
     // fetch(...) here
   } else {
     console.warn("❌ Some rows have invalid fields.");
+  }
+});
+
+supplierInput.addEventListener("input", () => {
+  clearTimeout(supplierTimeout);
+  const value = supplierInput.value.trim();
+  supplierResults.innerHTML = "";
+
+  if (!value) {
+    supplierResults.classList.add("hidden");
+    return;
+  }
+
+  supplierTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(
+        `/inventory/suppliers/search?query=${encodeURIComponent(value)}`,
+      );
+      if (!res.ok) throw new Error("Failed to search suppliers");
+
+      const { data } = await res.json();
+
+      if (!data || data.length === 0) {
+        supplierResults.innerHTML = `<li class="px-4 py-2 text-gray-500 text-sm">No suppliers found</li>`;
+      } else {
+        data.forEach((supplier) => {
+          const li = document.createElement("li");
+          li.textContent = supplier;
+          li.className =
+            "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
+          li.addEventListener("click", () => {
+            supplierInput.value = supplier;
+            supplierResults.classList.add("hidden");
+
+            // Disable and show clear button
+            supplierInput.disabled = true;
+            clearSupplierBtn.classList.remove("hidden");
+          });
+          supplierResults.appendChild(li);
+        });
+      }
+      supplierResults.classList.remove("hidden");
+    } catch (err) {
+      console.error("Supplier search failed:", err);
+    }
+  }, 300);
+});
+
+// Clear supplier selection
+clearSupplierBtn.addEventListener("click", () => {
+  supplierInput.value = "";
+  supplierInput.removeAttribute("data-supplier-id");
+  supplierInput.disabled = false;
+  clearSupplierBtn.classList.add("hidden");
+  supplierInput.focus();
+});
+
+// Hide dropdown on outside click
+document.addEventListener("click", (e) => {
+  if (!supplierResults.contains(e.target) && e.target !== supplierInput) {
+    supplierResults.classList.add("hidden");
   }
 });
