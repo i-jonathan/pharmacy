@@ -94,7 +94,23 @@ async function runProductSearch() {
       li.textContent = item.name;
       li.className =
         "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
-      li.addEventListener("click", () => addItemToTable(item));
+      li.addEventListener("click", () => {
+        const alreadyExists = document.querySelector(
+          `.receiving-row[data-item-id="${item.id}"]`,
+        );
+
+        if (alreadyExists) {
+          searchInput.value = "";
+          searchResults.classList.add("hidden");
+          showToast(`${item.name} is already in the table.`, {
+            type: "info",
+            duration: 3000,
+          });
+          return;
+        }
+
+        addItemToTable(item);
+      });
       searchResults.appendChild(li);
     });
   } catch (err) {
