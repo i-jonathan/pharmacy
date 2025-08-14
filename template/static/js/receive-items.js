@@ -8,8 +8,10 @@ const feedbackTitle = document.getElementById("feedback-title");
 const feedbackMessage = document.getElementById("feedback-message");
 const feedbackClose = document.getElementById("feedback-close");
 const form = document.getElementById("add-item-form");
+const receiveButton = document.getElementById("receive-button");
 
-let items = ["Paracetamol 500mg", "Amoxicillin 250mg", "Ibuprofen 200mg"];
+const greaterThanZero = (val) => val.trim() !== "" && parseFloat(val) > 0;
+const nonEmpty = (val) => val.trim() !== "";
 
 function updateSubtotal() {
   let total = 0;
@@ -44,9 +46,6 @@ function addItemToTable(product) {
       <td class="px-4 py-2">
         <input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
-      <td class="px-4 py-2">
-        <input type="text" placeholder="optional" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
-      </td>
       <td class="px-4 py-2 text-center">
         <button onclick="this.closest('tr').remove(); updateSubtotal();" class="text-red-500 hover:text-red-700">🗑️</button>
       </td>
@@ -57,7 +56,6 @@ function addItemToTable(product) {
   });
 
   receivingRows.appendChild(row);
-  searchInput.value = "";
   searchResults.classList.add("hidden");
 }
 
@@ -111,6 +109,8 @@ async function runProductSearch() {
         }
 
         addItemToTable(item);
+        searchInput.value = "";
+        searchInput.focus();
       });
       searchResults.appendChild(li);
     });
@@ -216,5 +216,85 @@ form.querySelectorAll("[required]").forEach((input) => {
         if (errorText) errorText.classList.add("hidden");
       }
     });
+  }
+});
+
+function collectTableData() {
+  const rows = document.querySelectorAll("#receiving-table tbody tr");
+  const data = [];
+
+  rows.forEach((row) => {
+    const cells = row.querySelectorAll("td input");
+
+    data.push({
+      id: row.dataset.itemId ? parseInt(row.dataset.itemId) : null,
+      item: row.querySelector("td:first-child").textContent.trim(),
+      upc: cells[0].value.trim(),
+      cost: parseFloat(cells[1].value) || 0,
+      selling: parseFloat(cells[2].value) || 0,
+      qty: parseInt(cells[3].value) || 0,
+      expiry: cells[4].value || null,
+      notes: cells[5].value.trim(),
+    });
+  });
+
+  console.log("Table Data:", data);
+  return data;
+}
+
+receiveButton.addEventListener("click", function () {
+  const rows = document.querySelectorAll("#receiving-table tbody tr");
+  let allValid = true;
+
+  rows.forEach((row) => {
+    const inputs = row.querySelectorAll("td input");
+    const costInput = inputs[1];
+    const sellingInput = inputs[2];
+    const qtyInput = inputs[3];
+    const expiryInput = inputs[4];
+
+    function attachRealtimeValidation(input, checkFn) {
+      input.addEventListener("input", () => {
+        if (checkFn(input.value)) {
+          input.classList.remove("border-red-500");
+        }
+      });
+    }
+
+    // Reset borders first
+    [costInput, sellingInput, qtyInput, expiryInput].forEach((input) => {
+      input.classList.remove("border-red-500");
+    });
+
+    // Validation checks
+    if (!greaterThanZero(costInput.value)) {
+      costInput.classList.add("border-red-500");
+      attachRealtimeValidation(costInput, greaterThanZero);
+      allValid = false;
+    }
+    if (!greaterThanZero(sellingInput.value)) {
+      sellingInput.classList.add("border-red-500");
+      attachRealtimeValidation(sellingInput, greaterThanZero);
+      allValid = false;
+    }
+    if (!greaterThanZero(qtyInput.value)) {
+      qtyInput.classList.add("border-red-500");
+      attachRealtimeValidation(qtyInput, greaterThanZero);
+      allValid = false;
+    }
+    if (!nonEmpty(expiryInput.value)) {
+      expiryInput.classList.add("border-red-500");
+      attachRealtimeValidation(expiryInput, nonEmpty);
+      allValid = false;
+    }
+  });
+
+  if (allValid) {
+    console.log("✅ All rows valid. Sending to backend...");
+    const data = collectTableData();
+    console.log(data);
+    // fetch(...) here
+  } else {
+    console.warn("❌ Some rows have invalid fields.");
   }
 });
