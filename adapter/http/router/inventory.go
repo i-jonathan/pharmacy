@@ -14,6 +14,7 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 	inventoryMux.HandleFunc(http.MethodPost+" /add-item", inventoryController.CreateProduct)
 	inventoryMux.HandleFunc(http.MethodGet+" /receive-items", inventoryController.GetReceiveItems)
 	inventoryMux.HandleFunc(http.MethodGet+" /search", inventoryController.SearchForProduct)
+	inventoryMux.HandleFunc(http.MethodGet+" /suppliers/search", inventoryController.SearchForSuppliers)
 
 	return http.StripPrefix("/inventory", inventoryMux)
 }

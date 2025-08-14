@@ -20,3 +20,6 @@ const searchProductsQuery = `SELECT
 	LEFT JOIN product_price pp ON p.default_price_id = pp.id
 	WHERE p.name ILIKE '%' || $1 || '%'
 	OR p.barcode ILIKE '%' || $1 || '%'`
+const searchSupplierQuery = `SELECT 
+	DISTINCT supplier_name FROM receiving_batch
+	WHERE supplier_name ILIKE '%' || $1 || '%'`

@@ -56,3 +56,12 @@ func (r *repo) SearchProductByName(ctx context.Context, searchTerm string) ([]mo
 	}
 	return products, nil
 }
+
+func (r *repo) SearchSuppliersName(ctx context.Context, query string) ([]string, error) {
+	var suppliers []string
+	err := r.Data.SelectContext(ctx, &suppliers, searchSupplierQuery, query)
+	if err != nil {
+		return nil, err
+	}
+	return suppliers, nil
+}

@@ -110,3 +110,12 @@ func (s *inventoryService) SearchProducts(ctx context.Context, query string) ([]
 	}
 	return response, nil
 }
+
+func (s *inventoryService) SearchForSuppliers(ctx context.Context, query string) ([]string, error) {
+	suppliers, err := s.repo.SearchSuppliersName(ctx, query)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return suppliers, nil
+}

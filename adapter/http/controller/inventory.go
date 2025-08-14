@@ -84,3 +84,27 @@ func (c *inventoryController) SearchForProduct(w http.ResponseWriter, r *http.Re
 
 	helper.JSONResponse(w, http.StatusOK, products)
 }
+
+func (c *inventoryController) SearchForSuppliers(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("query")
+	if query == "" {
+		httperror.BadRequest("Missing search query in parameters", nil).JSONRespond(w)
+		return
+	}
+
+	suppliers, err := c.service.SearchForSuppliers(r.Context(), query)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"error": err})
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"data": suppliers,
+	})
+}
