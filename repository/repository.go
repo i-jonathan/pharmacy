@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"pharmacy/internal/types"
 	"pharmacy/model"
 
 	"github.com/jmoiron/sqlx"
@@ -20,6 +21,10 @@ type InventoryRepository interface {
 	FetchProductCategories(ctx context.Context) ([]model.Category, error)
 	SearchProductByName(ctx context.Context, searchTerm string) ([]model.Product, error)
 	SearchSuppliersName(ctx context.Context, query string) ([]string, error)
+	FetchDefaultPriceID(ctx context.Context, productID int) (int, error)
+	CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivingBatch model.ReceivingBatch) (int, error)
+	BulkCreateProductBatchTx(ctx context.Context, tx *sqlx.Tx, productBatches []model.ProductBatch) ([]types.BatchInsertReturn, error)
+	BulkCreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovements []model.StockMovement) error
 }
 
 type PharmacyRepository interface {

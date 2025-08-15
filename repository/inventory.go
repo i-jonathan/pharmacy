@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"pharmacy/internal/types"
 	"pharmacy/model"
 
 	"github.com/jmoiron/sqlx"
@@ -64,4 +65,51 @@ func (r *repo) SearchSuppliersName(ctx context.Context, query string) ([]string,
 		return nil, err
 	}
 	return suppliers, nil
+}
+
+func (r *repo) CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivingBatch model.ReceivingBatch) (int, error) {
+	var receivingBatchID int
+
+	err := tx.QueryRowContext(ctx, createReceivingBatchQuery, receivingBatch.SupplierName, receivingBatch.ReceviedByID).Scan(&receivingBatchID)
+	if err != nil {
+		return 0, err
+	}
+
+	return receivingBatchID, nil
+}
+
+func (r *repo) BulkCreateProductBatchTx(_ context.Context, tx *sqlx.Tx, productBatches []model.ProductBatch) ([]types.BatchInsertReturn, error) {
+	rows, err := tx.NamedQuery(createProductBatchQuery, productBatches)
+	if err != nil {
+		return nil, err
+	}
+
+	var batchReturn []types.BatchInsertReturn
+	for rows.Next() {
+		var batch types.BatchInsertReturn
+		err = rows.StructScan(&batch)
+		if err != nil {
+			return nil, err
+		}
+		batchReturn = append(batchReturn, batch)
+	}
+
+	return batchReturn, nil
+}
+
+func (r *repo) BulkCreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovements []model.StockMovement) error {
+	_, err := tx.NamedExecContext(ctx, createMovementFromBatchQuery, stockMovements)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *repo) FetchDefaultPriceID(ctx context.Context, productID int) (int, error) {
+	var priceID int
+	err := r.Data.GetContext(ctx, &priceID, fetchDefaultPriceIDQuery, productID)
+	if err != nil {
+		return 0, err
+	}
+	return priceID, nil
 }

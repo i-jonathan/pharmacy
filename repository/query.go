@@ -20,6 +20,33 @@ const searchProductsQuery = `SELECT
 	LEFT JOIN product_price pp ON p.default_price_id = pp.id
 	WHERE p.name ILIKE '%' || $1 || '%'
 	OR p.barcode ILIKE '%' || $1 || '%'`
-const searchSupplierQuery = `SELECT 
+const searchSupplierQuery = `SELECT
 	DISTINCT supplier_name FROM receiving_batch
 	WHERE supplier_name ILIKE '%' || $1 || '%'`
+const createReceivingBatchQuery = `INSERT INTO receiving_batch
+	(supplier_name, received_by_id)
+	VALUES ($1, $2)
+	RETURNING id`
+const createProductBatchQuery = `INSERT INTO product_batch (
+		product_id, price_id, receiving_batch_id, quantity, cost_price, expiry_date
+	)
+	VALUES (
+		:product_id, :price_id, :receiving_batch_id, :quantity, :cost_price, :expiry_date
+	)
+	RETURNING id, product_id, quantity`
+const createMovementFromBatchQuery = `INSERT INTO stock_movement (product_id, batch_id, movement_type, quantity)
+	VALUES (:product_id, :batch_id, :movement_type, :quantity)`
+const fetchDefaultPriceIDQuery = `
+	SELECT COALESCE(
+        p.default_price_id,
+        (
+            SELECT pp.id
+            FROM product_price pp
+            WHERE pp.product_id = p.id
+            ORDER BY pp.created_at ASC
+            LIMIT 1
+        )
+    ) AS price_id
+	FROM product p
+	WHERE p.id = $1;
+`
