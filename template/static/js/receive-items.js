@@ -33,7 +33,12 @@ function addItemToTable(product) {
   row.dataset.itemId = product.id;
 
   row.innerHTML = `
-      <td class="px-4 py-2">${product.name}</td>
+      <td class="px-4 py-2">${product.name}
+        <br>
+        <span class="block text-sm font-medium text-gray-500 dark:text-gray-400">
+            ${product.manufacturer}
+        </span>
+      </td>
       <td class="px-4 py-2">
         <input type="text" value="${product.barcode || ""}" placeholder="e.g. 0123456789012"
           class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
@@ -94,7 +99,8 @@ async function runProductSearch() {
     }
     data.forEach((item) => {
       const li = document.createElement("li");
-      li.textContent = item.name;
+      li.innerHTML = `${item.name}<span class="ml-1 text-sm text-gray-500 dark:text-gray-400">&bull; ${item.manufacturer || ""}</span>`;
+
       li.className =
         "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
       li.addEventListener("click", () => {
