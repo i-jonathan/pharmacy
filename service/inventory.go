@@ -119,3 +119,69 @@ func (s *inventoryService) SearchForSuppliers(ctx context.Context, query string)
 	}
 	return suppliers, nil
 }
+
+func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to start transaction", err)
+	}
+
+	receivingBatch := model.ReceivingBatch{
+		SupplierName: params.Supplier,
+		ReceviedByID: params.UserID,
+	}
+
+	receivingBatchID, err := s.repo.CreateReceivingBatchTx(ctx, tx, receivingBatch)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to create receiving batch transaction", err)
+	}
+
+	productBatch := make([]model.ProductBatch, len(params.Products))
+	for i, value := range params.Products {
+		priceID, err := s.repo.FetchDefaultPriceID(ctx, value.ID)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("Failed to fetch default price id", err)
+		}
+
+		productBatch[i] = model.ProductBatch{
+			ProductID:        value.ID,
+			PriceID:          priceID,
+			ReceivingBatchID: receivingBatchID,
+			Quantity:         value.Quantity,
+			CostPriceKobo:    int(value.CostPrice * 100),
+			ExpiryDate:       &value.Expiry,
+		}
+	}
+
+	stockData, err := s.repo.BulkCreateProductBatchTx(ctx, tx, productBatch)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("Failed to create product batch", err)
+	}
+
+	stockMovements := make([]model.StockMovement, len(stockData))
+	for i, value := range stockData {
+		stockMovements[i] = model.StockMovement{
+			ProductID:    value.ProductID,
+			Quantity:     value.Quantity,
+			BatchID:      value.ID,
+			MovementType: constant.ReceivingSupplyMovementName,
+		}
+	}
+
+	err = s.repo.BulkCreateStockMovementTx(ctx, tx, stockMovements)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("Failed to bulk create stock movement", err)
+	}
+
+	err = s.repo.CommitTx(tx)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("Failed to commit receiving products transaction", err)
+	}
+	return nil
+}
