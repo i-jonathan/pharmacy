@@ -334,7 +334,7 @@ receiveButton.addEventListener("click", async function () {
     receivingRows.innerHTML = "";
     updateSubtotal();
 
-    showFeedbackModal("Saved!", `${res.json().message}`, true);
+    showFeedbackModal("Saved!", `${res.message}`, true);
   } catch (err) {
     console.error(err);
     showFeedbackModal(
