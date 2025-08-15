@@ -50,3 +50,14 @@ const fetchDefaultPriceIDQuery = `
 	FROM product p
 	WHERE p.id = $1;
 `
+const updateProductPricesQuery = `
+	WITH updated_product AS (
+	    UPDATE product
+	    SET cost_price = :cost_price
+	    WHERE id = :product_id
+	    RETURNING default_price_id
+	)
+	UPDATE product_price
+	SET selling_price = :selling_price
+	WHERE id = (SELECT default_price_id FROM updated_product);
+`
