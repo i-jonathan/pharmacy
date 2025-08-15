@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type CreateProductRequest struct {
 	Name         string  `json:"name"`
 	Barcode      string  `json:"barcode"`
@@ -32,4 +34,26 @@ type ProductResult struct {
 	Barcode      string             `json:"barcode"`
 	CostPrice    float64            `json:"cost_price"`
 	DefaultPrice ProductPriceResult `json:"default_price"`
+}
+
+type BatchInsertReturn struct {
+	ID        int `db:"id"`
+	ProductID int `db:"product_id"`
+	Quantity  int `db:"quantity"`
+}
+
+type ReceiveItem struct {
+	ID           int       `json:"id"`
+	Name         string    `json:"name"`
+	Barcode      string    `json:"barcode"`
+	CostPrice    float64   `json:"cost_price"`
+	SellingPrice float64   `json:"selling_price"`
+	Quantity     int       `json:"quantity"`
+	Expiry       time.Time `json:"expiry" time_format:"2006-01-02"`
+}
+
+type ReceiveSupplyRequest struct {
+	Supplier string        `json:"supplier"`
+	Products []ReceiveItem `json:"products"`
+	UserID   int
 }

@@ -6,3 +6,5 @@ const UserIDKey contextKey = "userID"
 const UserSessionKey string = "user_id"
 
 const DefaultPriceName string = "Base"
+
+const ReceivingSupplyMovementName string = "IN_PURCHASE"

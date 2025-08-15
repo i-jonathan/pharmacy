@@ -48,6 +48,14 @@ type ProductBatch struct {
 	ReceivingBatch   ReceivingBatch
 }
 
+type StockMovement struct {
+	baseModel
+	ProductID    int    `db:"product_id"`
+	BatchID      int    `db:"batch_id"`
+	MovementType string `db:"movement_type"`
+	Quantity     int    `db:"quantity"`
+}
+
 func (p ProductPrice) PriceString() string {
 	return fmt.Sprintf("₦%.2f", float64(p.SellingPriceKobo)/100)
 }
