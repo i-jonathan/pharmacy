@@ -138,6 +138,7 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		return httperror.ServerError("failed to create receiving batch transaction", err)
 	}
 
+	var updatePriceData []map[string]any
 	productBatch := make([]model.ProductBatch, len(params.Products))
 	for i, value := range params.Products {
 		priceID, err := s.repo.FetchDefaultPriceID(ctx, value.ID)
@@ -154,6 +155,17 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 			CostPriceKobo:    int(value.CostPrice * 100),
 			ExpiryDate:       &value.Expiry,
 		}
+		updatePriceData = append(updatePriceData, map[string]any{
+			"product_id":    value.ID,
+			"cost_price":    int(value.CostPrice * 100),
+			"selling_price": int(value.SellingPrice * 100),
+		})
+	}
+
+	err = s.repo.BulkUpdateProductPricesTx(ctx, tx, updatePriceData)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("Failed to update product prices", err)
 	}
 
 	stockData, err := s.repo.BulkCreateProductBatchTx(ctx, tx, productBatch)
