@@ -244,7 +244,19 @@ function collectTableData() {
   return data;
 }
 
-receiveButton.addEventListener("click", async function () {
+function attachRealtimeValidation(input, checkFn) {
+  input.addEventListener(
+    "input",
+    () => {
+      if (checkFn(input.value)) {
+        input.classList.remove("border-red-500", "dark:border-red-500");
+      }
+    },
+    { once: true },
+  );
+}
+
+function validateReceiveItems() {
   const supplierInput = document.getElementById("supplier-input");
   let allValid = true;
 
@@ -252,21 +264,8 @@ receiveButton.addEventListener("click", async function () {
   supplierInput.classList.remove("border-red-500", "dark:border-red-500");
   if (!nonEmpty(supplierInput.value)) {
     supplierInput.classList.add("border-red-500", "dark:border-red-500");
+    attachRealtimeValidation(supplierInput, nonEmpty);
     allValid = false;
-
-    // Real-time supplier validation
-    supplierInput.addEventListener(
-      "input",
-      () => {
-        if (nonEmpty(supplierInput.value)) {
-          supplierInput.classList.remove(
-            "border-red-500",
-            "dark:border-red-500",
-          );
-        }
-      },
-      { once: true },
-    );
   }
   const rows = document.querySelectorAll("#receiving-table tbody tr");
 
@@ -276,18 +275,6 @@ receiveButton.addEventListener("click", async function () {
     const sellingInput = inputs[2];
     const qtyInput = inputs[3];
     const expiryInput = inputs[4];
-
-    function attachRealtimeValidation(input, checkFn) {
-      input.addEventListener(
-        "input",
-        () => {
-          if (checkFn(input.value)) {
-            input.classList.remove("border-red-500", "dark:border-red-500");
-          }
-        },
-        { once: true },
-      );
-    }
 
     // Reset borders first
     [costInput, sellingInput, qtyInput, expiryInput].forEach((input) => {
@@ -316,15 +303,19 @@ receiveButton.addEventListener("click", async function () {
       allValid = false;
     }
   });
+  return allValid;
+}
+
+async function processReceiveItems() {
+  const allValid = validateReceiveItems();
 
   if (!allValid) {
     return;
   }
 
-  const data = collectTableData();
   const payload = {
     supplier: supplierInput.value.trim(),
-    products: data,
+    products: collectTableData(),
   };
 
   try {
@@ -343,7 +334,9 @@ receiveButton.addEventListener("click", async function () {
       false,
     );
   }
-});
+}
+
+receiveButton.addEventListener("click", processReceiveItems);
 
 async function postReceiveSupply(payload) {
   try {
@@ -376,40 +369,42 @@ supplierInput.addEventListener("input", () => {
     return;
   }
 
-  supplierTimeout = setTimeout(async () => {
-    try {
-      const res = await fetch(
-        `/inventory/suppliers/search?query=${encodeURIComponent(value)}`,
-      );
-      if (!res.ok) throw new Error("Failed to search suppliers");
-
-      const { data } = await res.json();
-
-      if (!data || data.length === 0) {
-        supplierResults.innerHTML = `<li class="px-4 py-2 text-gray-500 text-sm">No suppliers found</li>`;
-      } else {
-        data.forEach((supplier) => {
-          const li = document.createElement("li");
-          li.textContent = supplier;
-          li.className =
-            "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
-          li.addEventListener("click", () => {
-            supplierInput.value = supplier;
-            supplierResults.classList.add("hidden");
-
-            // Disable and show clear button
-            supplierInput.disabled = true;
-            clearSupplierBtn.classList.remove("hidden");
-          });
-          supplierResults.appendChild(li);
-        });
-      }
-      supplierResults.classList.remove("hidden");
-    } catch (err) {
-      console.error("Supplier search failed:", err);
-    }
-  }, 300);
+  supplierTimeout = setTimeout(supplierSearch(value), 300);
 });
+
+async function supplierSearch(value) {
+  try {
+    const res = await fetch(
+      `/inventory/suppliers/search?query=${encodeURIComponent(value)}`,
+    );
+    if (!res.ok) throw new Error("Failed to search suppliers");
+
+    const { data } = await res.json();
+
+    if (!data || data.length === 0) {
+      supplierResults.innerHTML = `<li class="px-4 py-2 text-gray-500 text-sm">No suppliers found</li>`;
+    } else {
+      data.forEach((supplier) => {
+        const li = document.createElement("li");
+        li.textContent = supplier;
+        li.className =
+          "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
+        li.addEventListener("click", () => {
+          supplierInput.value = supplier;
+          supplierResults.classList.add("hidden");
+
+          // Disable and show clear button
+          supplierInput.disabled = true;
+          clearSupplierBtn.classList.remove("hidden");
+        });
+        supplierResults.appendChild(li);
+      });
+    }
+    supplierResults.classList.remove("hidden");
+  } catch (err) {
+    console.error("Supplier search failed:", err);
+  }
+}
 
 // Clear supplier selection
 clearSupplierBtn.addEventListener("click", () => {
