@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"pharmacy/adapter/http/helper"
 	"pharmacy/httperror"
+	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/service"
 )
@@ -107,4 +108,33 @@ func (c *inventoryController) SearchForSuppliers(w http.ResponseWriter, r *http.
 	helper.JSONResponse(w, http.StatusOK, map[string]any{
 		"data": suppliers,
 	})
+}
+
+func (c *inventoryController) ReceiveSupply(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(constant.UserIDKey)
+	uid, ok := userID.(int)
+	if !ok {
+		httperror.Unauthorized("User ID is missing in context", nil).JSONRespond(w)
+		return
+	}
+
+	var params types.ReceiveSupplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+	params.UserID = uid
+	err := c.service.ReceiveProductSupply(r.Context(), params)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"error": err})
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Items saved successfully"})
 }

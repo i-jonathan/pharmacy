@@ -7,7 +7,7 @@ const feedbackModal = document.getElementById("feedback-modal");
 const feedbackTitle = document.getElementById("feedback-title");
 const feedbackMessage = document.getElementById("feedback-message");
 const feedbackClose = document.getElementById("feedback-close");
-const form = document.getElementById("add-item-form");
+const addItemForm = document.getElementById("add-item-form");
 const receiveButton = document.getElementById("receive-button");
 const supplierInput = document.getElementById("supplier-input");
 const supplierResults = document.getElementById("supplier-results");
@@ -135,7 +135,7 @@ document.getElementById("cancel-modal").onclick = () =>
 document.getElementById("save-item").onclick = async () => {
   let isValid = true;
 
-  form.querySelectorAll("[required]").forEach((input) => {
+  addItemForm.querySelectorAll("[required]").forEach((input) => {
     const errorText = input.nextElementSibling;
     if (input.value.trim() === "") {
       input.classList.add("border-red-500", "dark:border-red-500");
@@ -176,8 +176,8 @@ document.getElementById("save-item").onclick = async () => {
     addItemToTable(product);
 
     addItemModal.classList.add("hidden");
-    form.reset();
-    form.classList.remove("validate");
+    addItemForm.reset();
+    addItemForm.classList.remove("validate");
   } catch (err) {
     console.error("failed to save product: ", err);
     showFeedbackModal(
@@ -203,7 +203,7 @@ feedbackClose.addEventListener("click", () => {
   feedbackModal.classList.add("hidden");
 });
 
-form.querySelectorAll("[required]").forEach((input) => {
+addItemForm.querySelectorAll("[required]").forEach((input) => {
   input.addEventListener("input", () => {
     const errorText = input.nextElementSibling;
     if (input.value.trim() !== "") {
@@ -232,19 +232,19 @@ function collectTableData() {
 
     data.push({
       id: row.dataset.itemId ? parseInt(row.dataset.itemId) : null,
-      item: row.querySelector("td:first-child").textContent.trim(),
-      upc: cells[0].value.trim(),
-      cost: parseFloat(cells[1].value) || 0,
-      selling: parseFloat(cells[2].value) || 0,
-      qty: parseInt(cells[3].value) || 0,
-      expiry: cells[4].value || null,
+      name: row.querySelector("td:first-child").textContent.trim(),
+      barcode: cells[0].value.trim(),
+      cost_price: parseFloat(cells[1].value) || 0,
+      selling_price: parseFloat(cells[2].value) || 0,
+      quantity: parseInt(cells[3].value) || 0,
+      expiry: cells[4].value + "T00:00:00Z" || null,
     });
   });
 
   return data;
 }
 
-receiveButton.addEventListener("click", function () {
+receiveButton.addEventListener("click", async function () {
   const supplierInput = document.getElementById("supplier-input");
   let allValid = true;
 
@@ -259,7 +259,10 @@ receiveButton.addEventListener("click", function () {
       "input",
       () => {
         if (nonEmpty(supplierInput.value)) {
-          supplierInput.classList.remove("border-red-500", "dark:border-red-500");
+          supplierInput.classList.remove(
+            "border-red-500",
+            "dark:border-red-500",
+          );
         }
       },
       { once: true },
@@ -314,14 +317,54 @@ receiveButton.addEventListener("click", function () {
     }
   });
 
-  if (allValid) {
-    const data = collectTableData();
-    console.log(data);
-    // fetch(...) here
-  } else {
-    console.warn("❌ Some rows have invalid fields.");
+  if (!allValid) {
+    return;
+  }
+
+  const data = collectTableData();
+  const payload = {
+    supplier: supplierInput.value.trim(),
+    products: data,
+  };
+
+  try {
+    const res = await postReceiveSupply(payload);
+    addItemForm.reset();
+    clearSupplierInput();
+    receivingRows.innerHTML = "";
+    updateSubtotal();
+
+    showFeedbackModal("Saved!", `${res.json().message}`, true);
+  } catch (err) {
+    console.error(err);
+    showFeedbackModal(
+      "Failed to Saved",
+      "There was an error saving the supply.",
+      false,
+    );
   }
 });
+
+async function postReceiveSupply(payload) {
+  try {
+    const res = await fetch("/inventory/receive-items", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! Status: ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error posting supply:", err);
+    throw err;
+  }
+}
 
 supplierInput.addEventListener("input", () => {
   clearTimeout(supplierTimeout);
@@ -370,12 +413,15 @@ supplierInput.addEventListener("input", () => {
 
 // Clear supplier selection
 clearSupplierBtn.addEventListener("click", () => {
-  supplierInput.value = "";
-  supplierInput.removeAttribute("data-supplier-id");
-  supplierInput.disabled = false;
-  clearSupplierBtn.classList.add("hidden");
+  clearSupplierInput();
   supplierInput.focus();
 });
+
+function clearSupplierInput() {
+  supplierInput.value = "";
+  supplierInput.disabled = false;
+  clearSupplierBtn.classList.add("hidden");
+}
 
 // Hide dropdown on outside click
 document.addEventListener("click", (e) => {
