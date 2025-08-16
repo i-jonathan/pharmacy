@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"pharmacy/config"
 
@@ -26,4 +27,16 @@ func InitStore() (*repo, error) {
 	dataRepo := new(repo)
 	dataRepo.Data = db
 	return dataRepo, nil
+}
+
+func (r *repo) BeginTx(ctx context.Context) (*sqlx.Tx, error) {
+	return r.Data.BeginTxx(ctx, nil)
+}
+
+func (r *repo) CommitTx(tx *sqlx.Tx) error {
+	return tx.Commit()
+}
+
+func (r *repo) Rollback(tx *sqlx.Tx) {
+	_ = tx.Rollback()
 }

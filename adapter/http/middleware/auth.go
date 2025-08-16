@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 	"pharmacy/config"
-	"pharmacy/constant"
+	"pharmacy/internal/constant"
 )
 
 func AuthMiddleware(next http.Handler) http.Handler {
@@ -17,6 +17,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		val, ok := session.Values[constant.UserSessionKey]
 		userID, castOk := val.(int)
 		if !ok || !castOk {
+			session.Values["next"] = r.URL.RequestURI()
+			session.Save(r, w)
 			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 			return
 		}
