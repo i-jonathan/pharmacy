@@ -89,5 +89,13 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	session.Values[constant.UserSessionKey] = u.ID
 	_ = session.Save(r, w)
-	http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+
+	nextURL, _ := session.Values["next"].(string)
+	delete(session.Values, "next")
+	session.Save(r, w)
+	if nextURL == "" {
+		nextURL = "/app/dashboard"
+	}
+
+	http.Redirect(w, r, nextURL, http.StatusSeeOther)
 }
