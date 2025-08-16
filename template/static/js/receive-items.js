@@ -47,7 +47,17 @@ function addItemToTable(product) {
         <input type="number" step="0.01" min="1.00" value="${product.cost_price != null ? product.cost_price.toFixed(2) : "0.00"}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2">
-        <input type="number" step="0.01" min="1.00" value="${product.default_price?.selling_price != null ? product.default_price?.selling_price.toFixed(2) : "0.00"}" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
+        <div class="flex flex-col">
+          <input
+            type="number"
+            step="0.01"
+            min="1.00"
+            value="${product.default_price?.selling_price != null ? product.default_price?.selling_price.toFixed(2) : "0.00"}"
+            class="selling-price w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+            required
+          />
+          <span class="suggested-price text-xs text-blue-600 dark:text-blue-400 cursor-pointer hidden"></span>
+        </div>
       </td>
       <td class="px-4 py-2">
         <input type="number" min="1" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
@@ -65,6 +75,7 @@ function addItemToTable(product) {
   });
 
   receivingRows.appendChild(row);
+  setupPriceLogic(row);
   searchResults.classList.add("hidden");
 }
 
@@ -430,3 +441,35 @@ document.addEventListener("click", (e) => {
     supplierResults.classList.add("hidden");
   }
 });
+
+function setupPriceLogic(row) {
+  const costInput = row.querySelector(".cost");
+  const sellingInput = row.querySelector(".selling-price");
+  const suggestionSpan = row.querySelector(".suggested-price");
+
+  function updateSuggestion() {
+    const cost = parseFloat(costInput.value) || 0;
+    if (!cost) {
+      suggestionSpan.classList.add("hidden");
+      return;
+    }
+
+    // calculate suggested price: cost * 1.3, round up to nearest 50
+    let suggested = Math.ceil((cost * 1.3) / 50) * 50;
+
+    suggestionSpan.textContent = `Suggested: ₦${suggested}`;
+    suggestionSpan.classList.remove("hidden");
+
+    // when clicked, populate selling input
+    suggestionSpan.onclick = () => {
+      sellingInput.value = suggested.toFixed(2);
+      suggestionSpan.classList.add("hidden");
+    };
+  }
+
+  // update whenever selling price changes or cost changes
+  sellingInput.addEventListener("input", updateSuggestion);
+  costInput.addEventListener("input", updateSuggestion);
+
+  updateSuggestion(); // run once initially
+}
