@@ -2,6 +2,7 @@ const items = { Panadol: 200, "Vitamin C": 150, Amoxicillin: 300 };
 const cart = [];
 const payments = {};
 let selectedPaymentMethod = "";
+let searchTimeout;
 
 const subtotalDisplay = document.getElementById("subtotal");
 const paidDisplay = document.getElementById("paid");
@@ -19,14 +20,21 @@ function updateTotals() {
   changeDisplay.textContent = Math.max(paid - subtotal, 0).toLocaleString();
 }
 
-function addItem(name) {
-  const price = items[name] || 0;
-  const existing = cart.find((i) => i.name === name);
+function addItem(item) {
+  const existing = cart.find((i) => i.id === item.id);
+  
   if (existing) {
     existing.qty++;
   } else {
-    cart.push({ name, qty: 1, price });
+    cart.push({
+      id: item.id,
+      name: item.name,
+      manufacturer: item.manufacturer || "",
+      price: item.default_price?.selling_price || 0,
+      qty: 1,
+    });
   }
+
   renderCart();
 }
 
@@ -90,27 +98,60 @@ function removeItem(index) {
   renderCart();
 }
 
+function debounce(func, delay = 300) {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(func, delay);
+}
+
+
+function renderSearchResult(item) {
+  const li = document.createElement("li");
+  li.innerHTML = `
+    <div class="flex flex-col">
+      <span class="font-medium">${item.name}</span>
+      <span class="text-sm text-gray-500 dark:text-gray-400">${item.manufacturer || ""}</span>
+    </div>
+  `;
+  li.className =
+    "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
+  li.onclick = () => {
+    addItem(item);
+    searchResults.classList.add("hidden");
+    itemSearch.value = "";
+  };
+  return li;
+}
+
+async function fetchAndRenderResults(query) {
+  try {
+    const res = await fetch(`/inventory/search?query=${encodeURIComponent(query)}`);
+    const matches = await res.json();
+
+    searchResults.innerHTML = "";
+    if (!matches.length) {
+      searchResults.classList.add("hidden");
+      return;
+    }
+
+    matches.forEach((item) => searchResults.appendChild(renderSearchResult(item)));
+    searchResults.classList.remove("hidden");
+  } catch (err) {
+    console.error("Search error", err);
+    searchResults.classList.add("hidden");
+  }
+}
+
 itemSearch.addEventListener("input", (e) => {
   const value = e.target.value.toLowerCase();
-  searchResults.innerHTML = "";
-  if (!value) return searchResults.classList.add("hidden");
-  const matches = Object.keys(items).filter((name) =>
-    name.toLowerCase().includes(value),
-  );
-  matches.forEach((name) => {
-    const li = document.createElement("li");
-    li.textContent = name;
-    li.className =
-      "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
-    li.onclick = () => {
-      addItem(name);
-      searchResults.classList.add("hidden");
-      itemSearch.value = "";
-    };
-    searchResults.appendChild(li);
-  });
-  searchResults.classList.remove("hidden");
+  if (!value) {
+    searchResults.innerHTML = "";
+    searchResults.classList.add("hidden");
+    return;
+  }
+
+  debounce(() => fetchAndRenderResults(value), 300);
 });
+
 
 function openPayment(method) {
   selectedPaymentMethod = method;
