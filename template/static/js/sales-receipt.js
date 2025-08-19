@@ -1,4 +1,3 @@
-const items = { Panadol: 200, "Vitamin C": 150, Amoxicillin: 300 };
 const cart = [];
 const payments = {};
 let selectedPaymentMethod = "";
@@ -22,7 +21,7 @@ function updateTotals() {
 
 function addItem(item) {
   const existing = cart.find((i) => i.id === item.id);
-  
+
   if (existing) {
     existing.qty++;
   } else {
@@ -60,18 +59,21 @@ function renderCart() {
         </div>
       </td>
 
-      <td class="px-4 py-2 text-center">₦${item.price}</td>
+      <td class="px-4 py-2 text-center">
+        <span class="price-display cursor-pointer" data-index="${i}">₦${item.price}</span>
+        <input type="number" value="${item.price}" min="0"
+          class="price-input hidden w-20 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+          data-index="${i}">
+      </td>
       <td class="px-4 py-2 text-center">₦${item.qty * item.price}</td>
 
       <td class="px-4 py-2 text-center w-[1%]">
         <button class="text-red-500" onclick="removeItem(${i})">🗑️</button>
       </td>
-
     `;
-    receiptItems.appendChild(row); // ✅ this was missing
+    receiptItems.appendChild(row);
   });
 
-  // ✅ attach listeners once after rendering
   document.querySelectorAll(".qty-input").forEach((input) => {
     input.addEventListener("input", (e) => {
       const i = +e.target.dataset.index;
@@ -93,6 +95,41 @@ function renderCart() {
   updateTotals();
 }
 
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("price-display")) {
+    const span = e.target;
+    const index = span.dataset.index;
+    const input = document.querySelector(`.price-input[data-index="${index}"]`);
+
+    span.classList.add("hidden");
+    input.classList.remove("hidden");
+    input.focus();
+  }
+});
+
+document.addEventListener(
+  "blur",
+  (e) => {
+    if (e.target.classList.contains("price-input")) {
+      const input = e.target;
+      const index = input.dataset.index;
+      const span = document.querySelector(
+        `.price-display[data-index="${index}"]`,
+      );
+
+      const newPrice = parseFloat(input.value) || 0;
+      cart[index].price = newPrice;
+
+      span.textContent = `₦${newPrice}`;
+      span.classList.remove("hidden");
+      input.classList.add("hidden");
+
+      renderCart();
+    }
+  },
+  true,
+);
+
 function removeItem(index) {
   cart.splice(index, 1);
   renderCart();
@@ -102,7 +139,6 @@ function debounce(func, delay = 300) {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(func, delay);
 }
-
 
 function renderSearchResult(item) {
   const li = document.createElement("li");
@@ -124,7 +160,9 @@ function renderSearchResult(item) {
 
 async function fetchAndRenderResults(query) {
   try {
-    const res = await fetch(`/inventory/search?query=${encodeURIComponent(query)}`);
+    const res = await fetch(
+      `/inventory/search?query=${encodeURIComponent(query)}`,
+    );
     const matches = await res.json();
 
     searchResults.innerHTML = "";
@@ -133,7 +171,9 @@ async function fetchAndRenderResults(query) {
       return;
     }
 
-    matches.forEach((item) => searchResults.appendChild(renderSearchResult(item)));
+    matches.forEach((item) =>
+      searchResults.appendChild(renderSearchResult(item)),
+    );
     searchResults.classList.remove("hidden");
   } catch (err) {
     console.error("Search error", err);
@@ -151,7 +191,6 @@ itemSearch.addEventListener("input", (e) => {
 
   debounce(() => fetchAndRenderResults(value), 300);
 });
-
 
 function openPayment(method) {
   selectedPaymentMethod = method;
