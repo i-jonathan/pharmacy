@@ -76,10 +76,22 @@ function renderCart() {
       </td>
 
       <td class="px-4 py-2 text-center">
-        <span class="total-display cursor-pointer" data-index="${i}">₦${(item.qty * item.price).toFixed(2)}</span>
-        <input type="number" value="${(item.qty * item.price).toFixed(2)}" min="0"
-          class="total-input hidden w-24 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
-          data-index="${i}">
+        <div>
+          <span class="total-display cursor-pointer" data-index="${i}">
+            ₦${(item.qty * item.price).toFixed(2)}
+          </span>
+          <input type="number" value="${(item.qty * item.price).toFixed(2)}" min="0"
+            class="total-input hidden w-24 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+            data-index="${i}">
+        </div>
+
+        ${
+          isDiscounted
+            ? `<div class="text-xs text-red-500 mt-1">
+                -₦${((item.default_price.selling_price - item.price) * item.qty).toFixed(2)} discount
+              </div>`
+            : ""
+        }
       </td>
 
       <td class="px-4 py-2 text-center w-[1%]">
