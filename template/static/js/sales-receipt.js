@@ -104,10 +104,21 @@ function renderCart() {
 
   // Quantity input listeners
   document.querySelectorAll(".qty-input").forEach((input) => {
-    input.addEventListener("input", (e) => {
+    // Commit on blur
+    input.addEventListener("blur", (e) => {
       const i = +e.target.dataset.index;
-      cart[i].qty = +e.target.value;
+      cart[i].qty = Math.max(1, +e.target.value || 1); // avoid 0 or NaN
       renderCart();
+    });
+
+    // Commit on Enter
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // stop form submit
+        const i = +e.target.dataset.index;
+        cart[i].qty = Math.max(1, +e.target.value || 1);
+        renderCart();
+      }
     });
   });
 
