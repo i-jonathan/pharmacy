@@ -15,11 +15,22 @@ const updateProductDefaultPrice = `UPDATE product SET default_price_id = $1 WHER
 const fetchCategoriesQuery = `SELECT id, name, created_at FROM category ORDER BY name ASC;`
 const searchProductsQuery = `SELECT
 	p.id, p.name, p.barcode, p.cost_price, p.manufacturer,
-	pp.id as "default_price.id", pp.selling_price as "default_price.selling_price"
+	pp.id as "default_price.id", pp.selling_price as "default_price.selling_price",
+	COALESCE(
+      json_agg(
+        json_build_object(
+          'id', ppo.id,
+          'selling_price', ppo.selling_price,
+          'name', ppo.name
+        )
+      ) FILTER (WHERE ppo.id IS NOT NULL), '[]'
+    ) AS price_options
 	FROM product p
 	LEFT JOIN product_price pp ON p.default_price_id = pp.id
+	LEFT JOIN product_price ppo ON p.id = ppo.product_id
 	WHERE p.name ILIKE '%' || $1 || '%'
-	OR p.barcode ILIKE '%' || $1 || '%'`
+	OR p.barcode ILIKE '%' || $1 || '%'
+	GROUP BY p.id, pp.id, pp.selling_price, p.name, p.barcode, p.cost_price, p.manufacturer`
 const searchSupplierQuery = `SELECT
 	DISTINCT supplier_name FROM receiving_batch
 	WHERE supplier_name ILIKE '%' || $1 || '%'`

@@ -96,6 +96,15 @@ func (s *inventoryService) SearchProducts(ctx context.Context, query string) ([]
 
 	response := make([]types.ProductResult, len(products))
 	for i, value := range products {
+		priceOptions := make([]types.ProductPriceResult, len(value.PriceOptions))
+		for j, po := range value.PriceOptions {
+			priceOptions[j] = types.ProductPriceResult{
+				ID:           po.ID,
+				Name:         po.Name,
+				SellingPrice: po.SellingPriceFloat(),
+			}
+		}
+
 		response[i] = types.ProductResult{
 			ID:           value.ID,
 			Name:         value.Name,
@@ -106,6 +115,7 @@ func (s *inventoryService) SearchProducts(ctx context.Context, query string) ([]
 				ID:           value.DefaultPrice.ID,
 				SellingPrice: value.DefaultPrice.SellingPriceFloat(),
 			},
+			PriceOptions: priceOptions,
 		}
 	}
 	return response, nil
