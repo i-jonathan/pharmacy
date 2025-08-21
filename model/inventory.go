@@ -21,7 +21,7 @@ type Product struct {
 
 type ProductPrice struct {
 	baseModel
-	UnitName         string
+	Name             string `db:"name"`
 	ProductID        int
 	QuantityPerUnit  int
 	SellingPriceKobo int `db:"selling_price"`
