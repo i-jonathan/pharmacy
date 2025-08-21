@@ -26,7 +26,7 @@ func (r *repo) CreateProductPriceTx(ctx context.Context, tx *sqlx.Tx, productPri
 	var id int
 	err := tx.QueryRowContext(
 		ctx, createProductPriceQuery, productPrice.ProductID,
-		productPrice.QuantityPerUnit, productPrice.SellingPriceKobo,
+		productPrice.QuantityPerUnit, productPrice.SellingPriceKobo, productPrice.Name,
 	).Scan(&id)
 	if err != nil {
 		return 0, err

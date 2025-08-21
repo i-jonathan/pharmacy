@@ -8,8 +8,8 @@ const createProductQuery = `INSERT INTO product
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 const createProductPriceQuery = `INSERT INTO product_price
-	(product_id, quantity_per_unit, selling_price)
-	VALUES ($1, $2, $3)
+	(product_id, quantity_per_unit, selling_price, name)
+	VALUES ($1, $2, $3, $4)
 	RETURNING id`
 const updateProductDefaultPrice = `UPDATE product SET default_price_id = $1 WHERE id = $2`
 const fetchCategoriesQuery = `SELECT id, name, created_at FROM category ORDER BY name ASC;`

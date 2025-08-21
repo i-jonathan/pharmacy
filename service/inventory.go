@@ -41,7 +41,7 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 	}
 
 	productPrice := model.ProductPrice{
-		UnitName:         constant.DefaultPriceName,
+		Name:             constant.DefaultPriceName,
 		ProductID:        productID,
 		QuantityPerUnit:  1,
 		SellingPriceKobo: int(params.SellingPrice * 100),
