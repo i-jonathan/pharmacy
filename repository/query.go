@@ -72,3 +72,24 @@ const updateProductPricesQuery = `
 	SET selling_price = :selling_price
 	WHERE id = (SELECT default_price_id FROM updated_product);
 `
+const createSaleQuery = `
+	INSERT INTO sales (receipt_number, status, cashier_id, subtotal, discount, total)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING id;
+`
+const createSaleItemQuery = `
+	INSERT INTO sales_item (sale_id, product_id, quantity, unit_price, discount, total_price)
+	VALUES ($1, $2, $3, $4, $5, $6);
+`
+const createSalePaymentQuery = `
+	INSERT INTO sales_payment (sale_id, amount, payment_method)
+	VALUES ($1, $2, $3);
+`
+const bulkCreateSaleItemQuery = `
+	INSERT INTO sales_item (sale_id, product_id, quantity, unit_price, discount, total_price)
+	VALUES (:sale_id, :product_id, :quantity, :unit_price, :discount, :total_price);
+`
+const bulkCreateSalePaymentQuery = `
+	INSERT INTO sales_payment (sale_id, amount, payment_method)
+	VALUES (:sale_id, :amount, :payment_method);
+`

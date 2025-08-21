@@ -28,10 +28,17 @@ type InventoryRepository interface {
 	BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error
 }
 
+type SaleRepository interface {
+	CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (int, error)
+	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
+	BulkCreateSalePaymentsTX(ctx context.Context, tx *sqlx.Tx, salePayments []model.SalePayment) error
+}
+
 type PharmacyRepository interface {
 	BeginTx(ctx context.Context) (*sqlx.Tx, error)
 	CommitTx(tx *sqlx.Tx) error
 	Rollback(tx *sqlx.Tx)
 	UserRepository
 	InventoryRepository
+	SaleRepository
 }
