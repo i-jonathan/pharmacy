@@ -32,6 +32,8 @@ function addItem(item) {
       price: item.default_price?.selling_price || 0,
       qty: 1,
       default_price: item.default_price,
+      price_options: item.price_options,
+      selected_price_id: item.default_price?.id,
     });
   }
 
@@ -42,17 +44,21 @@ function renderCart() {
   receiptItems.innerHTML = "";
 
   cart.forEach((item, i) => {
+    const selectedOption = item.price_options?.find(
+      (opt) => opt.id === item.selected_price_id,
+    );
+
     const isDiscounted =
-      item.default_price?.selling_price &&
-      item.price < item.default_price?.selling_price;
+      selectedOption?.selling_price &&
+      item.price < selectedOption.selling_price;
 
     const row = document.createElement("tr");
     row.className = isDiscounted ? "bg-green-50 dark:bg-green-900/20" : "";
+    row.dataset.index = i;
 
     row.innerHTML = `
       <td class="px-4 py-2 w-[40%]">
-        <span class="font-medium">${item.name}</span>
-        <span class="ml-1 text-sm text-gray-500 dark:text-gray-400">- ${item.manufacturer}</span>
+        <span class="font-medium">${item.name}</span><span class="ml-1 text-sm text-gray-500 dark:text-gray-400">- ${item.manufacturer}</span>
       </td>
       <td class="px-4 py-2 w-[20%]">
         <div class="flex items-center justify-center gap-3">
@@ -66,13 +72,26 @@ function renderCart() {
         </div>
       </td>
 
+      <!-- Prices button column -->
+      <td class="px-4 py-2 text-center w-[1%]">
+        <button type="button"
+          class="prices-toggle px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700
+                  hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200"
+          data-index="${i}">
+          Prices
+        </button>
+      </td>
+
       <td class="px-4 py-2 text-center">
-        <div>
-          <span class="price-display cursor-pointer" data-index="${i}">₦${item.price.toFixed(2)}</span>
-          <input type="number" value="${item.price.toFixed(2)}" min="0"
-            class="price-input hidden w-20 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
-            data-index="${i}">
-        </div>
+        <span class="price-display block cursor-pointer font-medium text-gray-800 dark:text-gray-200"
+              data-index="${i}">
+          ₦${item.price.toFixed(2)}
+        </span>
+
+        <input type="number" value="${item.price.toFixed(2)}" min="0"
+          class="price-input block hidden w-20 text-center px-2 py-1 border rounded
+                  dark:bg-gray-700 dark:border-gray-600"
+          data-index="${i}">
       </td>
 
       <td class="px-4 py-2 text-center">
@@ -225,6 +244,114 @@ receiptItems.addEventListener("keydown", (e) => {
   if (e.target.matches(".total-input") && e.key === "Enter") {
     e.preventDefault();
     commitTotalPriceChange(e.target);
+  }
+});
+
+function buildPriceRow(index) {
+  const item = cart[index];
+  const options = (item.price_options || [])
+    .map(
+      (opt) => `
+      <button
+        class="price-chip px-3 py-1 rounded-full border text-sm
+          ${
+            item.selected_price_id == opt.id
+              ? "bg-emerald-500 text-white border-emerald-600"
+              : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+          }"
+        data-index="${index}"
+        data-price="${opt.selling_price}"
+        data-price-id="${opt.id}">
+        ${opt.name} - ₦${opt.selling_price.toFixed(2)}
+      </button>`,
+    )
+    .join("");
+
+  const colCount = document
+    .querySelector("#receipt-items")
+    .closest("table")
+    .querySelectorAll("thead th").length;
+
+  const tr = document.createElement("tr");
+  tr.className = "price-row bg-gray-50 dark:bg-gray-900/30";
+  tr.dataset.index = index;
+  tr.innerHTML = `
+    <td colspan="${colCount}" class="px-4 py-3">
+      <div class="flex flex-wrap items-center gap-2">
+        ${options || `<span class="text-sm text-gray-500 dark:text-gray-400">No price options available.</span>`}
+
+        <div class="ml-auto flex items-center gap-2">
+          <span class="text-sm text-gray-600 dark:text-gray-300">Custom:</span>
+          <input type="number" min="0" step="0.01"
+            class="price-custom w-28 px-2 py-1 border rounded
+                   dark:bg-gray-700 dark:border-gray-600"
+            data-index="${index}" value="${item.price.toFixed(2)}" />
+          <button
+            class="price-apply px-3 py-1 text-xs rounded bg-primary text-white hover:bg-emerald-700"
+            data-index="${index}">
+            Apply
+          </button>
+        </div>
+      </div>
+    </td>
+  `;
+  return tr;
+}
+
+function togglePriceRow(index) {
+  // close any existing price row
+  const open = document.querySelector(".price-row");
+  if (open) {
+    if (+open.dataset.index === index) {
+      open.remove();
+      return;
+    }
+    open.remove();
+  }
+  // insert after the item row
+  const mainRow = document.querySelector(
+    `#receipt-items tr[data-index="${index}"]`,
+  );
+  if (mainRow) {
+    mainRow.insertAdjacentElement("afterend", buildPriceRow(index));
+  }
+}
+
+// Open/close the inline price row
+receiptItems.addEventListener("click", (e) => {
+  const btn = e.target.closest(".prices-toggle");
+  if (btn) {
+    togglePriceRow(+btn.dataset.index);
+  }
+
+  const chip = e.target.closest(".price-chip");
+  if (chip) {
+    const idx = +chip.dataset.index;
+    const price = parseFloat(chip.dataset.price) || 0;
+    const priceId = chip.dataset.priceId || null;
+
+    cart[idx].price = price;
+    cart[idx].selected_price_id = priceId;
+    renderCart();
+  }
+
+  const apply = e.target.closest(".price-apply");
+  if (apply) {
+    const idx = +apply.dataset.index;
+    const input = document.querySelector(`.price-custom[data-index="${idx}"]`);
+    const v = parseFloat(input.value);
+    if (!isNaN(v)) {
+      cart[idx].price = v;
+      renderCart();
+    }
+  }
+});
+
+// Close the inline row when clicking outside it or the Prices button
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".price-row") && !e.target.closest(".prices-toggle")) {
+    const open = document.querySelector(".price-row");
+    if (open) open.remove();
   }
 });
 
