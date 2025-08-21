@@ -128,9 +128,7 @@ document.addEventListener("click", (e) => {
 
 function commitUnitPriceChange(input) {
   const index = input.dataset.index;
-  const span = document.querySelector(
-    `.price-display[data-index="${index}"]`,
-  );
+  const span = document.querySelector(`.price-display[data-index="${index}"]`);
 
   const newPrice = parseFloat(input.value) || 0;
   cart[index].price = newPrice;
@@ -146,7 +144,7 @@ receiptItems.addEventListener(
   "blur",
   (e) => {
     if (e.target.classList.contains("price-input")) {
-      commitUnitPriceChange(e.target)
+      commitUnitPriceChange(e.target);
     }
   },
   true,
@@ -174,9 +172,7 @@ document.addEventListener("click", (e) => {
 
 function commitTotalPriceChange(input) {
   const index = input.dataset.index;
-  const span = document.querySelector(
-    `.total-display[data-index="${index}"]`,
-  );
+  const span = document.querySelector(`.total-display[data-index="${index}"]`);
 
   const newTotal = parseFloat(input.value) || 0;
   const qty = cart[index].qty;
@@ -196,7 +192,7 @@ receiptItems.addEventListener(
   "blur",
   (e) => {
     if (e.target.classList.contains("total-input")) {
-      commitTotalPriceChange(e.target)
+      commitTotalPriceChange(e.target);
     }
   },
   true,
