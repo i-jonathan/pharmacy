@@ -20,6 +20,16 @@ type saleController struct {
 func NewSaleController(svc service.SaleService, tmpl *template.Template) *saleController {
 	return &saleController{svc, tmpl}
 }
+
+func (c *saleController) RenderSalesReceipt(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err := c.template.ExecuteTemplate(w, "receipt.html", nil)
+	if err != nil {
+		http.Error(w, "sales receipt render error", http.StatusInternalServerError)
+	}
+}
+
+
 func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(constant.UserIDKey)
 	uID, ok := userID.(int)

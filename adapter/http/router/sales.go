@@ -12,5 +12,6 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 	saleMux := http.NewServeMux()
 
 	saleMux.HandleFunc(http.MethodPost+" /", saleController.CreateSale)
+	saleMux.HandleFunc(http.MethodGet+" /", saleController.RenderSalesReceipt)
 	return http.StripPrefix("/sales", saleMux)
 }
