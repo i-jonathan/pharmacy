@@ -95,7 +95,7 @@ function renderCart() {
         </span>
 
         <input type="number" value="${item.price.toFixed(2)}" min="0"
-          class="price-input block hidden w-20 text-center px-2 py-1 border rounded
+          class="no-spinners price-input block hidden w-20 text-center px-2 py-1 border rounded
                   dark:bg-gray-700 dark:border-gray-600"
           data-index="${i}">
       </td>
@@ -106,7 +106,7 @@ function renderCart() {
             ₦${(item.qty * item.price).toFixed(2)}
           </span>
           <input type="number" value="${(item.qty * item.price).toFixed(2)}" min="0"
-            class="total-input hidden w-24 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+            class="no-spinners total-input hidden w-24 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
             data-index="${i}">
         </div>
 
@@ -290,7 +290,7 @@ function buildPriceRow(index) {
         <div class="ml-auto flex items-center gap-2">
           <span class="text-sm text-gray-600 dark:text-gray-300">Custom:</span>
           <input type="number" min="0" step="0.01"
-            class="price-custom w-28 px-2 py-1 border rounded
+            class="no-spinners price-custom w-28 px-2 py-1 border rounded
                    dark:bg-gray-700 dark:border-gray-600"
             data-index="${index}" value="${item.price.toFixed(2)}" />
           <button
@@ -581,4 +581,8 @@ function buildSalePayload(cart, payments) {
     items,
     payments: paymentList,
   };
+}
+
+function closePaymentModal() {
+    document.getElementById("payment-modal").classList.add("hidden");
 }
