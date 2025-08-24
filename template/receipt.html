@@ -113,25 +113,27 @@
                 <div class="text-lg font-semibold">
                     Subtotal: ₦<span id="subtotal">0</span>
                 </div>
-                <div class="text-md">Paid: ₦<span id="paid">0</span></div>
+                <div id="amount-paid" class="text-2xl font-bold">
+                    Paid: ₦<span id="paid">0</span>
+                </div>
                 <div class="text-md">
                     Change Due: ₦<span id="change">0</span>
                 </div>
                 <div class="flex gap-4">
                     <button
-                        class="bg-primary text-white px-4 py-2 rounded"
+                        class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded"
                         onclick="openPayment('cash')"
                     >
                         💵 Cash
                     </button>
                     <button
-                        class="bg-primary text-white px-4 py-2 rounded"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
                         onclick="openPayment('card')"
                     >
                         💳 Card
                     </button>
                     <button
-                        class="bg-primary text-white px-4 py-2 rounded"
+                        class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded"
                         onclick="openPayment('transfer')"
                     >
                         💸 Transfer
@@ -142,23 +144,27 @@
             <!-- Action Buttons -->
             <div class="flex justify-between mt-6">
                 <button
-                    class="bg-gray-600 text-white px-4 py-2 rounded"
+                    id="hold-sale-btn"
+                    class="bg-slate-600 text-white px-4 py-2 rounded disabled:opacity-50"
                     onclick="holdSale()"
+                    disabled
                 >
                     Hold Sale
                 </button>
                 <div class="flex gap-4">
                     <button
-                        class="bg-blue-600 text-white px-4 py-2 rounded"
+                        class="bg-slate-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
                         onclick="viewHeld()"
                     >
-                        View Held Receipts
+                        📂 View Held Receipts
                     </button>
                     <button
-                        class="bg-green-600 text-white px-4 py-2 rounded"
+                        id="saveSaleBtn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded disabled:opacity-50"
                         onclick="saveSale()"
+                        disabled
                     >
-                        Save Sale
+                        💾 Save Sale
                     </button>
                 </div>
             </div>

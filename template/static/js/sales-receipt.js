@@ -17,6 +17,7 @@ function updateTotals() {
   subtotalDisplay.textContent = subtotal.toLocaleString();
   paidDisplay.textContent = paid.toLocaleString();
   changeDisplay.textContent = Math.max(paid - subtotal, 0).toLocaleString();
+  validateSale();
 }
 
 function addItem(item) {
@@ -53,7 +54,12 @@ function renderCart() {
       item.price < selectedOption.selling_price;
 
     const row = document.createElement("tr");
-    row.className = isDiscounted ? "bg-green-50 dark:bg-green-900/20" : "";
+    row.classList.remove("bg-green-50", "dark:bg-green-900/20");
+
+    if (isDiscounted) {
+      row.classList.add("bg-green-50", "dark:bg-green-900/20");
+    }
+
     row.dataset.index = i;
 
     row.innerHTML = `
@@ -153,6 +159,7 @@ function renderCart() {
   });
 
   updateTotals();
+  validateSale();
 }
 
 // handle clicking and editing unit price
@@ -436,16 +443,89 @@ function savePayment() {
 
 function cancelPayment() {
   delete payments[selectedPaymentMethod];
-  document
-    .querySelectorAll("button")
-    .forEach((btn) => btn.classList.remove("disabled"));
   document.getElementById("payment-modal").classList.add("hidden");
   updateTotals();
 }
 
-function saveSale() {
-  alert("Saving sale to backend...");
+async function saveSale() {
+  payload = buildSalePayload(cart, payments);
+  try {
+    const response = await fetch("/sales/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      console.log("Sale saved successfully!");
+      window.location.reload();
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Save sale failed:", errorData);
+      alert("Failed to save sale. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error saving sale:", error);
+    alert("An error occurred while saving the sale.");
+  }
 }
+
+function validateSale() {
+  let isValid = true;
+
+  document.querySelectorAll("#receipt-items tr").forEach((row) => {
+    const qtyInput = row.querySelector(".qty-input");
+    const priceInput = row.querySelector(".price-input");
+
+    const qty = parseInt(qtyInput?.value) || 0;
+    const price = parseFloat(priceInput?.value) || 0;
+
+    // Highlight invalid cases
+    if (qty < 1 || price <= 0) {
+      row.classList.remove("bg-green-50", "dark:bg-green-900/20");
+      row.classList.add("bg-red-100", "dark:bg-red-900/30");
+    } else {
+      row.classList.remove("bg-red-100", "dark:bg-red-900/30");
+    }
+
+    // Disable only if quantity < 1
+    if (qty < 1) {
+      isValid = false;
+    }
+  });
+
+  // validate amount paid vs total
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const paid = Object.values(payments).reduce((a, b) => a + b, 0);
+
+  if (paid < subtotal) {
+    isValid = false;
+    document.getElementById("amount-paid").classList.add("text-red-500");
+  } else {
+    document.getElementById("amount-paid").classList.remove("text-red-500");
+  }
+
+  // toggle Save button
+  const saveBtn = document.getElementById("saveSaleBtn");
+  if (saveBtn) saveBtn.disabled = !isValid;
+
+  const cartNotEmpty = cart.length > 0;
+  const holdBtn = document.getElementById("hold-sale-btn");
+  if (holdBtn) holdBtn.disabled = !cartNotEmpty;
+}
+
+// validate when inputs change or blur
+document.addEventListener("input", (e) => {
+  if (
+    e.target.classList.contains("qty-input") ||
+    e.target.classList.contains("price-input") ||
+    e.target.id === "amount-paid"
+  ) {
+    validateSale();
+  }
+});
 
 function holdSale() {
   alert("Holding current sale...");
@@ -460,4 +540,45 @@ function viewHeld() {
 
 function closeHeld() {
   document.getElementById("held-modal").classList.add("hidden");
+}
+
+function buildSalePayload(cart, payments) {
+  const items = cart.map((item) => {
+    const subtotal = item.price * item.qty;
+    const unit_price = item.price;
+    const selectedPrice =
+      item.price_options.find((p) => p.id === item.selected_price_id)
+        ?.selling_price || unit_price;
+
+    const discount = (selectedPrice - unit_price) * item.qty;
+    const total = subtotal - discount;
+
+    return {
+      product_id: item.id,
+      quantity: item.qty,
+      price_id: item.selected_price_id,
+      unit_price: item.price,
+      discount: discount,
+      total: total,
+    };
+  });
+
+  const subtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+  const discount = items.reduce((sum, i) => sum + i.discount, 0);
+  const total = subtotal - discount;
+
+  const paymentList = Object.entries(payments)
+    .filter(([_, amount]) => amount > 0)
+    .map(([method, amount]) => ({
+      amount,
+      payment_method: method,
+    }));
+
+  return {
+    subtotal,
+    discount,
+    total,
+    items,
+    payments: paymentList,
+  };
 }
