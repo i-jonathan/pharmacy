@@ -46,6 +46,10 @@ func main() {
 	inventoryRouter := router.InitInventoryRouter(inventoryService, tmpl)
 	r.Handle("/inventory/", middleware.AuthMiddleware(inventoryRouter))
 
+	saleService := service.NewSaleService(store)
+	saleRouter := router.InitSalesRouter(saleService, tmpl)
+	r.Handle("/sales/", middleware.AuthMiddleware(saleRouter))
+
 	middlewareStack := middleware.CreateStack(
 		// middleware.CSRFMiddleware,
 		middleware.Logging,
