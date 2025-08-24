@@ -138,11 +138,3 @@ func (c *inventoryController) ReceiveSupply(w http.ResponseWriter, r *http.Reque
 
 	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Items saved successfully"})
 }
-
-func (c *inventoryController) RenderSalesReceipt(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := c.template.ExecuteTemplate(w, "receipt.html", nil)
-	if err != nil {
-		http.Error(w, "sales receipt render error", http.StatusInternalServerError)
-	}
-}
