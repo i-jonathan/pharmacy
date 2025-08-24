@@ -18,3 +18,7 @@ type InventoryService interface {
 	SearchForSuppliers(ctx context.Context, query string) ([]string, error)
 	ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error
 }
+
+type SaleService interface {
+	CreateSale(ctx context.Context, saleParams types.Sale) error
+}
