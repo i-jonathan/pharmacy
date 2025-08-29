@@ -12,11 +12,28 @@ const searchResults = document.getElementById("search-results");
 const itemSearch = document.getElementById("item-search");
 
 function updateTotals() {
-  let subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  let paid = Object.values(payments).reduce((a, b) => a + b, 0);
-  subtotalDisplay.textContent = subtotal.toLocaleString();
-  paidDisplay.textContent = paid.toLocaleString();
-  changeDisplay.textContent = Math.max(paid - subtotal, 0).toLocaleString();
+  let subtotal = cart.reduce((sum, item) => {
+    return sum.plus(new Decimal(item.price).times(item.qty));
+  }, new Decimal(0));
+
+  let paid = Object.values(payments).reduce((sum, amount) => {
+    return sum.plus(new Decimal(amount));
+  }, new Decimal(0));
+
+  // Round both subtotal & paid to whole numbers
+  subtotal = subtotal.toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN);
+  paid = paid.toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN);
+
+  // Change = (paid - subtotal), but never below 0
+  let change = Decimal.max(paid.minus(subtotal), 0).toDecimalPlaces(
+    0,
+    Decimal.ROUND_HALF_EVEN,
+  );
+
+  subtotalDisplay.textContent = subtotal.toNumber().toLocaleString();
+  paidDisplay.textContent = paid.toNumber().toLocaleString();
+  changeDisplay.textContent = change.toNumber().toLocaleString();
+
   validateSale();
 }
 
@@ -30,8 +47,8 @@ function addItem(item) {
       id: item.id,
       name: item.name,
       manufacturer: item.manufacturer || "",
-      price: item.default_price?.selling_price || 0,
-      qty: 1,
+      price: new Decimal(item.default_price?.selling_price || 0),
+      qty: new Decimal(1),
       default_price: item.default_price,
       price_options: item.price_options,
       selected_price_id: item.default_price?.id,
@@ -39,6 +56,15 @@ function addItem(item) {
   }
 
   renderCart();
+}
+
+function roundTo50or100(value) {
+  // value is a Decimal
+  const n = value.toNumber();
+  const remainder = n % 50;
+
+  if (remainder === 0) return value; // already on 50/100 boundary
+  return new Decimal(Math.ceil(n / 50) * 50); // always round UP
 }
 
 function renderCart() {
@@ -51,7 +77,14 @@ function renderCart() {
 
     const isDiscounted =
       selectedOption?.selling_price &&
-      item.price < selectedOption.selling_price;
+      item.price.lt(new Decimal(selectedOption.selling_price));
+
+    // Calculate row total with Decimal
+    let rowTotal = item.price.times(item.qty);
+    let roundedTotal = rowTotal
+      .div(50)
+      .toDecimalPlaces(0, Decimal.ROUND_HALF_UP)
+      .times(50);
 
     const row = document.createElement("tr");
     row.classList.remove("bg-green-50", "dark:bg-green-900/20");
@@ -91,10 +124,10 @@ function renderCart() {
       <td class="px-4 py-2 text-center">
         <span class="price-display block cursor-pointer font-medium text-gray-800 dark:text-gray-200"
               data-index="${i}">
-          ₦${item.price.toFixed(2)}
+          ₦${item.price.toDecimalPlaces(2).toString()}
         </span>
 
-        <input type="number" value="${item.price.toFixed(2)}" min="0"
+        <input type="number" value="${item.price.toDecimalPlaces(2).toString()}" min="0"
           class="no-spinners price-input block hidden w-20 text-center px-2 py-1 border rounded
                   dark:bg-gray-700 dark:border-gray-600"
           data-index="${i}">
@@ -103,9 +136,9 @@ function renderCart() {
       <td class="px-4 py-2 text-center">
         <div>
           <span class="total-display cursor-pointer" data-index="${i}">
-            ₦${(item.qty * item.price).toFixed(2)}
+            ₦${roundedTotal.toFixed(0)}
           </span>
-          <input type="number" value="${(item.qty * item.price).toFixed(2)}" min="0"
+          <input type="number" value="${roundedTotal.toFixed(0)}" min="0"
             class="no-spinners total-input hidden w-24 text-center px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
             data-index="${i}">
         </div>
@@ -113,7 +146,7 @@ function renderCart() {
         ${
           isDiscounted
             ? `<div class="text-xs text-red-500 mt-1">
-                -₦${((item.default_price.selling_price - item.price) * item.qty).toFixed(2)} discount
+                -₦${new Decimal(item.default_price.selling_price).minus(item.price).times(item.qty).toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN).toString()} discount
               </div>`
             : ""
         }
@@ -127,33 +160,30 @@ function renderCart() {
     receiptItems.appendChild(row);
   });
 
-  // Quantity input listeners
+  // keep qty listeners...
   document.querySelectorAll(".qty-input").forEach((input) => {
-    // Commit on blur
     input.addEventListener("blur", (e) => {
       const i = +e.target.dataset.index;
-      cart[i].qty = Math.max(1, +e.target.value || 1); // avoid 0 or NaN
+      cart[i].qty = new Decimal(Math.max(1, +e.target.value || 1));
       renderCart();
     });
-
-    // Commit on Enter
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        e.preventDefault(); // stop form submit
+        e.preventDefault();
         const i = +e.target.dataset.index;
-        cart[i].qty = Math.max(1, +e.target.value || 1);
+        cart[i].qty = new Decimal(Math.max(1, +e.target.value || 1));
         renderCart();
       }
     });
   });
 
-  // Quantity buttons
   document.querySelectorAll(".qty-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const i = +e.target.dataset.index;
       const action = e.target.dataset.action;
-      if (action === "inc") cart[i].qty++;
-      if (action === "dec" && cart[i].qty > 1) cart[i].qty--;
+      if (action === "inc") cart[i].qty = cart[i].qty.plus(1);
+      if (action === "dec" && cart[i].qty.gt(1))
+        cart[i].qty = cart[i].qty.minus(1);
       renderCart();
     });
   });
@@ -179,10 +209,10 @@ function commitUnitPriceChange(input) {
   const index = input.dataset.index;
   const span = document.querySelector(`.price-display[data-index="${index}"]`);
 
-  const newPrice = parseFloat(input.value) || 0;
+  const newPrice = new Decimal(input.value || 0);
   cart[index].price = newPrice;
 
-  span.textContent = `₦${newPrice}`;
+  span.textContent = `₦${newPrice.toDecimalPlaces(2).toNumber().toLocaleString()}`;
   span.classList.remove("hidden");
   input.classList.add("hidden");
 
@@ -223,13 +253,14 @@ function commitTotalPriceChange(input) {
   const index = input.dataset.index;
   const span = document.querySelector(`.total-display[data-index="${index}"]`);
 
-  const newTotal = parseFloat(input.value) || 0;
-  const qty = cart[index].qty;
+  const newTotal = new Decimal(input.value || 0);
+  const qty = new Decimal(cart[index].qty);
 
-  // recalc unit price from total
-  cart[index].price = qty > 0 ? newTotal / qty : 0;
+  cart[index].price = qty.gt(0)
+    ? newTotal.div(qty).toDecimalPlaces(2)
+    : new Decimal(0);
 
-  span.textContent = `₦${newTotal}`;
+  span.textContent = `₦${newTotal.toDecimalPlaces(2).toNumber().toLocaleString()}`;
   span.classList.remove("hidden");
   input.classList.add("hidden");
 
@@ -256,22 +287,26 @@ receiptItems.addEventListener("keydown", (e) => {
 
 function buildPriceRow(index) {
   const item = cart[index];
+
   const options = (item.price_options || [])
-    .map(
-      (opt) => `
-      <button
-        class="price-chip px-3 py-1 rounded-full border text-sm
-          ${
-            item.selected_price_id == opt.id
-              ? "bg-emerald-500 text-white border-emerald-600"
-              : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-          }"
-        data-index="${index}"
-        data-price="${opt.selling_price}"
-        data-price-id="${opt.id}">
-        ${opt.name} - ₦${opt.selling_price.toFixed(2)}
-      </button>`,
-    )
+    .map((opt) => {
+      const sellingPrice = new Decimal(opt.selling_price);
+
+      return `
+        <button
+          class="price-chip px-3 py-1 rounded-full border text-sm
+            ${
+              item.selected_price_id == opt.id
+                ? "bg-emerald-500 text-white border-emerald-600"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }"
+          data-index="${index}"
+          data-price="${sellingPrice.toDecimalPlaces(2).toString()}"
+          data-price-id="${opt.id}">
+          ${opt.name} - ₦${sellingPrice.toDecimalPlaces(2).toNumber().toLocaleString()}
+        </button>
+      `;
+    })
     .join("");
 
   const colCount = document
@@ -282,17 +317,24 @@ function buildPriceRow(index) {
   const tr = document.createElement("tr");
   tr.className = "price-row bg-gray-50 dark:bg-gray-900/30";
   tr.dataset.index = index;
+
   tr.innerHTML = `
     <td colspan="${colCount}" class="px-4 py-3">
       <div class="flex flex-wrap items-center gap-2">
-        ${options || `<span class="text-sm text-gray-500 dark:text-gray-400">No price options available.</span>`}
+        ${
+          options ||
+          `<span class="text-sm text-gray-500 dark:text-gray-400">
+             No price options available.
+           </span>`
+        }
 
         <div class="ml-auto flex items-center gap-2">
           <span class="text-sm text-gray-600 dark:text-gray-300">Custom:</span>
           <input type="number" min="0" step="0.01"
             class="no-spinners price-custom w-28 px-2 py-1 border rounded
                    dark:bg-gray-700 dark:border-gray-600"
-            data-index="${index}" value="${item.price.toFixed(2)}" />
+            data-index="${index}"
+            value="${item.price.toDecimalPlaces(2).toNumber()}" />
           <button
             class="price-apply px-3 py-1 text-xs rounded bg-primary text-white hover:bg-emerald-700"
             data-index="${index}">
@@ -334,11 +376,12 @@ receiptItems.addEventListener("click", (e) => {
   const chip = e.target.closest(".price-chip");
   if (chip) {
     const idx = +chip.dataset.index;
-    const price = parseFloat(chip.dataset.price) || 0;
+    const price = new Decimal(chip.dataset.price || 0);
     const priceId = chip.dataset.priceId || null;
 
     cart[idx].price = price;
     cart[idx].selected_price_id = priceId;
+
     renderCart();
   }
 
@@ -346,8 +389,8 @@ receiptItems.addEventListener("click", (e) => {
   if (apply) {
     const idx = +apply.dataset.index;
     const input = document.querySelector(`.price-custom[data-index="${idx}"]`);
-    const v = parseFloat(input.value);
-    if (!isNaN(v)) {
+    const v = new Decimal(input.value || 0);
+    if (!v.isNaN()) {
       cart[idx].price = v;
       renderCart();
     }
@@ -542,47 +585,61 @@ function closeHeld() {
   document.getElementById("held-modal").classList.add("hidden");
 }
 
+// Helpers
+const D = (v) => (v instanceof Decimal ? v : new Decimal(v ?? 0));
+const toNaira = (d) => D(d).toDecimalPlaces(0, Decimal.ROUND_HALF_UP); // whole ₦
+const nearest50 = (d) =>
+  D(d).div(50).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).times(50);
+
 function buildSalePayload(cart, payments) {
   const items = cart.map((item) => {
-    const subtotal = item.price * item.qty;
-    const unit_price = item.price;
-    const selectedPrice =
-      item.price_options.find((p) => p.id === item.selected_price_id)
-        ?.selling_price || unit_price;
+    const qty = D(item.qty);
+    const unitPrice = D(item.price);
 
-    const discount = (selectedPrice - unit_price) * item.qty;
-    const total = subtotal - discount;
+    const selected = item.price_options?.find(
+      (p) => p.id === item.selected_price_id,
+    )?.selling_price;
+    const listUnit = D(selected ?? unitPrice);
+
+    const lineSubtotal = listUnit.times(qty);
+    const lineTotalRaw = unitPrice.times(qty);
+    const lineTotal = nearest50(lineTotalRaw);
+    let lineDiscount = lineSubtotal.minus(lineTotal);
+    if (lineDiscount.lt(0)) lineDiscount = new Decimal(0);
 
     return {
       product_id: item.id,
-      quantity: item.qty,
+      quantity: toNaira(qty).toNumber(),
       price_id: item.selected_price_id,
-      unit_price: item.price,
-      discount: discount,
-      total: total,
+      unit_price: unitPrice.toDecimalPlaces(2).toNumber(2),
+      discount: toNaira(lineDiscount).toNumber(),
+      total: toNaira(lineTotal).toNumber(),
     };
   });
 
-  const subtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
-  const discount = items.reduce((sum, i) => sum + i.discount, 0);
-  const total = subtotal - discount;
+  const total = items.reduce((s, it) => s.plus(D(it.total)), new Decimal(0));
+  const discount = items.reduce(
+    (s, it) => s.plus(D(it.discount)),
+    new Decimal(0),
+  );
+  const subtotal = total.plus(discount);
 
   const paymentList = Object.entries(payments)
-    .filter(([_, amount]) => amount > 0)
+    .filter(([, amount]) => D(amount).gt(0))
     .map(([method, amount]) => ({
-      amount,
+      amount: toNaira(amount).toNumber(),
       payment_method: method,
     }));
 
   return {
-    subtotal,
-    discount,
-    total,
+    subtotal: toNaira(subtotal).toNumber(),
+    discount: toNaira(discount).toNumber(),
+    total: toNaira(total).toNumber(),
     items,
     payments: paymentList,
   };
 }
 
 function closePaymentModal() {
-    document.getElementById("payment-modal").classList.add("hidden");
+  document.getElementById("payment-modal").classList.add("hidden");
 }
