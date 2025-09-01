@@ -62,9 +62,9 @@ type ProductBatch struct {
 type StockMovement struct {
 	baseModel
 	ProductID    int    `db:"product_id"`
-	BatchID      int    `db:"batch_id"`
 	MovementType string `db:"movement_type"`
 	Quantity     int    `db:"quantity"`
+	ReferenceID  int    `db:"reference_id"`
 }
 
 func (p ProductPrice) PriceString() string {

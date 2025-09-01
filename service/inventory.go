@@ -189,7 +189,7 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		stockMovements[i] = model.StockMovement{
 			ProductID:    value.ProductID,
 			Quantity:     value.Quantity,
-			BatchID:      value.ID,
+			ReferenceID:  value.ID,
 			MovementType: constant.ReceivingSupplyMovementName,
 		}
 	}

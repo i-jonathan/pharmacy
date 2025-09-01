@@ -45,8 +45,8 @@ const createProductBatchQuery = `INSERT INTO product_batch (
 		:product_id, :price_id, :receiving_batch_id, :quantity, :cost_price, :expiry_date
 	)
 	RETURNING id, product_id, quantity`
-const createMovementFromBatchQuery = `INSERT INTO stock_movement (product_id, batch_id, movement_type, quantity)
-	VALUES (:product_id, :batch_id, :movement_type, :quantity)`
+const createMovementFromBatchQuery = `INSERT INTO stock_movement (product_id, reference_id, movement_type, quantity)
+VALUES (:product_id, :reference_id, :movement_type, :quantity)`
 const fetchDefaultPriceIDQuery = `
 	SELECT COALESCE(
         p.default_price_id,
