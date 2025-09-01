@@ -41,6 +41,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	}
 
 	saleItems := make([]model.SaleItem, len(saleParams.Items))
+	stockMovement := make([]model.StockMovement, len(saleParams.Items))
 	for i, v := range saleParams.Items {
 		saleItems[i] = model.SaleItem{
 			SaleID:     saleID,
@@ -49,6 +50,13 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 			UnitPrice:  int(v.UnitPrice * 100),
 			Discount:   int(v.Discount * 100),
 			TotalPrice: int(v.Total * 100),
+		}
+
+		stockMovement[i] = model.StockMovement{
+			ProductID:    v.ProductID,
+			Quantity:     v.Quantity,
+			ReferenceID:  saleID,
+			MovementType: constant.SaleMovementName,
 		}
 	}
 
@@ -71,6 +79,13 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("Failed to bulk create payments", err)
+	}
+
+	// todo create bulk stock movements
+	err = s.repo.BulkCreateStockMovementTx(ctx, tx, stockMovement)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("Failed to bulk create stock movements", err)
 	}
 
 	err = tx.Commit()
