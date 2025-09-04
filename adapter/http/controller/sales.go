@@ -29,7 +29,6 @@ func (c *saleController) RenderSalesReceipt(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-
 func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(constant.UserIDKey)
 	uID, ok := userID.(int)
@@ -60,4 +59,35 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helper.JSONResponse(w, http.StatusOK, map[string]any{"msg": "Saved Successfully"})
+}
+
+func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	sales, err := c.service.FetchSalesHistory(r.Context())
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "sales history fetch error", http.StatusInternalServerError)
+		return
+	}
+
+	salesJSON, err := json.Marshal(sales)
+	if err != nil {
+		http.Error(w, "sales history json error", http.StatusInternalServerError)
+	}
+
+	data := map[string]any{
+		"SalesJSON": template.JS(salesJSON),
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err = c.template.ExecuteTemplate(w, "sales-history.html", data)
+	if err != nil {
+		http.Error(w, "sales history render error", http.StatusInternalServerError)
+	}
 }
