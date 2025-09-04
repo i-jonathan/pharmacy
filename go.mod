@@ -8,6 +8,7 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.40.0
 )
 

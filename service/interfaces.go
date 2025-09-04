@@ -21,4 +21,5 @@ type InventoryService interface {
 
 type SaleService interface {
 	CreateSale(ctx context.Context, saleParams types.Sale) error
+	FetchSalesHistory(ctx context.Context) ([]types.SaleResponse, error)
 }
