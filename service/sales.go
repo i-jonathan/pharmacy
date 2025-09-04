@@ -199,12 +199,13 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 
 		// build the final response
 		resp := types.SaleResponse{
-			Cashier:  cashiersByID[s.CashierID],
-			Subtotal: float64(s.Subtotal) / 100,
-			Discount: float64(s.Discount) / 100,
-			Total:    float64(s.Total) / 100,
-			Items:    items,
-			Payments: payments,
+			ReceiptNumber: s.ReceiptNumber,
+			Cashier:       cashiersByID[s.CashierID],
+			Subtotal:      float64(s.Subtotal) / 100,
+			Discount:      float64(s.Discount) / 100,
+			Total:         float64(s.Total) / 100,
+			Items:         items,
+			Payments:      payments,
 		}
 
 		responses = append(responses, resp)

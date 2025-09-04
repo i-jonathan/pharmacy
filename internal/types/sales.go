@@ -36,10 +36,11 @@ type SalePaymentResponse struct {
 }
 
 type SaleResponse struct {
-	Cashier  string                `json:"cashier"`
-	Subtotal float64               `json:"subtotal"`
-	Discount float64               `json:"discount"`
-	Total    float64               `json:"total"`
-	Items    []SaleItemResponse    `json:"items"`
-	Payments []SalePaymentResponse `json:"payments"`
+	ReceiptNumber string                `json:"receipt_number"`
+	Cashier       string                `json:"cashier"`
+	Subtotal      float64               `json:"subtotal"`
+	Discount      float64               `json:"discount"`
+	Total         float64               `json:"total"`
+	Items         []SaleItemResponse    `json:"items"`
+	Payments      []SalePaymentResponse `json:"payments"`
 }
