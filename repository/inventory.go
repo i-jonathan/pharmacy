@@ -6,6 +6,7 @@ import (
 	"pharmacy/model"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 func (r *repo) CreateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) (int, error) {
@@ -120,4 +121,14 @@ func (r *repo) BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updat
 		return err
 	}
 	return nil
+}
+
+func (r *repo) BulkFetchProductByIDsTx(ctx context.Context, tx *sqlx.Tx, productIDs []int) ([]model.Product, error) {
+	var products []model.Product
+
+	err := tx.SelectContext(ctx, &products, bulkFetchProductByIDQuery, pq.Array(productIDs))
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }

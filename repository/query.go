@@ -3,6 +3,7 @@ package repository
 const createUserQuery = `INSERT INTO users (username, password) VALUES ($1, $2)`
 const usernameExistsQuery = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
 const fetchUserByNameQuery = `SELECT id, username, password FROM users WHERE username = $1`
+const bulkFetchUserByIDQuery = `SELECT id, username FROM users WHERE id = ANY($1)`
 const createProductQuery = `INSERT INTO product
 	(name, barcode, category_id, reorder_level, manufacturer, cost_price)
 	VALUES ($1, $2, $3, $4, $5, $6)
@@ -92,4 +93,22 @@ const bulkCreateSaleItemQuery = `
 const bulkCreateSalePaymentQuery = `
 	INSERT INTO sales_payment (sale_id, amount, payment_method)
 	VALUES (:sale_id, :amount, :payment_method);
+`
+const fetchSalesQuery = `
+	SELECT id, receipt_number, cashier_id, subtotal, discount, total
+	FROM sales ORDER BY created_at DESC
+`
+const bulkFetchSaleItemsQuery = `
+	SELECT sale_id, product_id, quantity, unit_price, discount, total_price
+	FROM sales_item WHERE sale_id = ANY($1)
+	ORDER BY created_at DESC
+`
+const bulkFetchSalePaymentsQuery = `
+	SELECT sale_id, amount, payment_method
+	FROM sales_payment WHERE sale_id = ANY($1)
+	ORDER BY payment_method ASC
+`
+const bulkFetchProductByIDQuery = `
+	SELECT id, name, manufacturer
+	FROM product WHERE id = ANY($1)
 `
