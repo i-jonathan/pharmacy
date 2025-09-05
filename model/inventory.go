@@ -1,30 +1,41 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
 
 type Product struct {
 	baseModel
-	Name           string       `db:"name"`
-	Barcode        *string      `db:"barcode"`
-	CategoryID     int          `db:"category_id"`
-	ReorderLevel   int          `db:"reorder_level"`
-	Manufacturer   *string      `db:"manufacturer"`
-	CostPriceKobo  int          `db:"cost_price"`
-	DefaultPriceID int          `db:"default_price_id"`
-	Category       Category     `db:"category"`
-	DefaultPrice   ProductPrice `db:"default_price"`
-	PriceOptions   []ProductPrice
+	Name           string        `db:"name"`
+	Barcode        *string       `db:"barcode"`
+	CategoryID     int           `db:"category_id"`
+	ReorderLevel   int           `db:"reorder_level"`
+	Manufacturer   *string       `db:"manufacturer"`
+	CostPriceKobo  int           `db:"cost_price"`
+	DefaultPriceID int           `db:"default_price_id"`
+	Category       Category      `db:"category"`
+	DefaultPrice   ProductPrice  `db:"default_price"`
+	PriceOptions   ProductPrices `db:"price_options" json:"price_options"`
+}
+
+type ProductPrices []ProductPrice
+
+func (pp *ProductPrices) Scan(value any) error {
+	b, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to scan ProductPrices: %v", value)
+	}
+	return json.Unmarshal(b, pp)
 }
 
 type ProductPrice struct {
 	baseModel
-	UnitName         string
+	Name             string `db:"name" json:"name"`
 	ProductID        int
 	QuantityPerUnit  int
-	SellingPriceKobo int `db:"selling_price"`
+	SellingPriceKobo int `db:"selling_price" json:"selling_price"`
 }
 
 type ReceivingBatch struct {
@@ -51,9 +62,9 @@ type ProductBatch struct {
 type StockMovement struct {
 	baseModel
 	ProductID    int    `db:"product_id"`
-	BatchID      int    `db:"batch_id"`
 	MovementType string `db:"movement_type"`
 	Quantity     int    `db:"quantity"`
+	ReferenceID  int    `db:"reference_id"`
 }
 
 func (p ProductPrice) PriceString() string {

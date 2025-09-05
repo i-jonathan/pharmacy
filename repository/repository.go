@@ -12,6 +12,7 @@ type UserRepository interface {
 	FetchUserWithPassword(ctx context.Context, userName string) (model.User, error)
 	CheckUserNameExists(ctx context.Context, userName string) (bool, error)
 	CreateUserAccount(ctx context.Context, user model.User) error
+	BulkFetchUserByIDTx(ctx context.Context, tx *sqlx.Tx, userIDs []int) ([]model.User, error)
 }
 
 type InventoryRepository interface {
@@ -26,6 +27,16 @@ type InventoryRepository interface {
 	BulkCreateProductBatchTx(ctx context.Context, tx *sqlx.Tx, productBatches []model.ProductBatch) ([]types.BatchInsertReturn, error)
 	BulkCreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovements []model.StockMovement) error
 	BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error
+	BulkFetchProductByIDsTx(ctx context.Context, tx *sqlx.Tx, productIDs []int) ([]model.Product, error)
+}
+
+type SaleRepository interface {
+	CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (int, error)
+	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
+	BulkCreateSalePaymentsTX(ctx context.Context, tx *sqlx.Tx, salePayments []model.SalePayment) error
+	FetchSalesTx(ctx context.Context, tx *sqlx.Tx) ([]model.Sale, error)
+	BulkFetchSaleItems(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SaleItem, error)
+	BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SalePayment, error)
 }
 
 type PharmacyRepository interface {
@@ -34,4 +45,5 @@ type PharmacyRepository interface {
 	Rollback(tx *sqlx.Tx)
 	UserRepository
 	InventoryRepository
+	SaleRepository
 }
