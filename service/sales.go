@@ -8,6 +8,7 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/repository"
+	"time"
 )
 
 type saleService struct {
@@ -185,6 +186,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 				Manufacturer: *p.Manufacturer,
 				Quantity:     item.Quantity,
 				UnitPrice:    float64(item.UnitPrice) / 100,
+				Discount:     float64(item.Discount) / 100,
 			})
 		}
 
@@ -201,6 +203,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 		resp := types.SaleResponse{
 			ReceiptNumber: s.ReceiptNumber,
 			Cashier:       cashiersByID[s.CashierID],
+			CreatedAt:     s.CreatedAt.Format(time.RFC3339),
 			Subtotal:      float64(s.Subtotal) / 100,
 			Discount:      float64(s.Discount) / 100,
 			Total:         float64(s.Total) / 100,

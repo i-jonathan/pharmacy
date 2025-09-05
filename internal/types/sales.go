@@ -28,6 +28,7 @@ type SaleItemResponse struct {
 	Manufacturer string  `json:"manufacturer"`
 	Quantity     int     `json:"quantity"`
 	UnitPrice    float64 `json:"unit_price"`
+	Discount     float64 `json:"discount"`
 }
 
 type SalePaymentResponse struct {
@@ -38,6 +39,7 @@ type SalePaymentResponse struct {
 type SaleResponse struct {
 	ReceiptNumber string                `json:"receipt_number"`
 	Cashier       string                `json:"cashier"`
+	CreatedAt     string                `json:"created_at"`
 	Subtotal      float64               `json:"subtotal"`
 	Discount      float64               `json:"discount"`
 	Total         float64               `json:"total"`

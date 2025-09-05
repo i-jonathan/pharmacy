@@ -95,7 +95,7 @@ const bulkCreateSalePaymentQuery = `
 	VALUES (:sale_id, :amount, :payment_method);
 `
 const fetchSalesQuery = `
-	SELECT id, receipt_number, cashier_id, subtotal, discount, total
+	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
 	FROM sales ORDER BY created_at DESC
 `
 const bulkFetchSaleItemsQuery = `
