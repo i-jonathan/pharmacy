@@ -4,7 +4,6 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Sales Receipt | PharmaPOS</title>
-        <script src="https://cdn.tailwindcss.com"></script>
         <style>
             .disabled {
                 opacity: 0.5;
@@ -25,6 +24,7 @@
                 -moz-appearance: textfield;
             }
         </style>
+        <link href="/static/css/tailwind.css" rel="stylesheet"/>
     </head>
     <body
         class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
@@ -37,36 +37,62 @@
                 <div class="text-xl font-bold text-primary">PharmaPOS</div>
                 <div class="hidden md:flex space-x-6">
                     <a
-                        href="#"
+                        href="/app/dashboard"
                         class="text-gray-700 dark:text-gray-200 hover:text-primary"
                         >Dashboard</a
                     >
                     <a
-                        href="#"
+                        href="/inventory/receive-items"
                         class="text-gray-700 dark:text-gray-200 hover:text-primary"
                         >Inventory</a
                     >
                     <a
-                        href="#"
-                        class="text-gray-700 dark:text-gray-200 hover:text-primary font-semibold underline underline-offset-4"
+                        href="/sales/receipt"
+                        class="text-primary font-semibold border-b-2 border-primary pb-1"
                         >Sales</a
                     >
                 </div>
             </div>
+
+            <!-- Right: Search and Theme Toggle -->
             <div
                 class="flex items-center space-x-4 max-w-md w-full justify-end"
             >
-                <input
-                    type="text"
-                    placeholder="Search..."
-                    class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <div class="relative w-full">
+                    <span
+                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
+                        >🔍</span
+                    >
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                </div>
                 <button
                     id="theme-toggle"
                     class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
                 >
                     🌙
                 </button>
+            </div>
+        </nav>
+
+        <!-- Sub Navigation -->
+        <nav
+            class="bg-gray-50 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 px-6 py-3"
+        >
+            <div class="flex space-x-6">
+                <a
+                    href="#"
+                    class="text-primary font-semibold border-b-2 border-primary pb-1"
+                    >Make a Sale</a
+                >
+                <a
+                    href="/sales/history"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Sales History</a
+                >
             </div>
         </nav>
 
@@ -169,11 +195,11 @@
                 </div>
             </div>
         </main>
-
+        
         <!-- Payment Modal -->
         <div
             id="payment-modal"
-            class="fixed inset-0 bg-black bg-opacity-50 hidden modal-center z-50"
+            class="fixed inset-0 bg-black bg-opacity-50 modal-center z-50 hidden"
         >
             <div
                 class="bg-white dark:bg-gray-800 p-6 rounded shadow-lg max-w-sm w-full space-y-4 relative"
@@ -215,7 +241,7 @@
         <!-- Held Receipts Modal -->
         <div
             id="held-modal"
-            class="fixed inset-0 bg-black bg-opacity-50 hidden modal-center z-50"
+            class="fixed inset-0 bg-black bg-opacity-50 modal-center z-50 hidden"
         >
             <div
                 class="bg-white dark:bg-gray-800 p-6 rounded shadow-lg w-3/5 max-h-[80vh] overflow-y-auto"

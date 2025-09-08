@@ -4,41 +4,75 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Receive Items | PharmaPOS</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: '#10B981',
-          },
-        },
-      },
-    };
-  </script>
+  <link href="/static/css/tailwind.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
 
-  <!-- Navigation -->
-  <nav class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-6">
-      <div class="text-xl font-bold text-primary">PharmaPOS</div>
-      <div class="hidden md:flex space-x-6">
-        <a href="#" class="text-gray-700 dark:text-gray-200 hover:text-primary">Dashboard</a>
-        <a href="#" class="text-gray-700 dark:text-gray-200 hover:text-primary">Inventory</a>
-        <a href="#" class="text-gray-700 dark:text-gray-200 hover:text-primary font-semibold underline underline-offset-4">Receive Items</a>
-      </div>
-    </div>
-    <div class="flex items-center space-x-4 max-w-md w-full justify-end">
-      <input
-        type="text"
-        placeholder="Search..."
-        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-      />
-      <button id="theme-toggle" class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary">🌙</button>
-    </div>
-  </nav>
+    <nav
+        class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between"
+    >
+        <div class="flex items-center gap-6">
+            <div class="text-xl font-bold text-primary">PharmaPOS</div>
+            <div class="hidden md:flex space-x-6">
+                <a
+                    href="/app/dashboard"
+                    class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                    >Dashboard</a
+                >
+                <a
+                    href="#"
+                    class="text-primary font-semibold border-b-2 border-primary pb-1"
+                    >Inventory</a
+                >
+                <a
+                    href="/sales/receipt"
+                    class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                    >Sales</a
+                >
+            </div>
+        </div>
+
+        <!-- Right: Search and Theme Toggle -->
+        <div
+            class="flex items-center space-x-4 max-w-md w-full justify-end"
+        >
+            <div class="relative w-full">
+                <span
+                    class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
+                    >🔍</span
+                >
+                <input
+                    type="text"
+                    placeholder="Search..."
+                    class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+            </div>
+            <button
+                id="theme-toggle"
+                class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
+            >
+                🌙
+            </button>
+        </div>
+    </nav>
+
+    <!-- Sub Navigation -->
+    <nav
+        class="bg-gray-50 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 px-6 py-3"
+    >
+        <div class="flex space-x-6">
+            <a
+                href="#"
+                class="text-primary font-semibold border-b-2 border-primary pb-1"
+                >Receive Items</a
+            >
+            <!--<a
+                href="/sales/history"
+                class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                >Sales History</a
+            >-->
+        </div>
+    </nav>
 
   <!-- Main Content -->
   <main class="p-6 flex-1 max-w-7xl w-full mx-auto space-y-6">
