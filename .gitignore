@@ -1,2 +1,3 @@
 .env
-**/tailwind.css
+**/input.css
+tailwind.config.js
