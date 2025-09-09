@@ -116,9 +116,11 @@ func (r *repo) FetchDefaultPriceID(ctx context.Context, productID int) (int, err
 }
 
 func (r *repo) BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error {
-	_, err := tx.NamedExecContext(ctx, updateProductPricesQuery, updateValues)
-	if err != nil {
-		return err
+	for _, v := range updateValues {
+		_, err := tx.NamedExecContext(ctx, updateProductPricesQuery, v)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

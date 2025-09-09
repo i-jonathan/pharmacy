@@ -46,7 +46,6 @@ type BatchInsertReturn struct {
 
 type ReceiveItem struct {
 	ID           int       `json:"id"`
-	Name         string    `json:"name"`
 	Barcode      string    `json:"barcode"`
 	CostPrice    float64   `json:"cost_price"`
 	SellingPrice float64   `json:"selling_price"`

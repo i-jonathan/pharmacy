@@ -249,7 +249,6 @@ function collectTableData() {
 
     data.push({
       id: row.dataset.itemId ? parseInt(row.dataset.itemId) : null,
-      name: row.querySelector("td:first-child").textContent.trim(),
       barcode: cells[0].value.trim(),
       cost_price: parseFloat(cells[1].value) || 0,
       selling_price: parseFloat(cells[2].value) || 0,
