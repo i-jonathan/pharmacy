@@ -29,9 +29,20 @@ const searchProductsQuery = `SELECT
 	FROM product p
 	LEFT JOIN product_price pp ON p.default_price_id = pp.id
 	LEFT JOIN product_price ppo ON p.id = ppo.product_id
-	WHERE p.name ILIKE '%' || $1 || '%'
-	OR p.barcode ILIKE '%' || $1 || '%'
-	GROUP BY p.id, pp.id, pp.selling_price, p.name, p.barcode, p.cost_price, p.manufacturer`
+	WHERE p.name ILIKE $1 || '%'
+	OR p.barcode ILIKE $1 || '%'
+	OR p.manufacturer ILIKE $1 || '%'
+	GROUP BY p.id, pp.id, pp.selling_price, p.name, p.barcode, p.cost_price, p.manufacturer
+	ORDER BY
+    CASE
+        WHEN p.name ILIKE $1 || '%' THEN 1
+        WHEN p.barcode ILIKE $1 || '%' THEN 2
+        WHEN p.manufacturer ILIKE $1 || '%' THEN 3
+        ELSE 4
+    END,
+    p.name,
+    p.barcode,
+    p.manufacturer;`
 const searchSupplierQuery = `SELECT
 	DISTINCT supplier_name FROM receiving_batch
 	WHERE supplier_name ILIKE '%' || $1 || '%'`
