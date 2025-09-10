@@ -6,8 +6,10 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"pharmacy/adapter/http/middleware"
 	"pharmacy/adapter/http/router"
+	"pharmacy/config"
 	"pharmacy/repository"
 	"pharmacy/service"
 )
@@ -21,6 +23,16 @@ var embeddedStatic embed.FS
 var tmpl *template.Template
 
 func main() {
+	_ = config.Conf
+	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+	defer file.Close()
+
+	log.SetOutput(file)
+
 	parseTemplates()
 	subFS, err := fs.Sub(embeddedStatic, "template/static")
 	if err != nil {
