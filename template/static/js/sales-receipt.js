@@ -10,6 +10,13 @@ const receiptItems = document.getElementById("receipt-items");
 const paymentInput = document.getElementById("payment-amount");
 const searchResults = document.getElementById("search-results");
 const itemSearch = document.getElementById("item-search");
+const paymentModal = document.getElementById("payment-modal");
+
+window.addEventListener("DOMContentLoaded", () => {
+  if (itemSearch) {
+    itemSearch.focus();
+  }
+});
 
 function updateTotals() {
   let subtotal = cart.reduce((sum, item) => {
@@ -166,6 +173,7 @@ function renderCart() {
       const i = +e.target.dataset.index;
       cart[i].qty = new Decimal(Math.max(1, +e.target.value || 1));
       renderCart();
+      itemSearch.focus();
     });
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -190,6 +198,7 @@ function renderCart() {
 
   updateTotals();
   validateSale();
+  itemSearch.focus();
 }
 
 // handle clicking and editing unit price
@@ -418,17 +427,28 @@ function debounce(func, delay = 300) {
 function renderSearchResult(item) {
   const li = document.createElement("li");
   li.innerHTML = `
-    <div class="flex flex-col">
-      <span class="font-medium">${item.name}</span>
-      <span class="text-sm text-gray-500 dark:text-gray-400">${item.manufacturer || ""}</span>
+    <div class="flex items-center justify-between">
+      <!-- Left side -->
+      <div class="flex flex-col">
+        <span class="font-medium">${item.name}</span>
+        <span class="text-sm text-gray-500 dark:text-gray-400">${item.manufacturer || ""}</span>
+      </div>
+
+      <!-- Right side -->
+      <div class="ml-4 text-right">
+        <span class="text-green-600 dark:text-green-400 font-semibold text-lg">
+          ₦${item.default_price?.selling_price ?? ""}
+        </span>
+      </div>
     </div>
   `;
   li.className =
     "px-4 py-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700";
   li.onclick = () => {
     addItem(item);
-    searchResults.classList.add("hidden");
+    hideResults();
     itemSearch.value = "";
+    itemSearch.focus();
   };
   return li;
 }
@@ -450,10 +470,39 @@ async function fetchAndRenderResults(query) {
       searchResults.appendChild(renderSearchResult(item)),
     );
     searchResults.classList.remove("hidden");
+
+    activeIndex = 0;
+    requestAnimationFrame(() => {
+      const items = searchResults.querySelectorAll("li");
+      if (!items.length) return;
+
+      // Ensure dropdown scroll starts at top
+      searchResults.scrollTop = 0;
+
+      // update visuals - align to the top so old scroll position isn't reused
+      updateActive(items, /*alignStart=*/ true);
+    });
   } catch (err) {
     console.error("Search error", err);
     searchResults.classList.add("hidden");
   }
+}
+
+function hideResults() {
+  searchResults.classList.add("hidden");
+  activeIndex = -1;
+}
+
+function updateActive(items, alignStart = false) {
+  items.forEach((el, i) => {
+    if (i === activeIndex) {
+      el.classList.add("bg-emerald-100", "dark:bg-emerald-700");
+      // alignStart=true used when we want the first item to be at the top
+      el.scrollIntoView({ block: alignStart ? "start" : "nearest" });
+    } else {
+      el.classList.remove("bg-emerald-100", "dark:bg-emerald-700");
+    }
+  });
 }
 
 itemSearch.addEventListener("input", (e) => {
@@ -465,6 +514,8 @@ itemSearch.addEventListener("input", (e) => {
   }
 
   debounce(() => fetchAndRenderResults(value), 300);
+  resetActiveIndex();
+  searchResults.scrollTop = 0;
 });
 
 function openPayment(method) {
@@ -472,7 +523,28 @@ function openPayment(method) {
   document.getElementById("payment-method-name").textContent =
     `Pay with ${method}`;
   paymentInput.value = payments[method] || "";
-  document.getElementById("payment-modal").classList.remove("hidden");
+  const modal = document.getElementById("payment-modal");
+  modal.classList.remove("hidden");
+
+  // focus input after showing modal
+  setTimeout(() => {
+    paymentInput.focus();
+  }, 50);
+}
+
+paymentModal.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    savePayment();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    closePaymentModal();
+  }
+});
+
+function closePaymentModal() {
+  document.getElementById("payment-modal").classList.add("hidden");
+  paymentInput.value = "";
 }
 
 function savePayment() {
@@ -480,17 +552,17 @@ function savePayment() {
   if (amount > 0) {
     payments[selectedPaymentMethod] = amount;
   }
-  document.getElementById("payment-modal").classList.add("hidden");
+  paymentModal.classList.add("hidden");
   updateTotals();
 }
 
 function cancelPayment() {
   delete payments[selectedPaymentMethod];
-  document.getElementById("payment-modal").classList.add("hidden");
+  paymentModal.classList.add("hidden");
   updateTotals();
 }
 
-async function saveSale() {
+async function saveSale(printAfterSave = false) {
   payload = buildSalePayload(cart, payments);
   try {
     const response = await fetch("/sales/", {
@@ -503,6 +575,16 @@ async function saveSale() {
 
     if (response.ok) {
       console.log("Sale saved successfully!");
+
+      if (printAfterSave) {
+        printReceipt(payload);
+      }
+
+      const saveBtn = document.getElementById("saveSaleBtn");
+      const savePrintBtn = document.getElementById("savePrintBtn");
+      saveBtn.disabled = true;
+      savePrintBtn.disabled = true;
+
       window.location.reload();
     } else {
       const errorData = await response.json().catch(() => ({}));
@@ -552,7 +634,9 @@ function validateSale() {
 
   // toggle Save button
   const saveBtn = document.getElementById("saveSaleBtn");
+  const savePrintBtn = document.getElementById("savePrintBtn");
   if (saveBtn) saveBtn.disabled = !isValid;
+  if (savePrintBtn) savePrintBtn.disabled = !isValid;
 
   const cartNotEmpty = cart.length > 0;
   const holdBtn = document.getElementById("hold-sale-btn");
@@ -608,6 +692,7 @@ function buildSalePayload(cart, payments) {
     if (lineDiscount.lt(0)) lineDiscount = new Decimal(0);
 
     return {
+      name: item.name,
       product_id: item.id,
       quantity: toNaira(qty).toNumber(),
       price_id: item.selected_price_id,
@@ -643,3 +728,49 @@ function buildSalePayload(cart, payments) {
 function closePaymentModal() {
   document.getElementById("payment-modal").classList.add("hidden");
 }
+
+let activeIndex = -1; // track highlighted index
+function resetActiveIndex() {
+  activeIndex = -1;
+}
+
+// Handle key presses on search input
+itemSearch.addEventListener("keydown", (e) => {
+  const items = searchResults.querySelectorAll("li");
+  if (!items.length) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeIndex = (activeIndex + 1) % items.length;
+    updateActive(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    activeIndex = (activeIndex - 1 + items.length) % items.length;
+    updateActive(items);
+  } else if (e.key === "Enter" && activeIndex >= 0) {
+    e.preventDefault();
+    items[activeIndex].click();
+    resetActiveIndex();
+  } else if (e.key === "Escape") {
+    hideResults();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (!e.shiftKey) return;
+
+  switch (e.code) {
+    case "F1":
+      e.preventDefault();
+      openPayment("Cash");
+      break;
+    case "F2":
+      e.preventDefault();
+      openPayment("Card");
+      break;
+    case "F3":
+      e.preventDefault();
+      openPayment("Transfer");
+      break;
+  }
+});
