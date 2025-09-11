@@ -24,7 +24,7 @@
                 -moz-appearance: textfield;
             }
         </style>
-        <link href="/static/css/tailwind.css" rel="stylesheet"/>
+        <link href="/static/css/tailwind.css" rel="stylesheet" />
     </head>
     <body
         class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
@@ -110,7 +110,7 @@
                 />
                 <ul
                     id="search-results"
-                    class="absolute top-full left-0 z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow rounded hidden max-h-48 overflow-y-auto"
+                    class="absolute top-full left-0 z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow rounded hidden max-h-72 overflow-y-scroll overscroll-contain"
                 ></ul>
             </div>
 
@@ -148,19 +148,19 @@
                 <div class="flex gap-4">
                     <button
                         class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded"
-                        onclick="openPayment('cash')"
+                        onclick="openPayment('Cash')"
                     >
                         💵 Cash
                     </button>
                     <button
                         class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
-                        onclick="openPayment('card')"
+                        onclick="openPayment('Card')"
                     >
                         💳 Card
                     </button>
                     <button
                         class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded"
-                        onclick="openPayment('transfer')"
+                        onclick="openPayment('Transfer')"
                     >
                         💸 Transfer
                     </button>
@@ -169,21 +169,25 @@
 
             <!-- Action Buttons -->
             <div class="flex justify-between mt-6">
-                <button
+                <!--<button
                     id="hold-sale-btn"
                     class="bg-slate-600 text-white px-4 py-2 rounded disabled:opacity-50"
                     onclick="holdSale()"
                     disabled
                 >
                     Hold Sale
-                </button>
+                </button>-->
+                <p class="text-slate-500">
+                    Hold Sale Coming Soon
+                </p>
                 <div class="flex gap-4">
-                    <button
+                    <!--<button
                         class="bg-slate-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
                         onclick="viewHeld()"
                     >
                         📂 View Held Receipts
-                    </button>
+                    </button>-->
+
                     <button
                         id="saveSaleBtn"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded disabled:opacity-50"
@@ -192,10 +196,19 @@
                     >
                         💾 Save Sale
                     </button>
+
+                    <button
+                        id="savePrintBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
+                        onclick="saveSale(true)"
+                        disabled
+                    >
+                        🖨️ Save & Print
+                    </button>
                 </div>
             </div>
         </main>
-        
+
         <!-- Payment Modal -->
         <div
             id="payment-modal"
@@ -281,6 +294,7 @@
         <script src="/static/js/theme.js"></script>
         <script src="/static/js/toast.js"></script>
         <script src="/static/js/decimal.js"></script>
+        <script src="/static/js/print.js"></script>
         <script src="/static/js/sales-receipt.js"></script>
     </body>
 </html>
