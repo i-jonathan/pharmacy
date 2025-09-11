@@ -5,9 +5,9 @@
 - [x] Allow scrolling by keyboard in search result
 - [x] Improve autofocusing into text inputs in sales receipts page
 - [x] Add Print receipt functionality
-- [] Add Daily total to Sales History page
-- [] Add Hold Sale Feature
-- [] Add Warning to Sales Receipt page when cart isn't empty and an attempt to navigate away happens
-- [] Consider adding modal on Sales receipt after save when change > 0
-- [] Accept Return Feature
-- [] Add Inventory List page
+- [ ] Add Daily total to Sales History page
+- [ ] Add Hold Sale Feature
+- [ ] Add Warning to Sales Receipt page when cart isn't empty and an attempt to navigate away happens
+- [ ] Consider adding modal on Sales receipt after save when change > 0
+- [ ] Accept Return Feature
+- [ ] Add Inventory List page
