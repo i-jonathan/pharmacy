@@ -1,0 +1,7 @@
+- [x] On default, focus on search bar in sales receipt page
+- [x] Add price display to search result
+- [x] Update search query to search from beginning of word and not anywhere
+- [x] Clearly indicate that search result is scrollable
+- [x] Allow scrolling by keyboard in search result
+- [x] Improve autofocusing into text inputs in sales receipts page
+- [x] Add Print receipt functionality
