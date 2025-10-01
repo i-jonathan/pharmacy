@@ -7,8 +7,9 @@ import (
 )
 
 var SessionStore = func() *sessions.CookieStore {
+	// set expiry time to 3am local time, 2am GMT.
 	now := time.Now()
-	expiry := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, now.Location())
+	expiry := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, now.Location())
 	if !now.Before(expiry) {
 		expiry = expiry.Add(24 * time.Hour)
 	}
