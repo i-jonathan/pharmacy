@@ -123,3 +123,7 @@ const bulkFetchProductByIDQuery = `
 	SELECT id, name, manufacturer
 	FROM product WHERE id = ANY($1)
 `
+
+const fetchInventoryViewQuery = `
+	SELECT * from inventory_view ORDER BY name ASC;
+`

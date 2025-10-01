@@ -134,3 +134,12 @@ func (r *repo) BulkFetchProductByIDsTx(ctx context.Context, tx *sqlx.Tx, product
 	}
 	return products, nil
 }
+
+func (r *repo) FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, error) {
+	var inventoryItems []model.InventoryItem
+	err := r.Data.SelectContext(ctx, &inventoryItems, fetchInventoryViewQuery)
+	if err != nil {
+		return nil, err
+	}
+	return inventoryItems, nil
+}
