@@ -9,6 +9,7 @@ import (
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
+	"pharmacy/model"
 	"pharmacy/service"
 )
 
@@ -137,4 +138,27 @@ func (c *inventoryController) ReceiveSupply(w http.ResponseWriter, r *http.Reque
 	}
 
 	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Items saved successfully"})
+}
+
+func (c *inventoryController) RenderInventoryPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	inventory, err := c.service.FetchInventory(r.Context())
+	if err != nil {
+		http.Error(w, "error fetching inventory", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Categories []model.Category
+		Items      []model.InventoryItem
+	}{
+		Categories: inventory.Categories,
+		Items:      inventory.Items,
+	}
+
+	err = c.template.ExecuteTemplate(w, "inventory.html", data)
+	if err != nil {
+		http.Error(w, "inventory page render error", http.StatusInternalServerError)
+	}
 }
