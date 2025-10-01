@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"html/template"
 	"net/http"
@@ -24,24 +23,28 @@ func NewUserController(svc service.UserService, tmpl *template.Template) *userCo
 }
 
 func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
-	var u model.User
-
-	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
-		httperror.BadRequest("invalid json", err).JSONRespond(w)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "failed to parse form", http.StatusBadRequest)
 		return
+	}
+
+	u := model.User{
+		UserName: r.FormValue("username"),
+		Password: r.FormValue("password"),
 	}
 
 	err := c.service.CreateUserAccount(r.Context(), u)
 	if err != nil {
 		var httperr *httperror.HTTPError
 		if errors.As(err, &httperr) {
-			httperr.JSONRespond(w)
+			http.Error(w, httperr.Error(), httperr.Code)
 			return
 		}
-		json.NewEncoder(w).Encode(err)
+		http.Error(w, "failed to create account", http.StatusInternalServerError)
+		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
 }
 
 func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
@@ -98,4 +101,36 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, nextURL, http.StatusSeeOther)
+}
+
+func (c *userController) GetRegisterPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err := c.template.ExecuteTemplate(w, "register.html", map[string]any{
+		"CSRFField": csrf.TemplateField(r),
+	})
+	if err != nil {
+		http.Error(w, "render error", http.StatusInternalServerError)
+	}
+}
+
+func (c *userController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	session, err := config.SessionStore.Get(r, "session")
+	if err != nil {
+		http.Error(w, "Failed to get session", http.StatusInternalServerError)
+		return
+	}
+
+	// Remove the user session key
+	delete(session.Values, constant.UserSessionKey)
+
+	// Expire session immediately
+	session.Options.MaxAge = -1
+
+	if err := session.Save(r, w); err != nil {
+		http.Error(w, "Failed to log out", http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect to login
+	http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 }

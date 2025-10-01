@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en" class="">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Register</title>
+        <link href="/static/css/tailwind.css" rel="stylesheet" />
+        <style>
+            html {
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+            }
+        </style>
+    </head>
+    <body
+        class="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+    >
+        <!-- Top Nav -->
+        <nav
+            class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between fixed w-full z-50"
+        >
+            <div class="flex items-center gap-6">
+                <div class="text-xl font-bold text-primary">PharmaPOS</div>
+                <div class="hidden md:flex space-x-6">
+                    <a
+                        href="/app/dashboard"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Dashboard</a
+                    >
+                    <a
+                        href="/inventory/items"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Inventory</a
+                    >
+                    <a
+                        href="/sales/receipt"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Sales</a
+                    >
+                </div>
+            </div>
+
+            <div
+                class="flex items-center space-x-4 max-w-md w-full justify-end relative"
+            >
+                <!-- Search -->
+                <div class="relative w-full">
+                    <span
+                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
+                        >🔍</span
+                    >
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                </div>
+
+                <!-- Theme Toggle -->
+                <button
+                    id="theme-toggle"
+                    class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
+                >
+                    🌙
+                </button>
+
+                <!-- User Menu -->
+                <div class="relative">
+                    <button
+                        id="user-menu-button"
+                        class="flex items-center text-gray-600 dark:text-gray-300 hover:text-primary focus:outline-none"
+                    >
+                        ⚙️
+                    </button>
+
+                    <!-- Dropdown -->
+                    <div
+                        id="user-menu-dropdown"
+                        class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all"
+                    >
+                        <a
+                            href="/user/register"
+                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
+                        >
+                            Create New Account
+                        </a>
+
+                        <a
+                            href="/user/logout"
+                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
+                        >
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main
+            class="flex flex-col items-center justify-center min-h-screen pt-20"
+        >
+            <div
+                class="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md"
+            >
+                <h2 class="text-2xl font-semibold text-center mb-6">
+                    Create an account
+                </h2>
+                <form
+                    id="register-form"
+                    action="/user/register"
+                    method="POST"
+                    class="space-y-5"
+                >
+                    {{ .CSRFField }}
+
+                    <!-- Username -->
+                    <div>
+                        <label
+                            for="username"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            Username
+                        </label>
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            required
+                            class="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+
+                    <!-- Password -->
+                    <div>
+                        <label
+                            for="password"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            required
+                            class="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div>
+                        <label
+                            for="confirm-password"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            Confirm Password
+                        </label>
+                        <input
+                            type="password"
+                            id="confirm-password"
+                            name="confirm_password"
+                            required
+                            class="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2"
+                        />
+                        <p id="password-match-message" class="text-sm mt-1"></p>
+                    </div>
+
+                    <!-- Submit -->
+                    <button
+                        type="submit"
+                        class="w-full bg-primary text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition"
+                    >
+                        Sign Up
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <script src="/static/js/theme.js"></script>
+        <script>
+            const form = document.getElementById("register-form");
+            const password = document.getElementById("password");
+            const confirmPassword = document.getElementById("confirm-password");
+            const message = document.getElementById("password-match-message");
+
+            function checkPasswordMatch() {
+                if (!confirmPassword.value) {
+                    confirmPassword.classList.remove(
+                        "border-green-500",
+                        "border-red-500",
+                    );
+                    message.textContent = "";
+                    return;
+                }
+
+                if (password.value === confirmPassword.value) {
+                    confirmPassword.classList.add("border-green-500");
+                    confirmPassword.classList.remove("border-red-500");
+                    message.textContent = "Passwords match";
+                    message.classList.remove("text-red-500");
+                    message.classList.add("text-green-500");
+                } else {
+                    confirmPassword.classList.add("border-red-500");
+                    confirmPassword.classList.remove("border-green-500");
+                    message.textContent = "Passwords do not match";
+                    message.classList.remove("text-green-500");
+                    message.classList.add("text-red-500");
+                }
+            }
+
+            password.addEventListener("input", checkPasswordMatch);
+            confirmPassword.addEventListener("input", checkPasswordMatch);
+
+            form.addEventListener("submit", function (e) {
+                if (password.value !== confirmPassword.value) {
+                    e.preventDefault();
+                    alert("Passwords do not match.");
+                }
+            });
+        </script>
+    </body>
+</html>
