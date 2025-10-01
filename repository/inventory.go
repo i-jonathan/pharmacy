@@ -115,6 +115,15 @@ func (r *repo) FetchDefaultPriceID(ctx context.Context, productID int) (int, err
 	return priceID, nil
 }
 
+func (r *repo) FetchPriceByID(ctx context.Context, priceID int) (model.ProductPrice, error) {
+	var price model.ProductPrice
+	err := r.Data.GetContext(ctx, &price, fetchPriceByIDQuery, priceID)
+	if err != nil {
+		return model.ProductPrice{}, err
+	}
+	return price, nil
+}
+
 func (r *repo) BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error {
 	for _, v := range updateValues {
 		_, err := tx.NamedExecContext(ctx, updateProductPricesQuery, v)

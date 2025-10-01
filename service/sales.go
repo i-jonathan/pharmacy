@@ -52,10 +52,16 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 			Discount:   int(v.Discount * 100),
 			TotalPrice: int(v.Total * 100),
 		}
+		
+		selectedPrice, err := s.repo.FetchPriceByID(ctx, v.PriceID)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("failed to fetch product price", err)
+		}
 
 		stockMovement[i] = model.StockMovement{
 			ProductID:    v.ProductID,
-			Quantity:     v.Quantity,
+			Quantity:     v.Quantity * selectedPrice.QuantityPerUnit, // has to be quantity * selected price * quantity
 			ReferenceID:  saleID,
 			MovementType: constant.SaleMovementName,
 		}

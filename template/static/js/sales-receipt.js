@@ -700,7 +700,7 @@ function buildSalePayload(cart, payments) {
       name: item.name,
       product_id: item.id,
       quantity: toNaira(qty).toNumber(),
-      price_id: item.selected_price_id,
+      price_id: parseInt(item.selected_price_id, 10),
       unit_price: unitPrice.toDecimalPlaces(2).toNumber(2),
       discount: toNaira(lineDiscount).toNumber(),
       total: toNaira(lineTotal).toNumber(),

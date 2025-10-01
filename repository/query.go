@@ -22,7 +22,8 @@ const searchProductsQuery = `SELECT
         json_build_object(
           'id', ppo.id,
           'selling_price', ppo.selling_price,
-          'name', ppo.name
+          'name', ppo.name,
+          'quantity_per_unit', ppo.quantity_per_unit
         )
       ) FILTER (WHERE ppo.id IS NOT NULL), '[]'
     ) AS price_options
@@ -123,7 +124,7 @@ const bulkFetchProductByIDQuery = `
 	SELECT id, name, manufacturer
 	FROM product WHERE id = ANY($1)
 `
-
 const fetchInventoryViewQuery = `
 	SELECT * from inventory_view ORDER BY name ASC;
 `
+const fetchPriceByIDQuery = `SELECT * from product_price where id = $1`

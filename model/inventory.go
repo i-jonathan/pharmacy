@@ -33,9 +33,9 @@ func (pp *ProductPrices) Scan(value any) error {
 type ProductPrice struct {
 	baseModel
 	Name             string `db:"name" json:"name"`
-	ProductID        int
-	QuantityPerUnit  int
-	SellingPriceKobo int `db:"selling_price" json:"selling_price"`
+	ProductID        int    `db:"product_id"`
+	QuantityPerUnit  int    `db:"quantity_per_unit" json:"quantity_per_unit"`
+	SellingPriceKobo int    `db:"selling_price" json:"selling_price"`
 }
 
 type ReceivingBatch struct {

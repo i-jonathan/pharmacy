@@ -29,6 +29,7 @@ type InventoryRepository interface {
 	BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error
 	BulkFetchProductByIDsTx(ctx context.Context, tx *sqlx.Tx, productIDs []int) ([]model.Product, error)
 	FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, error)
+	FetchPriceByID(ctx context.Context, priceID int) (model.ProductPrice, error)
 }
 
 type SaleRepository interface {

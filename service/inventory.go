@@ -102,6 +102,7 @@ func (s *inventoryService) SearchProducts(ctx context.Context, query string) ([]
 				ID:           po.ID,
 				Name:         po.Name,
 				SellingPrice: po.SellingPriceFloat(),
+				Quantity:     po.QuantityPerUnit,
 			}
 		}
 
