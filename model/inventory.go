@@ -67,6 +67,24 @@ type StockMovement struct {
 	ReferenceID  int    `db:"reference_id"`
 }
 
+type InventoryItem struct {
+	ID             int        `db:"id" json:"id"`
+	CategoryID     int        `db:"category_id" json:"category_id"`
+	DefaultPriceID int        `db:"default_price_id" json:"default_price_id"`
+	DefaultPrice   int        `db:"default_price" json:"default_price"`
+	ReorderLevel   int        `db:"reorder_level" json:"reorder_level"`
+	Stock          int        `db:"stock" json:"stock"`
+	Category       string     `db:"category" json:"category"`
+	Manufacturer   string     `db:"manufacturer" json:"manufacturer"`
+	Name           string     `db:"name" json:"name"`
+	EarliestExpiry *time.Time `db:"earliest_expiry" json:"earliest_expiry,omitempty"`
+}
+
+type Inventory struct {
+	Items      []InventoryItem
+	Categories []Category
+}
+
 func (p ProductPrice) PriceString() string {
 	return fmt.Sprintf("₦%.2f", float64(p.SellingPriceKobo)/100)
 }
