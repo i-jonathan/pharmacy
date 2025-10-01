@@ -522,13 +522,18 @@ function openPayment(method) {
   selectedPaymentMethod = method;
   document.getElementById("payment-method-name").textContent =
     `Pay with ${method}`;
-  paymentInput.value = payments[method] || "";
+
+  const unpaid = getUnpaidAmount();
+
+  const value = payments[method] ? payments[method] : unpaid;
+  paymentInput.value = value;
+
   const modal = document.getElementById("payment-modal");
   modal.classList.remove("hidden");
 
-  // focus input after showing modal
   setTimeout(() => {
     paymentInput.focus();
+    paymentInput.select();
   }, 50);
 }
 
@@ -756,21 +761,45 @@ itemSearch.addEventListener("keydown", (e) => {
   }
 });
 
-document.addEventListener("keydown", (e) => {
-  if (!e.shiftKey) return;
+function getUnpaidAmount() {
+  let subtotal = cart.reduce((sum, item) => {
+    return sum.plus(new Decimal(item.price).times(item.qty));
+  }, new Decimal(0));
 
+  let paid = Object.values(payments).reduce((sum, amount) => {
+    return sum.plus(new Decimal(amount));
+  }, new Decimal(0));
+  return subtotal - paid;
+}
+
+document.addEventListener("keydown", (e) => {
   switch (e.code) {
     case "F1":
-      e.preventDefault();
-      openPayment("Cash");
+      if (e.shiftKey) {
+        e.preventDefault();
+        openPayment("Cash");
+      }
       break;
     case "F2":
-      e.preventDefault();
-      openPayment("Card");
+      if (e.shiftKey) {
+        e.preventDefault();
+        openPayment("Card");
+      }
       break;
     case "F3":
+      if (e.shiftKey) {
+        e.preventDefault();
+        openPayment("Transfer");
+      }
+      break;
+    case "F11":
       e.preventDefault();
-      openPayment("Transfer");
+      const unpaid = getUnpaidAmount();
+      if (unpaid > 0) {
+        openPayment("Cash");
+      } else {
+        saveSale();
+      }
       break;
   }
 });
