@@ -207,3 +207,22 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	}
 	return nil
 }
+
+func (s *inventoryService) FetchInventory(ctx context.Context) (*model.Inventory, error) {
+	categories, err := s.repo.FetchProductCategories(ctx)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch categories", err)
+	}
+
+	inventoryItems, err := s.repo.FetchInventoryItems(ctx)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch inventory items", err)
+	}
+
+	return &model.Inventory{
+		Items:      inventoryItems,
+		Categories: categories,
+	}, nil
+}
