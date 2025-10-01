@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"pharmacy/config"
 	"pharmacy/repository"
 	"pharmacy/service"
+	"strings"
+	"time"
 )
 
 //go:embed template/*.html
@@ -77,7 +80,44 @@ func main() {
 
 func parseTemplates() {
 	var err error
-	tmpl, err = template.ParseFS(templateFS, "template/*.html")
+	tmpl, err = template.New("").Funcs(template.FuncMap{
+		"formatDate": func(v any) string {
+			switch t := v.(type) {
+			case time.Time:
+				if t.IsZero() {
+					return "-"
+				}
+				return t.Format("January 2, 2006")
+			case *time.Time:
+				if t == nil || t.IsZero() {
+					return "-"
+				}
+				return t.Format("January 2, 2006")
+			default:
+				return "-"
+			}
+		},
+		"formatPrice": func(v int) string {
+			naira := float64(v) / 100.0
+			s := fmt.Sprintf("%.2f", naira) // e.g. "12500.00"
+
+			// Insert commas manually
+			parts := strings.Split(s, ".")
+			intPart := parts[0]
+			decPart := parts[1]
+
+			// walk from the right, insert commas every 3 digits
+			var out []byte
+			for i, d := range intPart {
+				if (len(intPart)-i)%3 == 0 && i != 0 {
+					out = append(out, ',')
+				}
+				out = append(out, byte(d))
+			}
+
+			return string(out) + "." + decPart
+		},
+	}).ParseFS(templateFS, "template/*.html")
 	if err != nil {
 		panic("failed to parse templates: " + err.Error())
 	}
