@@ -52,7 +52,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 			Discount:   int(v.Discount * 100),
 			TotalPrice: int(v.Total * 100),
 		}
-		
+
 		selectedPrice, err := s.repo.FetchPriceByID(ctx, v.PriceID)
 		if err != nil {
 			log.Println(err)
@@ -103,18 +103,18 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	return nil
 }
 
-func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleResponse, error) {
+func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFilter) (types.SaleHistory, error) {
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("Failed to begin transaction", err)
+		return types.SaleHistory{}, httperror.ServerError("Failed to begin transaction", err)
 	}
 
 	// fetch sales. Consider paginating
-	sales, err := s.repo.FetchSalesTx(ctx, tx)
+	sales, err := s.repo.FetchSalesTx(ctx, tx, filter)
 	if err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("fetching sales failed", err)
+		return types.SaleHistory{}, httperror.ServerError("fetching sales failed", err)
 	}
 
 	// index sales by sale id and fetch all sale id's to use in getting sale items and payments
@@ -132,7 +132,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 	saleItems, err := s.repo.BulkFetchSaleItems(ctx, tx, saleIDs)
 	if err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("fetching sale items failed", err)
+		return types.SaleHistory{}, httperror.ServerError("fetching sale items failed", err)
 	}
 
 	productIDs := make([]int, len(saleItems))
@@ -145,7 +145,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 	payments, err := s.repo.BulkFetchSalePayments(ctx, tx, saleIDs)
 	if err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("fetching sale payments failed", err)
+		return types.SaleHistory{}, httperror.ServerError("fetching sale payments failed", err)
 	}
 
 	for i := range payments {
@@ -156,7 +156,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 	products, err := s.repo.BulkFetchProductByIDsTx(ctx, tx, productIDs)
 	if err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("fetching products failed", err)
+		return types.SaleHistory{}, httperror.ServerError("fetching products failed", err)
 	}
 
 	productsByID := make(map[int]model.Product)
@@ -172,7 +172,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 	cashiers, err := s.repo.BulkFetchUserByIDTx(ctx, tx, ids)
 	if err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("fetching cashiers failed", err)
+		return types.SaleHistory{}, httperror.ServerError("fetching cashiers failed", err)
 	}
 
 	cashiersByID := make(map[int]string)
@@ -181,7 +181,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 	}
 
 	responses := make([]types.SaleResponse, 0, len(sales))
-
+	salesHistoryTotal := float64(0)
 	for _, s := range sales {
 		// build items
 		items := make([]types.SaleItemResponse, 0, len(s.SaleItems))
@@ -216,14 +216,17 @@ func (s *saleService) FetchSalesHistory(ctx context.Context) ([]types.SaleRespon
 			Items:         items,
 			Payments:      payments,
 		}
-
 		responses = append(responses, resp)
+		salesHistoryTotal += float64(s.Total) / 100
 	}
 
 	if err := tx.Commit(); err != nil {
 		log.Println(err)
-		return nil, httperror.ServerError("failed to commit transaction", err)
+		return types.SaleHistory{}, httperror.ServerError("failed to commit transaction", err)
 	}
 
-	return responses, nil
+	return types.SaleHistory{
+		TotalAmount: salesHistoryTotal,
+		Data:        responses,
+	}, nil
 }

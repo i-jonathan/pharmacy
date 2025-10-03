@@ -1,5 +1,12 @@
 package types
 
+import "time"
+
+type SaleFilter struct {
+	StartDate *time.Time
+	EndDate   *time.Time
+}
+
 type SaleItem struct {
 	ProductID int     `json:"product_id"`
 	Quantity  int     `json:"quantity"`
@@ -45,4 +52,9 @@ type SaleResponse struct {
 	Total         float64               `json:"total"`
 	Items         []SaleItemResponse    `json:"items"`
 	Payments      []SalePaymentResponse `json:"payments"`
+}
+
+type SaleHistory struct {
+	TotalAmount float64        `json:"total"`
+	Data        []SaleResponse `json:"data"`
 }
