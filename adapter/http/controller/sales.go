@@ -10,6 +10,7 @@ import (
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/service"
+	"time"
 )
 
 type saleController struct {
@@ -64,7 +65,7 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	sales, err := c.service.FetchSalesHistory(r.Context())
+	sales, err := c.service.FetchSalesHistory(r.Context(), types.SaleFilter{})
 	if err != nil {
 		var httperr *httperror.HTTPError
 		if errors.As(err, &httperr) {
@@ -90,4 +91,35 @@ func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		http.Error(w, "sales history render error", http.StatusInternalServerError)
 	}
+}
+
+func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
+	startStr := r.URL.Query().Get("start")
+	endStr := r.URL.Query().Get("end")
+	var filter types.SaleFilter
+
+	if startStr != "" {
+		if start, err := time.Parse("2006-01-02", startStr); err == nil {
+			filter.StartDate = &start
+		}
+	}
+	if endStr != "" {
+		if end, err := time.Parse("2006-01-02", endStr); err == nil {
+			filter.EndDate = &end
+		}
+	}
+
+	salesData, err := c.service.FetchSalesHistory(r.Context(), filter)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"error": err})
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, salesData)
 }
