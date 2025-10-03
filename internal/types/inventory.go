@@ -13,8 +13,10 @@ type CreateProductRequest struct {
 }
 
 type AddItemResponse struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	Barcode      string `json:"barcode"`
+	Manufacturer string `json:"manufacturer"`
 }
 
 type CategoriesResponse struct {

@@ -65,8 +65,10 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 	}
 
 	return types.AddItemResponse{
-		ID:   productID,
-		Name: product.Name,
+		ID:           productID,
+		Name:         product.Name,
+		Manufacturer: *product.Manufacturer,
+		Barcode:      *product.Barcode,
 	}, nil
 }
 
