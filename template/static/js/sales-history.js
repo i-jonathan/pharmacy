@@ -2,23 +2,33 @@
 const fmtNaira = (n) => "₦" + Number(n || 0).toLocaleString("en-NG");
 const byDateDesc = (a, b) => new Date(b.date) - new Date(a.date);
 
-const sales = salesData.map((s) => {
-  const total = s.items.reduce((sum, it) => sum + it.quantity * it.unit_price, 0);
-  return {...s, total}
-})
-
 // ===== DOM =====
 const salesBody = document.getElementById("sales-body");
 const panel = document.getElementById("sale-panel");
 const closeBtn = document.getElementById("close-panel");
+const totalEl = document.getElementById("filter-total");
+const saleMeta = document.getElementById("sale-meta");
+const paymentsBody = document.getElementById("payments-body");
+const totalPaidCell = document.getElementById("total-paid");
+const itemsBody = document.getElementById("items-body");
+const saleTotalCell = document.getElementById("sale-total");
+const saleChangeCell = document.getElementById("sale-change");
+const startDate = document.getElementById("start-date");
+const endDate = document.getElementById("end-date");
+const rangeSelect = document.getElementById("predefined-range");
 
 let rows = [];
 let selectedRowIndex = -1;
 let panelOpen = false;
 
+document.addEventListener("DOMContentLoaded", () => {
+  // select all in drop down by default
+  rangeSelect.value = "all";
+});
+
 function renderTable() {
   salesBody.innerHTML = "";
-  sales.forEach((s, idx) => {
+  sales.data.forEach((s, idx) => {
     const tr = document.createElement("tr");
     tr.className =
       "cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/30 focus:outline-none";
@@ -63,6 +73,8 @@ function renderTable() {
     salesBody.appendChild(tr);
   });
   rows = Array.from(salesBody.querySelectorAll("tr"));
+
+  totalEl.textContent = `Total: ₦${sales.total.toLocaleString()}`;
 }
 
 function selectRow(idx, scrollIntoView = false) {
@@ -115,13 +127,6 @@ function closePanel() {
 }
 
 // ===== Panel rendering =====
-const saleMeta = document.getElementById("sale-meta");
-const paymentsBody = document.getElementById("payments-body");
-const totalPaidCell = document.getElementById("total-paid");
-const itemsBody = document.getElementById("items-body");
-const saleTotalCell = document.getElementById("sale-total");
-const saleChangeCell = document.getElementById("sale-change");
-
 function updatePanel(sale) {
   const dt = new Date(sale.created_at);
   saleMeta.textContent = `${sale.receipt_number} • ${dt.toLocaleString()} • Cashier: ${sale.cashier}`;
@@ -201,3 +206,83 @@ closeBtn.addEventListener("click", closePanel);
 renderTable();
 // Preselect the first row for quick nav
 if (rows.length) selectRow(0);
+
+function formatDate(date) {
+  return date.toISOString().split("T")[0]; // YYYY-MM-DD
+}
+
+rangeSelect.addEventListener("change", () => {
+  const today = new Date();
+  let start, end;
+
+  switch (rangeSelect.value) {
+    case "today":
+      start = new Date(today);
+      end = new Date(today);
+      break;
+
+    case "yesterday":
+      start = new Date(today);
+      start.setDate(start.getDate() - 1);
+      end = new Date(start);
+      break;
+
+    case "this-week":
+      start = new Date(today);
+      start.setDate(today.getDate() - today.getDay()); // Sunday
+      end = new Date(today);
+      break;
+
+    case "last-week":
+      start = new Date(today);
+      start.setDate(today.getDate() - today.getDay() - 7); // previous Sunday
+      end = new Date(start);
+      end.setDate(start.getDate() + 6); // Saturday
+      break;
+
+    case "this-month":
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today);
+      break;
+
+    case "last-month":
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      end = new Date(today.getFullYear(), today.getMonth(), 0); // last day of prev month
+      break;
+
+    case "all":
+      startDate.value = "";
+      endDate.value = "";
+      start = end = null;
+      applyFilter();
+      return;
+    default:
+      return;
+  }
+
+  if (start && end) {
+    startDate.value = formatDate(start);
+    endDate.value = formatDate(end);
+  }
+
+  applyFilter(start, end);
+});
+
+async function applyFilter(start, end) {
+  const params = new URLSearchParams();
+  if (start) params.set("start", formatDate(start));
+  if (end) params.set("end", formatDate(end));
+
+  try {
+    const res = await fetch(`/sales/filter?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to fetch sales");
+
+    const data = await res.json();
+    sales = data;
+
+    renderTable();
+    selectedRowIndex = -1;
+  } catch (err) {
+    console.error("Error fetching sales:", err);
+  }
+}
