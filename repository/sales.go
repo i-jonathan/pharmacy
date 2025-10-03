@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"pharmacy/internal/types"
 	"pharmacy/model"
 
 	"github.com/jmoiron/sqlx"
@@ -38,9 +39,17 @@ func (r *repo) BulkCreateSalePaymentsTX(ctx context.Context, tx *sqlx.Tx, salePa
 	return nil
 }
 
-func (r *repo) FetchSalesTx(ctx context.Context, tx *sqlx.Tx) ([]model.Sale, error) {
+func (r *repo) FetchSalesTx(ctx context.Context, tx *sqlx.Tx, filter types.SaleFilter) ([]model.Sale, error) {
 	var sales []model.Sale
-	err := tx.SelectContext(ctx, &sales, fetchSalesQuery)
+	var startDate, endDate any
+	if filter.StartDate != nil {
+		startDate = *filter.StartDate
+	}
+	if filter.EndDate != nil {
+		endDate = *filter.EndDate
+	}
+
+	err := tx.SelectContext(ctx, &sales, fetchSalesQuery, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}

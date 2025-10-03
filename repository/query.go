@@ -107,9 +107,14 @@ const bulkCreateSalePaymentQuery = `
 	VALUES (:sale_id, :amount, :payment_method);
 `
 const fetchSalesQuery = `
-	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
-	FROM sales ORDER BY created_at DESC
+  SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
+  FROM sales
+  WHERE
+    ($1::date IS NULL OR created_at::date >= $1::date)
+    AND ($2::date IS NULL OR created_at::date <= $2::date)
+  ORDER BY created_at DESC
 `
+
 const bulkFetchSaleItemsQuery = `
 	SELECT sale_id, product_id, quantity, unit_price, discount, total_price
 	FROM sales_item WHERE sale_id = ANY($1)

@@ -36,7 +36,7 @@ type SaleRepository interface {
 	CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (int, error)
 	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
 	BulkCreateSalePaymentsTX(ctx context.Context, tx *sqlx.Tx, salePayments []model.SalePayment) error
-	FetchSalesTx(ctx context.Context, tx *sqlx.Tx) ([]model.Sale, error)
+	FetchSalesTx(ctx context.Context, tx *sqlx.Tx, filter types.SaleFilter) ([]model.Sale, error)
 	BulkFetchSaleItems(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SaleItem, error)
 	BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SalePayment, error)
 }
