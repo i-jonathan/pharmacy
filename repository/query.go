@@ -133,3 +133,7 @@ const fetchInventoryViewQuery = `
 	SELECT * from inventory_view ORDER BY name ASC;
 `
 const fetchPriceByIDQuery = `SELECT * from product_price where id = $1`
+const insertIntoHeldTransactionQuery = `
+	INSERT INTO held_transaction (type, reference, payload)
+	VALUES ($1, $2, $3);
+`

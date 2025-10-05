@@ -77,3 +77,11 @@ func (r *repo) BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs [
 
 	return payments, nil
 }
+
+func (r *repo) StoreHoldSale(ctx context.Context, saleTransaction model.HeldTransaction) error {
+	_, err := r.Data.ExecContext(
+		ctx, insertIntoHeldTransactionQuery, saleTransaction.Type,
+		saleTransaction.Reference, saleTransaction.Payload,
+	)
+	return err
+}

@@ -39,6 +39,7 @@ type SaleRepository interface {
 	FetchSalesTx(ctx context.Context, tx *sqlx.Tx, filter types.SaleFilter) ([]model.Sale, error)
 	BulkFetchSaleItems(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SaleItem, error)
 	BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SalePayment, error)
+	StoreHoldSale(ctx context.Context, saleTransaction model.HeldTransaction) error
 }
 
 type PharmacyRepository interface {
