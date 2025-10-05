@@ -137,3 +137,11 @@ const insertIntoHeldTransactionQuery = `
 	INSERT INTO held_transaction (type, reference, payload)
 	VALUES ($1, $2, $3);
 `
+const upsertHeldTransactionQuery = `
+	INSERT INTO held_transaction (type, reference, payload)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (reference)
+	DO UPDATE SET
+		payload = EXCLUDED.payload,
+		updated_at = NOW();
+`
