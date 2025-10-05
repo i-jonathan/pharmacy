@@ -1,5 +1,6 @@
-const cart = [];
-const payments = {};
+let cart = [];
+let payments = {};
+let holdReference = "";
 let selectedPaymentMethod = "";
 let searchTimeout;
 
@@ -579,7 +580,10 @@ async function saveSale(printAfterSave = false) {
     });
 
     if (response.ok) {
-      console.log("Sale saved successfully!");
+      showToast(`Sale saved successfully`, {
+        type: "info",
+        duration: 3000,
+      });
 
       if (printAfterSave) {
         printReceipt(payload);
@@ -590,15 +594,26 @@ async function saveSale(printAfterSave = false) {
       saveBtn.disabled = true;
       savePrintBtn.disabled = true;
 
-      window.location.reload();
+      cart = [];
+      payments = {};
+      holdReference = "";
+      renderCart();
+      validateSale();
+      // window.location.reload();
     } else {
       const errorData = await response.json().catch(() => ({}));
       console.error("Save sale failed:", errorData);
-      alert("Failed to save sale. Please try again.");
+      showToast(`Failed to save sale. Please try again.`, {
+        type: "error",
+        duration: 3000,
+      });
     }
   } catch (error) {
     console.error("Error saving sale:", error);
-    alert("An error occurred while saving the sale.");
+    showToast(`An error occurred while saving the sale.`, {
+      type: "error",
+      duration: 3000,
+    });
   }
 }
 
@@ -637,6 +652,10 @@ function validateSale() {
     document.getElementById("amount-paid").classList.remove("text-red-500");
   }
 
+  if (cart.length === 0) {
+    isValid = false;
+  }
+
   // toggle Save button
   const saveBtn = document.getElementById("saveSaleBtn");
   const savePrintBtn = document.getElementById("savePrintBtn");
@@ -659,11 +678,49 @@ document.addEventListener("input", (e) => {
   }
 });
 
-function holdSale() {
-  alert("Holding current sale...");
-  cart.length = 0;
-  for (let key in payments) delete payments[key];
-  renderCart();
+async function holdSale() {
+  try {
+    const payload = {
+      reference: holdReference,
+      payload: {
+        cart,
+        payments,
+      },
+    };
+
+    const response = await fetch("/sales/hold", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to hold sale: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    showToast(`Sale held successfully`, {
+      type: "info",
+      duration: 3000,
+    });
+
+    cart = [];
+    payments = {};
+    holdReference = "";
+
+    renderCart();
+
+    console.log("Hold response:", data);
+    return data;
+  } catch (error) {
+    console.error("Error holding sale:", error);
+    showToast(`Error holding sale`, {
+      type: "error",
+      duration: 3000,
+    });
+  }
 }
 
 function viewHeld() {
