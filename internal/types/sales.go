@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type SaleFilter struct {
 	StartDate *time.Time
@@ -57,4 +60,9 @@ type SaleResponse struct {
 type SaleHistory struct {
 	TotalAmount float64        `json:"total"`
 	Data        []SaleResponse `json:"data"`
+}
+
+type HoldTransactionRequest struct {
+	Reference string          `json:"reference"`
+	Payload   json.RawMessage `json:"payload"`
 }
