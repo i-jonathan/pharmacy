@@ -1,4 +1,4 @@
-CREATE TABLE held_transactions (
+CREATE TABLE held_transaction (
     id integer generated always as identity primary key unique,
     type varchar(20) not null,
     reference text unique,
