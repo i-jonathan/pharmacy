@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"math/rand"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
@@ -229,4 +231,28 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		TotalAmount: salesHistoryTotal,
 		Data:        responses,
 	}, nil
+}
+
+func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error {
+	reference := holdSaleRequest.Reference
+	if reference == "" {
+		reference = fmt.Sprintf("%s-%s-%04d",
+			string(constant.HoldSaleType),
+			time.Now().Format("20060102"),
+			rand.Intn(10000),
+		)
+	}
+
+	holdTransaction := model.HeldTransaction{
+		Type:      string(constant.HoldSaleType),
+		Reference: reference,
+		Payload:   holdSaleRequest.Payload,
+	}
+
+	err := s.repo.SaveHeldTransaction(ctx, holdTransaction)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to hold sale", err)
+	}
+	return nil
 }
