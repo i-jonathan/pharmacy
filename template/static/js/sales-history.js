@@ -113,7 +113,7 @@ function selectRow(idx, scrollIntoView = false) {
 }
 
 function openPanelFor(idx) {
-  const sale = sales[idx];
+  const sale = sales.data[idx];
   updatePanel(sale);
   if (!panelOpen) {
     panel.classList.add("open");

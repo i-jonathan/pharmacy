@@ -34,7 +34,7 @@ func main() {
 	}
 	defer file.Close()
 
-	// log.SetOutput(file)
+	log.SetOutput(file)
 
 	parseTemplates()
 	subFS, err := fs.Sub(embeddedStatic, "template/static")
@@ -71,7 +71,7 @@ func main() {
 	)
 
 	server := http.Server{
-		Addr:    ":8000",
+		Addr:    "0.0.0.0:8000",
 		Handler: middlewareStack(r),
 	}
 	log.Println("Listening on port 8000...")

@@ -1,3 +1,6 @@
 .env
 **/input.css
 tailwind.config.js
+**.DS_STORE
+**.log
+**.exe
