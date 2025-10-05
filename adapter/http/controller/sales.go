@@ -123,3 +123,26 @@ func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
 
 	helper.JSONResponse(w, http.StatusOK, salesData)
 }
+
+func (c *saleController) HoldSaleTransaction(w http.ResponseWriter, r *http.Request) {
+	var heldTransaction types.HoldTransactionRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&heldTransaction); err != nil {
+		httperror.BadRequest("Invalid JSON", err).JSONRespond(w)
+		return
+	}
+
+	err := c.service.HoldSale(r.Context(), heldTransaction)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "sales history fetch error", http.StatusInternalServerError)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Held Successfully"})
+}
