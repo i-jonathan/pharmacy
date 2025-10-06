@@ -80,13 +80,13 @@ func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Reque
 	salesJSON, err := json.Marshal(sales)
 	if err != nil {
 		http.Error(w, "sales history json error", http.StatusInternalServerError)
+		return
 	}
 
 	data := map[string]any{
 		"SalesJSON": template.JS(salesJSON),
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	err = c.template.ExecuteTemplate(w, "sales-history.html", data)
 	if err != nil {
 		http.Error(w, "sales history render error", http.StatusInternalServerError)
@@ -145,4 +145,35 @@ func (c *saleController) HoldSaleTransaction(w http.ResponseWriter, r *http.Requ
 	}
 
 	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Held Successfully"})
+}
+
+func (c *saleController) RenderHeldSaleReceipts(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	heldTransactions, err := c.service.FetchHeldSaleTransactions(r.Context())
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "sales history fetch error", http.StatusInternalServerError)
+		return
+	}
+
+	transactionJSON, err := json.Marshal(heldTransactions)
+	if err != nil {
+		http.Error(w, "held transactions json error", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]any{
+		"HeldTransactions": template.JS(transactionJSON),
+	}
+
+	err = c.template.ExecuteTemplate(w, "held-receipt.html", data)
+	if err != nil {
+		http.Error(w, "held receipts render error", http.StatusInternalServerError)
+	}
 }
