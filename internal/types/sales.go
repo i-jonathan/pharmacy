@@ -66,3 +66,9 @@ type HoldTransactionRequest struct {
 	Reference string          `json:"reference"`
 	Payload   json.RawMessage `json:"payload"`
 }
+
+type HeldTransactionResponse struct {
+	Reference string          `json:"reference"`
+	Payload   json.RawMessage `json:"payload"`
+	CreatedAt time.Time       `json:"created_at"`
+}
