@@ -204,7 +204,7 @@ function closePanel() {
 // ==============================
 function restoreHeldSale() {
   if (!currentHeld) return alert("No sale selected.");
-  localStorage.setItem("heldSale", JSON.stringify(currentHeld.payload));
+  localStorage.setItem("heldSale", JSON.stringify(currentHeld));
   window.location.href = "/sales/receipt";
 }
 

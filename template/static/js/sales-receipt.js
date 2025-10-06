@@ -754,6 +754,7 @@ function buildSalePayload(cart, payments) {
     if (lineDiscount.lt(0)) lineDiscount = new Decimal(0);
 
     return {
+      held_sale_reference: holdReference,
       name: item.name,
       product_id: item.id,
       quantity: toNaira(qty).toNumber(),
@@ -866,18 +867,22 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!heldData) return;
 
   try {
-    const payload = JSON.parse(heldData);
+    const data = JSON.parse(heldData);
+    holdReference = data.reference;
 
-    if (payload.cart && Array.isArray(payload.cart)) {
-      cart = (payload.cart || []).map((i) => ({
+    if (data.payload.cart && Array.isArray(data.payload.cart)) {
+      cart = (data.payload.cart || []).map((i) => ({
         ...i,
         price: D(i.price),
         qty: D(i.qty),
       }));
     }
 
-    if (payload.payments && Object.keys(payload.payments).length > 0) {
-      payments = payload.payments;
+    if (
+      data.payload.payments &&
+      Object.keys(data.payload.payments).length > 0
+    ) {
+      payments = data.payload.payments;
     }
 
     renderCart();
