@@ -860,3 +860,32 @@ document.addEventListener("keydown", (e) => {
       break;
   }
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const heldData = localStorage.getItem("heldSale");
+  if (!heldData) return;
+
+  try {
+    const payload = JSON.parse(heldData);
+
+    if (payload.cart && Array.isArray(payload.cart)) {
+      cart = (payload.cart || []).map((i) => ({
+        ...i,
+        price: D(i.price),
+        qty: D(i.qty),
+      }));
+    }
+
+    if (payload.payments && Object.keys(payload.payments).length > 0) {
+      payments = payload.payments;
+    }
+
+    renderCart();
+    localStorage.removeItem("heldSale");
+
+    showToast("Held sale restored successfully", "success");
+  } catch (err) {
+    console.error("Error restoring held sale:", err);
+    showToast("Could not restore held sale", "error");
+  }
+});
