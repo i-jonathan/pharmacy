@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/model"
 
@@ -84,4 +85,13 @@ func (r *repo) SaveHeldTransaction(ctx context.Context, transaction model.HeldTr
 		transaction.Reference, transaction.Payload,
 	)
 	return err
+}
+
+func (r *repo) FetchHeldTransactionsByType(ctx context.Context, transactionType constant.HoldTransactionType) ([]model.HeldTransaction, error) {
+	var heldTransactions []model.HeldTransaction
+	err := r.Data.SelectContext(ctx, &heldTransactions, fetchHeldTransactionByTypeQuery, string(transactionType))
+	if err != nil {
+		return nil, err
+	}
+	return heldTransactions, nil
 }

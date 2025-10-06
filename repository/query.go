@@ -145,3 +145,8 @@ const upsertHeldTransactionQuery = `
 		payload = EXCLUDED.payload,
 		updated_at = NOW();
 `
+const fetchHeldTransactionByTypeQuery = `
+	SELECT * from held_transaction
+	WHERE type = $1
+	ORDER BY created_at DESC
+`
