@@ -37,7 +37,7 @@ function renderHeldTable() {
   }
 
   heldSales.forEach((sale, idx) => {
-    const { reference, created_at, payload } = sale;
+    const { reference, updated_at, payload } = sale;
     const cart = payload.cart || [];
     const total = cart.reduce(
       (sum, item) =>
@@ -51,7 +51,7 @@ function renderHeldTable() {
       "cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/30 focus:outline-none";
     tr.innerHTML = `
       <td class="px-4 py-3 font-medium">${reference}</td>
-      <td class="px-4 py-3">${new Date(created_at).toLocaleString()}</td>
+      <td class="px-4 py-3">${new Date(updated_at).toLocaleString()}</td>
       <td class="px-4 py-3">${cart.length}</td>
       <td class="px-4 py-3">₦${total.toLocaleString()}</td>
     `;
@@ -125,11 +125,11 @@ function openPanelFor(idx) {
   if (!sale) return;
   currentHeld = sale;
 
-  const { reference, payload, created_at } = sale;
+  const { reference, payload, updated_at } = sale;
   const { cart, payments } = payload;
 
   saleMeta.textContent = `${reference} • ${new Date(
-    created_at,
+    updated_at,
   ).toLocaleString()}`;
 
   // Items
