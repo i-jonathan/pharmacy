@@ -256,3 +256,22 @@ func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTr
 	}
 	return nil
 }
+
+func (s *saleService) FetchHeldSaleTransactions(ctx context.Context) ([]types.HeldTransactionResponse, error) {
+	transactions, err := s.repo.FetchHeldTransactionsByType(ctx, constant.HoldSaleType)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch held transactions", err)
+	}
+	
+	var response []types.HeldTransactionResponse
+	for _, sale := range transactions {
+		response = append(response, types.HeldTransactionResponse{
+			Reference: sale.Reference,
+			Payload:   sale.Payload,
+			CreatedAt: sale.CreatedAt,
+		})
+	}
+	
+	return response, nil
+}
