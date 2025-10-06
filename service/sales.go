@@ -97,6 +97,14 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 		return httperror.ServerError("Failed to bulk create stock movements", err)
 	}
 
+	// Delete held sale tx
+	log.Printf("Sale reference: %s\n", saleParams.HeldSaleReference)
+	if saleParams.HeldSaleReference != "" {
+		err = s.repo.DeleteHeldTransactionByReferenceTx(ctx, tx, saleParams.HeldSaleReference)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		log.Println(err)
@@ -263,7 +271,7 @@ func (s *saleService) FetchHeldSaleTransactions(ctx context.Context) ([]types.He
 		log.Println(err)
 		return nil, httperror.ServerError("failed to fetch held transactions", err)
 	}
-	
+
 	var response []types.HeldTransactionResponse
 	for _, sale := range transactions {
 		response = append(response, types.HeldTransactionResponse{
@@ -272,6 +280,6 @@ func (s *saleService) FetchHeldSaleTransactions(ctx context.Context) ([]types.He
 			CreatedAt: sale.CreatedAt,
 		})
 	}
-	
+
 	return response, nil
 }
