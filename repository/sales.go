@@ -95,3 +95,13 @@ func (r *repo) FetchHeldTransactionsByType(ctx context.Context, transactionType 
 	}
 	return heldTransactions, nil
 }
+
+func (r *repo) DeleteHeldTransactionByReference(ctx context.Context, reference string) error {
+	_, err := r.Data.ExecContext(ctx, deleteHeldTransactionByReferenceQuery, reference)
+	return err
+}
+
+func (r *repo) DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.Tx, reference string) error {
+	_, err := tx.ExecContext(ctx, deleteHeldTransactionByReferenceQuery, reference)
+	return err
+}

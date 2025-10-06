@@ -150,3 +150,7 @@ const fetchHeldTransactionByTypeQuery = `
 	WHERE type = $1
 	ORDER BY created_at DESC
 `
+const deleteHeldTransactionByReferenceQuery = `
+	DELETE from held_transaction
+	WHERE reference = $1;
+`

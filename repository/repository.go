@@ -42,6 +42,8 @@ type SaleRepository interface {
 	BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SalePayment, error)
 	SaveHeldTransaction(ctx context.Context, transaction model.HeldTransaction) error
 	FetchHeldTransactionsByType(ctx context.Context, transactionType constant.HoldTransactionType) ([]model.HeldTransaction, error)
+	DeleteHeldTransactionByReference(ctx context.Context, reference string) error
+	DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.Tx, reference string) error
 }
 
 type PharmacyRepository interface {
