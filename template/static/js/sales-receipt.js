@@ -754,7 +754,6 @@ function buildSalePayload(cart, payments) {
     if (lineDiscount.lt(0)) lineDiscount = new Decimal(0);
 
     return {
-      held_sale_reference: holdReference,
       name: item.name,
       product_id: item.id,
       quantity: toNaira(qty).toNumber(),
@@ -780,6 +779,7 @@ function buildSalePayload(cart, payments) {
     }));
 
   return {
+    held_sale_reference: holdReference,
     subtotal: toNaira(subtotal).toNumber(),
     discount: toNaira(discount).toNumber(),
     total: toNaira(total).toNumber(),
