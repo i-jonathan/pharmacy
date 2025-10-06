@@ -148,7 +148,7 @@ const upsertHeldTransactionQuery = `
 const fetchHeldTransactionByTypeQuery = `
 	SELECT * from held_transaction
 	WHERE type = $1
-	ORDER BY created_at DESC
+	ORDER BY updated_at DESC
 `
 const deleteHeldTransactionByReferenceQuery = `
 	DELETE from held_transaction

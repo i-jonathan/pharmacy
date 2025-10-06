@@ -278,6 +278,7 @@ func (s *saleService) FetchHeldSaleTransactions(ctx context.Context) ([]types.He
 			Reference: sale.Reference,
 			Payload:   sale.Payload,
 			CreatedAt: sale.CreatedAt,
+			UpdatedAt: sale.UpdatedAt,
 		})
 	}
 
