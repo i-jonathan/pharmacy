@@ -211,11 +211,31 @@ function restoreHeldSale() {
 // ==============================
 // DELETE SALE
 // ==============================
-function deleteHeldSale(ref) {
+async function deleteHeldSale() {
+  if (!currentHeld) return alert("No sale selected.");
+  reference = currentHeld.reference;
   if (!confirm("Are you sure you want to delete this held sale?")) return;
-  heldSales = heldSales.filter((s) => s.reference !== ref);
-  renderHeldTable();
-  closePanel();
+
+  try {
+    const res = await fetch(`/sales/held/${encodeURIComponent(reference)}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || "Failed to delete held sale");
+    }
+
+    // Remove locally after successful delete
+    heldSales = heldSales.filter((s) => s.reference !== reference);
+    renderHeldTable();
+    closePanel();
+    showToast(`Held receipt deleted successfully`);
+  } catch (err) {
+    console.error("Delete error:", err);
+    alert("Failed to delete held sale. " + err.message);
+  }
 }
 
 // ==============================
