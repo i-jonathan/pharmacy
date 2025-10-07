@@ -284,3 +284,12 @@ func (s *saleService) FetchHeldSaleTransactions(ctx context.Context) ([]types.He
 
 	return response, nil
 }
+
+func (s *saleService) DeleteHeldTransaction(ctx context.Context, reference string) error {
+	err := s.repo.DeleteHeldTransactionByReference(ctx, reference)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to delete held transaction", err)
+	}
+	return nil
+}

@@ -25,4 +25,5 @@ type SaleService interface {
 	FetchSalesHistory(ctx context.Context, filter types.SaleFilter) (types.SaleHistory, error)
 	HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error
 	FetchHeldSaleTransactions(ctx context.Context) ([]types.HeldTransactionResponse, error)
+	DeleteHeldTransaction(ctx context.Context, reference string) error
 }
