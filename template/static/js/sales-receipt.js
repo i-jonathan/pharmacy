@@ -723,14 +723,6 @@ async function holdSale() {
   }
 }
 
-function viewHeld() {
-  document.getElementById("held-modal").classList.remove("hidden");
-}
-
-function closeHeld() {
-  document.getElementById("held-modal").classList.add("hidden");
-}
-
 // Helpers
 const D = (v) => (v instanceof Decimal ? v : new Decimal(v ?? 0));
 const toNaira = (d) => D(d).toDecimalPlaces(0, Decimal.ROUND_HALF_UP); // whole ₦
