@@ -177,3 +177,23 @@ func (c *saleController) RenderHeldSaleReceipts(w http.ResponseWriter, r *http.R
 		http.Error(w, "held receipts render error", http.StatusInternalServerError)
 	}
 }
+
+func (c *saleController) DeleteHeldSale(w http.ResponseWriter, r *http.Request) {
+	reference := r.PathValue("reference")
+	if reference == "" {
+		http.Error(w, "missing reference", http.StatusBadRequest)
+		return
+	}
+
+	err := c.service.DeleteHeldTransaction(r.Context(), reference)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "sales history fetch error", http.StatusInternalServerError)
+		return
+	}
+}
