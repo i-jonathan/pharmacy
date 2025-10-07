@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/model"
 
@@ -76,4 +77,31 @@ func (r *repo) BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs [
 	}
 
 	return payments, nil
+}
+
+func (r *repo) SaveHeldTransaction(ctx context.Context, transaction model.HeldTransaction) error {
+	_, err := r.Data.ExecContext(
+		ctx, upsertHeldTransactionQuery, transaction.Type,
+		transaction.Reference, transaction.Payload,
+	)
+	return err
+}
+
+func (r *repo) FetchHeldTransactionsByType(ctx context.Context, transactionType constant.HoldTransactionType) ([]model.HeldTransaction, error) {
+	var heldTransactions []model.HeldTransaction
+	err := r.Data.SelectContext(ctx, &heldTransactions, fetchHeldTransactionByTypeQuery, string(transactionType))
+	if err != nil {
+		return nil, err
+	}
+	return heldTransactions, nil
+}
+
+func (r *repo) DeleteHeldTransactionByReference(ctx context.Context, reference string) error {
+	_, err := r.Data.ExecContext(ctx, deleteHeldTransactionByReferenceQuery, reference)
+	return err
+}
+
+func (r *repo) DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.Tx, reference string) error {
+	_, err := tx.ExecContext(ctx, deleteHeldTransactionByReferenceQuery, reference)
+	return err
 }

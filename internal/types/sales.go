@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type SaleFilter struct {
 	StartDate *time.Time
@@ -22,12 +25,13 @@ type SalePayment struct {
 }
 
 type Sale struct {
-	CashierID int
-	Subtotal  float64       `json:"subtotal"`
-	Discount  float64       `json:"discount"`
-	Total     float64       `json:"total"`
-	Items     []SaleItem    `json:"items"`
-	Payments  []SalePayment `json:"payments"`
+	CashierID         int
+	HeldSaleReference string        `json:"held_sale_reference"`
+	Subtotal          float64       `json:"subtotal"`
+	Discount          float64       `json:"discount"`
+	Total             float64       `json:"total"`
+	Items             []SaleItem    `json:"items"`
+	Payments          []SalePayment `json:"payments"`
 }
 
 type SaleItemResponse struct {
@@ -57,4 +61,16 @@ type SaleResponse struct {
 type SaleHistory struct {
 	TotalAmount float64        `json:"total"`
 	Data        []SaleResponse `json:"data"`
+}
+
+type HoldTransactionRequest struct {
+	Reference string          `json:"reference"`
+	Payload   json.RawMessage `json:"payload"`
+}
+
+type HeldTransactionResponse struct {
+	Reference string          `json:"reference"`
+	Payload   json.RawMessage `json:"payload"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }

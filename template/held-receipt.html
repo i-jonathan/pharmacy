@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Sales History | PharmaPOS</title>
+        <title>Held Receipts | PharmaPOS</title>
         <link href="/static/css/tailwind.css" rel="stylesheet" />
         <style>
             .no-spinners::-webkit-inner-spin-button,
@@ -126,12 +126,12 @@
                 >
                 <a
                     href="/sales/history"
-                    class="text-primary font-semibold border-b-2 border-primary pb-1"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
                     >Sales History</a
                 >
                 <a
                     href="/sales/held"
-                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    class="text-primary font-semibold border-b-2 border-primary pb-1"
                     >Held Receipts</a
                 >
             </div>
@@ -140,76 +140,9 @@
         <!-- Main -->
         <main class="p-6 flex-1 w-full space-y-6">
             <div class="flex items-end justify-between">
-                <h1 class="text-2xl font-semibold">Sales History</h1>
+                <h1 class="text-2xl font-semibold">Held Receipts</h1>
                 <div class="text-sm text-gray-500 dark:text-gray-400">
-                    Use ↑/↓ to browse sales; Enter to open/close details
-                </div>
-            </div>
-
-            <!-- Filters -->
-            <div
-                class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow flex flex-wrap items-center justify-between gap-3"
-            >
-                <!-- Left: Filters -->
-                <div class="flex flex-wrap items-center gap-3">
-                    <!-- Start Date -->
-                    <div class="flex flex-col">
-                        <label
-                            for="start-date"
-                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
-                            >Start Date</label
-                        >
-                        <input
-                            type="date"
-                            id="start-date"
-                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
-                            placeholder="Start"
-                        />
-                    </div>
-
-                    <!-- End Date -->
-                    <div class="flex flex-col">
-                        <label
-                            for="end-date"
-                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
-                            >End Date</label
-                        >
-                        <input
-                            type="date"
-                            id="end-date"
-                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
-                            placeholder="End"
-                        />
-                    </div>
-
-                    <!-- Quick Range -->
-                    <div class="flex flex-col">
-                        <label
-                            for="predefined-range"
-                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
-                            >Quick Range</label
-                        >
-                        <select
-                            id="predefined-range"
-                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
-                        >
-                            <option value="all" selected>All</option>
-                            <option value="today">Today</option>
-                            <option value="yesterday">Yesterday</option>
-                            <option value="this-week">This Week</option>
-                            <option value="last-week">Last Week</option>
-                            <option value="this-month">This Month</option>
-                            <option value="last-month">Last Month</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Right: Total -->
-                <div
-                    id="filter-total"
-                    class="bg-emerald-50 dark:bg-emerald-900/40 rounded px-4 py-2 text-emerald-700 dark:text-emerald-300 font-semibold text-base whitespace-nowrap"
-                >
-                    Total: ₦0
+                    Use ↑/↓ to browse receipts; Enter to open/close details
                 </div>
             </div>
 
@@ -217,8 +150,8 @@
             <div class="overflow-x-auto">
                 <table
                     class="min-w-full bg-white dark:bg-gray-800 text-sm"
-                    id="sales-table"
-                    aria-label="Sales history table"
+                    id="held-receipts-table"
+                    aria-label="Held receipts table"
                 >
                     <thead class="bg-gray-100 dark:bg-gray-700 text-left">
                         <tr
@@ -228,11 +161,10 @@
                             <th class="px-4 py-3">Date</th>
                             <th class="px-4 py-3">Items</th>
                             <th class="px-4 py-3">Total</th>
-                            <th class="px-4 py-3">Cashier</th>
                         </tr>
                     </thead>
                     <tbody
-                        id="sales-body"
+                        id="held-receipts-body"
                         class="divide-y dark:divide-gray-700"
                     ></tbody>
                 </table>
@@ -296,11 +228,6 @@
                                     <th
                                         class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
                                     >
-                                        Discount
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                                    >
                                         Line Total
                                     </th>
                                 </tr>
@@ -317,26 +244,12 @@
                                 <tr>
                                     <td
                                         class="px-3 py-3 text-gray-700 dark:text-gray-200"
-                                        colspan="4"
+                                        colspan="3"
                                     >
                                         Sale Total
                                     </td>
                                     <td
                                         id="sale-total"
-                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
-                                    >
-                                        ₦0
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td
-                                        class="px-3 py-3 text-gray-700 dark:text-gray-200"
-                                        colspan="4"
-                                    >
-                                        Change
-                                    </td>
-                                    <td
-                                        id="sale-change"
                                         class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
                                     >
                                         ₦0
@@ -386,13 +299,36 @@
                         </table>
                     </div>
                 </section>
+
+                <div
+                    class="mt-6 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-4"
+                >
+                    <!-- Delete button -->
+                    <button
+                        id="delete-held-btn"
+                        class="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white font-medium px-5 py-2 rounded-lg flex items-center gap-2"
+                        onclick="deleteHeldSale()"
+                    >
+                        Delete Held Sale
+                    </button>
+
+                    <!-- Restore button -->
+                    <button
+                        id="restore-btn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2 rounded-lg"
+                        onclick="restoreHeldSale()"
+                    >
+                        Restore Sale
+                    </button>
+                </div>
             </div>
         </aside>
 
         <script>
-            sales = {{ .SalesJSON }};
+            heldSales = {{ .HeldTransactions }};
         </script>
         <script src="/static/js/theme.js"></script>
-        <script src="/static/js/sales-history.js"></script>
+        <script src="/static/js/toast.js"></script>
+        <script src="/static/js/held-receipt.js"></script>
     </body>
 </html>

@@ -1,5 +1,6 @@
-const cart = [];
-const payments = {};
+let cart = [];
+let payments = {};
+let holdReference = "";
 let selectedPaymentMethod = "";
 let searchTimeout;
 
@@ -579,7 +580,10 @@ async function saveSale(printAfterSave = false) {
     });
 
     if (response.ok) {
-      console.log("Sale saved successfully!");
+      showToast(`Sale saved successfully`, {
+        type: "info",
+        duration: 3000,
+      });
 
       if (printAfterSave) {
         printReceipt(payload);
@@ -590,15 +594,26 @@ async function saveSale(printAfterSave = false) {
       saveBtn.disabled = true;
       savePrintBtn.disabled = true;
 
-      window.location.reload();
+      cart = [];
+      payments = {};
+      holdReference = "";
+      renderCart();
+      validateSale();
+      // window.location.reload();
     } else {
       const errorData = await response.json().catch(() => ({}));
       console.error("Save sale failed:", errorData);
-      alert("Failed to save sale. Please try again.");
+      showToast(`Failed to save sale. Please try again.`, {
+        type: "error",
+        duration: 3000,
+      });
     }
   } catch (error) {
     console.error("Error saving sale:", error);
-    alert("An error occurred while saving the sale.");
+    showToast(`An error occurred while saving the sale.`, {
+      type: "error",
+      duration: 3000,
+    });
   }
 }
 
@@ -637,6 +652,10 @@ function validateSale() {
     document.getElementById("amount-paid").classList.remove("text-red-500");
   }
 
+  if (cart.length === 0) {
+    isValid = false;
+  }
+
   // toggle Save button
   const saveBtn = document.getElementById("saveSaleBtn");
   const savePrintBtn = document.getElementById("savePrintBtn");
@@ -659,19 +678,49 @@ document.addEventListener("input", (e) => {
   }
 });
 
-function holdSale() {
-  alert("Holding current sale...");
-  cart.length = 0;
-  for (let key in payments) delete payments[key];
-  renderCart();
-}
+async function holdSale() {
+  try {
+    const payload = {
+      reference: holdReference,
+      payload: {
+        cart,
+        payments,
+      },
+    };
 
-function viewHeld() {
-  document.getElementById("held-modal").classList.remove("hidden");
-}
+    const response = await fetch("/sales/hold", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-function closeHeld() {
-  document.getElementById("held-modal").classList.add("hidden");
+    if (!response.ok) {
+      throw new Error(`Failed to hold sale: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    showToast(`Sale held successfully`, {
+      type: "info",
+      duration: 3000,
+    });
+
+    cart = [];
+    payments = {};
+    holdReference = "";
+
+    renderCart();
+
+    console.log("Hold response:", data);
+    return data;
+  } catch (error) {
+    console.error("Error holding sale:", error);
+    showToast(`Error holding sale`, {
+      type: "error",
+      duration: 3000,
+    });
+  }
 }
 
 // Helpers
@@ -722,6 +771,7 @@ function buildSalePayload(cart, payments) {
     }));
 
   return {
+    held_sale_reference: holdReference,
     subtotal: toNaira(subtotal).toNumber(),
     discount: toNaira(discount).toNumber(),
     total: toNaira(total).toNumber(),
@@ -801,5 +851,44 @@ document.addEventListener("keydown", (e) => {
         saveSale();
       }
       break;
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const heldData = localStorage.getItem("heldSale");
+  if (!heldData) return;
+
+  try {
+    const data = JSON.parse(heldData);
+    holdReference = data.reference;
+
+    if (data.payload.cart && Array.isArray(data.payload.cart)) {
+      cart = (data.payload.cart || []).map((i) => ({
+        ...i,
+        price: D(i.price),
+        qty: D(i.qty),
+      }));
+    }
+
+    if (
+      data.payload.payments &&
+      Object.keys(data.payload.payments).length > 0
+    ) {
+      payments = data.payload.payments;
+    }
+
+    renderCart();
+    localStorage.removeItem("heldSale");
+
+    showToast("Held sale restored successfully", "success");
+  } catch (err) {
+    console.error("Error restoring held sale:", err);
+    showToast("Could not restore held sale", "error");
+  }
+});
+
+window.addEventListener("beforeunload", (e) => {
+  if (cart.length > 0) {
+    e.preventDefault();
   }
 });

@@ -133,3 +133,24 @@ const fetchInventoryViewQuery = `
 	SELECT * from inventory_view ORDER BY name ASC;
 `
 const fetchPriceByIDQuery = `SELECT * from product_price where id = $1`
+const insertIntoHeldTransactionQuery = `
+	INSERT INTO held_transaction (type, reference, payload)
+	VALUES ($1, $2, $3);
+`
+const upsertHeldTransactionQuery = `
+	INSERT INTO held_transaction (type, reference, payload)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (reference)
+	DO UPDATE SET
+		payload = EXCLUDED.payload,
+		updated_at = NOW();
+`
+const fetchHeldTransactionByTypeQuery = `
+	SELECT * from held_transaction
+	WHERE type = $1
+	ORDER BY updated_at DESC
+`
+const deleteHeldTransactionByReferenceQuery = `
+	DELETE from held_transaction
+	WHERE reference = $1;
+`

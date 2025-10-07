@@ -20,6 +20,11 @@ const CashPaymentMethod = "Cash"
 const CardPaymentMethod = "Card"
 const TransferPaymentMethod = "Transfer"
 
+type HoldTransactionType string
+
+const HoldSaleType HoldTransactionType = "SALE"
+const HoldReceivingItemType HoldTransactionType = "RECEIVING_ITEMS"
+
 func NormalizePaymentMethod(input string) string {
 	switch strings.ToLower(strings.TrimSpace(input)) {
 	case "cash":

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"math/rand"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
@@ -95,6 +97,14 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 		return httperror.ServerError("Failed to bulk create stock movements", err)
 	}
 
+	// Delete held sale tx
+	log.Printf("Sale reference: %s\n", saleParams.HeldSaleReference)
+	if saleParams.HeldSaleReference != "" {
+		err = s.repo.DeleteHeldTransactionByReferenceTx(ctx, tx, saleParams.HeldSaleReference)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		log.Println(err)
@@ -229,4 +239,57 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		TotalAmount: salesHistoryTotal,
 		Data:        responses,
 	}, nil
+}
+
+func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error {
+	reference := holdSaleRequest.Reference
+	if reference == "" {
+		reference = fmt.Sprintf("%s-%s-%04d",
+			string(constant.HoldSaleType),
+			time.Now().Format("20060102"),
+			rand.Intn(10000),
+		)
+	}
+
+	holdTransaction := model.HeldTransaction{
+		Type:      string(constant.HoldSaleType),
+		Reference: reference,
+		Payload:   holdSaleRequest.Payload,
+	}
+
+	err := s.repo.SaveHeldTransaction(ctx, holdTransaction)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to hold sale", err)
+	}
+	return nil
+}
+
+func (s *saleService) FetchHeldSaleTransactions(ctx context.Context) ([]types.HeldTransactionResponse, error) {
+	transactions, err := s.repo.FetchHeldTransactionsByType(ctx, constant.HoldSaleType)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch held transactions", err)
+	}
+
+	var response []types.HeldTransactionResponse
+	for _, sale := range transactions {
+		response = append(response, types.HeldTransactionResponse{
+			Reference: sale.Reference,
+			Payload:   sale.Payload,
+			CreatedAt: sale.CreatedAt,
+			UpdatedAt: sale.UpdatedAt,
+		})
+	}
+
+	return response, nil
+}
+
+func (s *saleService) DeleteHeldTransaction(ctx context.Context, reference string) error {
+	err := s.repo.DeleteHeldTransactionByReference(ctx, reference)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to delete held transaction", err)
+	}
+	return nil
 }
