@@ -472,3 +472,12 @@ function setupPriceLogic(row) {
 
   updateSuggestion(); // run once initially
 }
+
+window.addEventListener("beforeunload", (e) => {
+  const hasRows = receivingRows && receivingRows.children.length > 0;
+
+  if (hasRows) {
+    e.preventDefault();
+    return "";
+  }
+});

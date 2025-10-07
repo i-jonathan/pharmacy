@@ -886,3 +886,9 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast("Could not restore held sale", "error");
   }
 });
+
+window.addEventListener("beforeunload", (e) => {
+  if (cart.length > 0) {
+    e.preventDefault();
+  }
+});
