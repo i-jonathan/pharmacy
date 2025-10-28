@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/helper"
@@ -11,6 +13,8 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/service"
+	"strconv"
+	"time"
 )
 
 type inventoryController struct {
@@ -160,5 +164,38 @@ func (c *inventoryController) RenderInventoryPage(w http.ResponseWriter, r *http
 	err = c.template.ExecuteTemplate(w, "inventory.html", data)
 	if err != nil {
 		http.Error(w, "inventory page render error", http.StatusInternalServerError)
+	}
+}
+
+func (c *inventoryController) DownloadInventoryReport(w http.ResponseWriter, r *http.Request) {
+	inventory, err := c.service.FetchInventory(r.Context())
+	if err != nil {
+		http.Error(w, "error fetching inventory", http.StatusInternalServerError)
+		return
+	}
+
+	now := time.Now()
+	filename := fmt.Sprintf("attachment; filename=Stock-%s.csv", now.Format("2006-01-02"))
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", filename)
+
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	writer.Write([]string{"ID", "Category", "Name", "Price", "Qty.", "Expiry Date", "Store Qty.", "Disp. Qty"})
+	for _, item := range inventory.Items {
+		expiry := ""
+		if item.EarliestExpiry != nil {
+			expiry = item.EarliestExpiry.Format("01/2006")
+		}
+
+		writer.Write([]string{
+			strconv.Itoa(item.ID),
+			item.Category,
+			item.Name,
+			strconv.FormatFloat(float64(item.DefaultPrice)/100, 'f', 2, 64),
+			strconv.Itoa(item.Stock),
+			expiry,
+		})
 	}
 }
