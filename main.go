@@ -34,7 +34,7 @@ func main() {
 	}
 	defer file.Close()
 
-	// log.SetOutput(file)
+	log.SetOutput(file)
 
 	parseTemplates()
 	subFS, err := fs.Sub(embeddedStatic, "template/static")
