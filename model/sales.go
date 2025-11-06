@@ -44,8 +44,9 @@ type Return struct {
 	CashierID     int    `db:"cashier_id"`
 	TotalRefunded int    `db:"total_refunded"`
 	Notes         string `db:"notes"`
-	Sale          Sale
-	Cashier       User
+
+	Sale    Sale
+	Cashier User
 }
 
 type ReturnItems struct {
@@ -53,8 +54,9 @@ type ReturnItems struct {
 	ReturnID   int `db:"return_id"`
 	SaleItemID int `db:"sale_item_id"`
 	Quantity   int `db:"quantity"`
-	Return     Return
-	SaleItem   SaleItem
+
+	Return   Return
+	SaleItem SaleItem
 }
 
 func (s *Sale) GenerateReceiptNumber() {
