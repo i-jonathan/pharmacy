@@ -74,3 +74,15 @@ type HeldTransactionResponse struct {
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 }
+
+type ReturnSaleItem struct {
+	SaleItemID int `json:"sale_item_id"`
+	Quantity   int `json:"quantity"`
+}
+
+type ReturnSale struct {
+	SaleID      int              `json:"sale_id"`
+	CashierID   int              `json:"cashier_id"`
+	Notes       string           `json:"notes"`
+	ReturnItems []ReturnSaleItem `json:"return_items"`
+}
