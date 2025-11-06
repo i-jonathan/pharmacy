@@ -172,3 +172,9 @@ const bulkCreateReturnItemQuery = `
 	INSERT INTO return_items (return_id, sale_item_id, quantity)
 	VALUES (:return_id, :sale_item_id, :quantity);
 `
+const fetchReturnsForSaleBySaleIDQuery = `
+	SELECT sale_item_id, quantity
+	FROM return_items
+	WHERE sale_id = $1
+	GROUP BY sale_item_id;
+`

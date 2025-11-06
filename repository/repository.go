@@ -44,9 +44,15 @@ type SaleRepository interface {
 	FetchHeldTransactionsByType(ctx context.Context, transactionType constant.HoldTransactionType) ([]model.HeldTransaction, error)
 	DeleteHeldTransactionByReference(ctx context.Context, reference string) error
 	DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.Tx, reference string) error
-	CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return) (int, error)
-	BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.SaleItem) error
 	FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error)
+
+	ReturnRepository
+}
+
+type ReturnRepository interface {
+	CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return) (int, error)
+	BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error
+	FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error)
 }
 
 type PharmacyRepository interface {

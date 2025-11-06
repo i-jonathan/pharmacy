@@ -118,7 +118,7 @@ func (r *repo) CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return
 	return id, nil
 }
 
-func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.SaleItem) error {
+func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error {
 	_, err := tx.NamedExecContext(ctx, bulkCreateReturnItemQuery, returnItems)
 	if err != nil {
 		return err
@@ -142,4 +142,13 @@ func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error
 
 	sale.SaleItems = items
 	return sale, nil
+}
+
+func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error) {
+	var returnItems []model.ReturnItems
+	err := r.Data.SelectContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
+	if err != nil {
+		return nil, err
+	}
+	return returnItems, nil
 }
