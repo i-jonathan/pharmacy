@@ -197,3 +197,35 @@ func (c *saleController) DeleteHeldSale(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 }
+
+func (c *saleController) ReturnItems(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(constant.UserIDKey)
+	uID, ok := userID.(int)
+	if !ok {
+		httperror.Unauthorized("User ID is missing in context", nil).JSONRespond(w)
+		return
+	}
+
+	var returnParams types.ReturnSale
+
+	if err := json.NewDecoder(r.Body).Decode(&returnParams); err != nil {
+		httperror.BadRequest("Invalid JSON", err).JSONRespond(w)
+		return
+	}
+
+	returnParams.CashierID = uID
+
+	err := c.service.ReturnItems(r.Context(), returnParams)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"error": err})
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]any{"msg": "Items Successfully returned"})
+}
