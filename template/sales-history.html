@@ -386,13 +386,117 @@
                         </table>
                     </div>
                 </section>
+                
+                <!-- Return Items Button -->
+                <div class="mt-6 flex justify-end">
+                    <button
+                        id="open-return-modal"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                    >
+                        Return Items
+                    </button>
+                </div>
+
             </div>
         </aside>
+        
+        <!-- Return Items Modal -->
+        <div
+          id="return-modal"
+          class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center"
+        >
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-9/12 max-w-3xl mx-4"
+          >
+            <div
+              class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 px-6 py-4"
+            >
+              <h3
+                class="text-lg font-bold text-emerald-600 dark:text-emerald-400"
+              >
+                Return Items
+              </h3>
+              <button
+                id="close-return-modal"
+                class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+        
+            <div class="p-6">
+              <table
+                class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+              >
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th
+                      class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Item
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Qty Sold
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Unit Price
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Qty to Return
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Refund
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="return-items-body"
+                  class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                >
+                  <!-- Rows get inserted dynamically -->
+                </tbody>
+                <tfoot
+                  class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                >
+                  <tr>
+                    <td colspan="4" class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
+                      Total Refund
+                    </td>
+                    <td
+                      id="total-refund"
+                      class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                    >
+                      ₦0
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+        
+              <div class="mt-6 flex justify-end">
+                <button
+                  id="confirm-return"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                >
+                  Confirm Return
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <script>
             sales = {{ .SalesJSON }};
         </script>
         <script src="/static/js/theme.js"></script>
+        <script src="/static/js/toast.js"></script>
         <script src="/static/js/sales-history.js"></script>
     </body>
 </html>
