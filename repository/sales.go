@@ -125,3 +125,21 @@ func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnI
 	}
 	return nil
 }
+
+func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error) {
+	var sale model.Sale
+
+	err := r.Data.GetContext(ctx, &sale, fetchSalesByIDQuery, saleID)
+	if err != nil {
+		return model.Sale{}, err
+	}
+
+	var items []model.SaleItem
+	err = r.Data.SelectContext(ctx, &items, fetchSaleItemsBySaleIDQuery, saleID)
+	if err != nil {
+		return model.Sale{}, err
+	}
+
+	sale.SaleItems = items
+	return sale, nil
+}

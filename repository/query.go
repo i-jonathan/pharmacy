@@ -114,7 +114,16 @@ const fetchSalesQuery = `
     AND ($2::date IS NULL OR created_at::date <= $2::date)
   ORDER BY created_at DESC
 `
-
+const fetchSalesByIDQuery = `
+	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
+	FROM sales WHERE id = $1;
+`
+const fetchSaleItemsBySaleIDQuery = `
+	SELECT id, product_id, quantity, unit_price, discount, total_price
+	FROM sales_item
+	WHERE sale_id = $1
+	ORDER BY created_at
+`
 const bulkFetchSaleItemsQuery = `
 	SELECT sale_id, product_id, quantity, unit_price, discount, total_price
 	FROM sales_item WHERE sale_id = ANY($1)
