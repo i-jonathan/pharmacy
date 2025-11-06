@@ -198,6 +198,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		for _, item := range s.SaleItems {
 			p := productsByID[item.ProductID]
 			items = append(items, types.SaleItemResponse{
+				ID:           item.ID,
 				ProductName:  p.Name,
 				Manufacturer: *p.Manufacturer,
 				Quantity:     item.Quantity,
@@ -217,6 +218,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 
 		// build the final response
 		resp := types.SaleResponse{
+			ID:            s.ID,
 			ReceiptNumber: s.ReceiptNumber,
 			Cashier:       cashiersByID[s.CashierID],
 			CreatedAt:     s.CreatedAt.Format(time.RFC3339),
@@ -315,7 +317,7 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 
 	previousReturns := make(map[int]int)
 	for _, r := range returnRecord {
-		previousReturns[r.ID] = r.Quantity
+		previousReturns[r.SaleItemID] = r.Quantity
 	}
 
 	validItems := make(map[int]model.SaleItem)
