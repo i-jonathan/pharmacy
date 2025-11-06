@@ -125,7 +125,7 @@ const fetchSaleItemsBySaleIDQuery = `
 	ORDER BY created_at
 `
 const bulkFetchSaleItemsQuery = `
-	SELECT sale_id, product_id, quantity, unit_price, discount, total_price
+	SELECT id, sale_id, product_id, quantity, unit_price, discount, total_price
 	FROM sales_item WHERE sale_id = ANY($1)
 	ORDER BY created_at DESC
 `
@@ -173,8 +173,9 @@ const bulkCreateReturnItemQuery = `
 	VALUES (:return_id, :sale_item_id, :quantity);
 `
 const fetchReturnsForSaleBySaleIDQuery = `
-	SELECT sale_item_id, quantity
-	FROM return_items
-	WHERE sale_id = $1
-	GROUP BY sale_item_id;
+	SELECT ri.sale_item_id as sale_item_id, SUM(ri.quantity) as quantity
+	FROM return_items ri
+	JOIN returns r ON r.id = ri.return_id
+	WHERE r.sale_id = $1
+	GROUP BY ri.sale_item_id;
 `

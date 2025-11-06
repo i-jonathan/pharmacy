@@ -35,6 +35,7 @@ type Sale struct {
 }
 
 type SaleItemResponse struct {
+	ID           int     `json:"id"`
 	ProductName  string  `json:"product_name"`
 	Manufacturer string  `json:"manufacturer"`
 	Quantity     int     `json:"quantity"`
@@ -48,6 +49,7 @@ type SalePaymentResponse struct {
 }
 
 type SaleResponse struct {
+	ID            int                   `json:"id"`
 	ReceiptNumber string                `json:"receipt_number"`
 	Cashier       string                `json:"cashier"`
 	CreatedAt     string                `json:"created_at"`
