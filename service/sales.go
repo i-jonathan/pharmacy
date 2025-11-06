@@ -90,7 +90,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 		return httperror.ServerError("Failed to bulk create payments", err)
 	}
 
-	// todo create bulk stock movements
+	// create bulk stock movements
 	err = s.repo.BulkCreateStockMovementTx(ctx, tx, stockMovement)
 	if err != nil {
 		log.Println(err)
@@ -290,6 +290,118 @@ func (s *saleService) DeleteHeldTransaction(ctx context.Context, reference strin
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to delete held transaction", err)
+	}
+	return nil
+}
+
+func (s *saleService) ReturnItems(ctx context.Context, returnParams types.ReturnSale) error {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("could not begin transcation", err)
+	}
+
+	sale, err := s.repo.FetchSaleByID(ctx, returnParams.SaleID)
+	if err != nil {
+		log.Println("fetching sale failed: ", err)
+		return httperror.ServerError("failed to fetch sale by id", err)
+	}
+
+	returnRecord, err := s.repo.FetchAllSaleReturns(ctx, returnParams.SaleID)
+	if err != nil {
+		log.Println("fetching return record failed: ", err)
+		return httperror.ServerError("failed to fetch return records by sale id", err)
+	}
+
+	previousReturns := make(map[int]int)
+	for _, r := range returnRecord {
+		previousReturns[r.ID] = r.Quantity
+	}
+
+	validItems := make(map[int]model.SaleItem)
+	for _, item := range sale.SaleItems {
+		validItems[item.ID] = item
+	}
+
+	refundTotal := 0
+	var returnItems []model.ReturnItems
+	var stockMovement []model.StockMovement
+
+	// validate return
+	// Check quantity is valid
+	// Check quantity to return + previously returned < sale quantity
+	// prepare stock movement
+	for _, r := range returnParams.ReturnItems {
+		saleItem, exists := validItems[r.SaleItemID]
+		if !exists {
+			return httperror.BadRequest("invalid sale item id passed in", fmt.Errorf("bad sale item id: %d", r.SaleItemID))
+		}
+
+		if r.Quantity <= 0 {
+			return httperror.BadRequest(
+				"return quantity must be > 0",
+				fmt.Errorf("invalid return quantity for sale item: %d. quantity: %d", r.SaleItemID, r.Quantity),
+			)
+		}
+
+		previousReturned := previousReturns[r.SaleItemID]
+		if (r.Quantity + previousReturned) > saleItem.Quantity {
+			err = fmt.Errorf(
+				"cannot return %d (already returned %d of %d sold) for item %d",
+				r.Quantity, previousReturned, saleItem.Quantity, r.SaleItemID,
+			)
+			return httperror.BadRequest(err.Error(), err)
+		}
+
+		returnItems = append(returnItems, model.ReturnItems{
+			SaleItemID: r.SaleItemID,
+			Quantity:   r.Quantity,
+		})
+
+		stockMovement = append(stockMovement, model.StockMovement{
+			ProductID:    saleItem.ProductID,
+			Quantity:     r.Quantity,
+			ReferenceID:  returnParams.SaleID,
+			MovementType: constant.ReturnSaleMovementName,
+		})
+
+		refundTotal += saleItem.UnitPrice * r.Quantity
+	}
+
+	rtn := model.Return{
+		SaleID:        returnParams.SaleID,
+		CashierID:     returnParams.CashierID,
+		TotalRefunded: refundTotal,
+		Notes:         returnParams.Notes,
+	}
+
+	rID, err := s.repo.CreateReturnTx(ctx, tx, rtn)
+	if err != nil {
+		log.Println("failed to create return: ", err)
+		return httperror.ServerError("failed to create return", err)
+	}
+
+	for i := range returnItems {
+		returnItems[i].ReturnID = rID
+	}
+
+	err = s.repo.BulkCreateReturnItemsTx(ctx, tx, returnItems)
+	if err != nil {
+		log.Println("failed to bulk create return items: ", err)
+		return httperror.ServerError("failed to bulk create return items", err)
+	}
+
+	// do inventory update
+	err = s.repo.BulkCreateStockMovementTx(ctx, tx, stockMovement)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("Failed to bulk create stock movements", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to commit transaction", err)
 	}
 	return nil
 }

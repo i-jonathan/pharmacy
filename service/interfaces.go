@@ -26,4 +26,5 @@ type SaleService interface {
 	HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error
 	FetchHeldSaleTransactions(ctx context.Context) ([]types.HeldTransactionResponse, error)
 	DeleteHeldTransaction(ctx context.Context, reference string) error
+	ReturnItems(ctx context.Context, returnParams types.ReturnSale) error
 }
