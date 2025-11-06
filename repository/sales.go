@@ -105,3 +105,23 @@ func (r *repo) DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.
 	_, err := tx.ExecContext(ctx, deleteHeldTransactionByReferenceQuery, reference)
 	return err
 }
+
+func (r *repo) CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return) (int, error) {
+	var id int
+	err := tx.QueryRowContext(
+		ctx, createReturnQuery, rtn.SaleID, rtn.CashierID, rtn.TotalRefunded, rtn.Notes,
+	).Scan(&id)
+
+	if err != nil {
+		return 0, nil
+	}
+	return id, nil
+}
+
+func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.SaleItem) error {
+	_, err := tx.NamedExecContext(ctx, bulkCreateReturnItemQuery, returnItems)
+	if err != nil {
+		return err
+	}
+	return nil
+}

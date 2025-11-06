@@ -154,3 +154,12 @@ const deleteHeldTransactionByReferenceQuery = `
 	DELETE from held_transaction
 	WHERE reference = $1;
 `
+const createReturnQuery = `
+	INSERT INTO returns (sale_id, cashier_id, total_refunded, notes)
+	VALUES ($1, $2, $3, $4)
+	RETURNING id;
+`
+const bulkCreateReturnItemQuery = `
+	INSERT INTO return_items (return_id, sale_item_id, quantity)
+	VALUES (:return_id, :sale_item_id, :quantity);
+`
