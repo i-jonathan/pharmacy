@@ -462,3 +462,11 @@ async function confirmReturn() {
 }
 
 confirmReturnModalBtn.addEventListener("click", confirmReturn);
+
+document.getElementById("reprint-receipt").addEventListener("click", () => {
+  if (selectedRowIndex === -1) {
+    alert("No sale selected.");
+    return;
+  }
+  printReceipt(sales.data[selectedRowIndex]);
+});
