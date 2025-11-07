@@ -144,9 +144,18 @@ func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error
 	return sale, nil
 }
 
-func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error) {
-	var returnItems []model.ReturnItems
-	err := r.Data.SelectContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
+func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) (model.ReturnItems, error) {
+	var returnItems model.ReturnItems
+	err := r.Data.GetContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
+	if err != nil {
+		return model.ReturnItems{}, err
+	}
+	return returnItems, nil
+}
+
+func (r *repo) BulkFetchReturnItemsBySaleIDs(ctx context.Context, saleID int) ([]model.ReturnItemWithSale, error) {
+	var returnItems []model.ReturnItemWithSale
+	err := r.Data.SelectContext(ctx, &returnItems, bulkFetchReturnsForSaleBySaleIDQuery, saleID)
 	if err != nil {
 		return nil, err
 	}

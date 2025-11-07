@@ -179,3 +179,13 @@ const fetchReturnsForSaleBySaleIDQuery = `
 	WHERE r.sale_id = $1
 	GROUP BY ri.sale_item_id;
 `
+const bulkFetchReturnsForSaleBySaleIDQuery = `
+	SELECT 
+	    r.sale_id,
+	    ri.sale_item_id,
+	    SUM(ri.quantity) AS quantity
+	FROM return_items ri
+	JOIN returns r ON r.id = ri.return_id
+	WHERE r.sale_id = ANY($1)
+	GROUP BY r.sale_id, ri.sale_item_id;
+`

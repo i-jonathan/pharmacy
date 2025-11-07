@@ -52,7 +52,8 @@ type SaleRepository interface {
 type ReturnRepository interface {
 	CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return) (int, error)
 	BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error
-	FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error)
+	FetchAllSaleReturns(ctx context.Context, saleID int) (model.ReturnItems, error)
+	BulkFetchReturnItemsBySaleIDs(ctx context.Context, saleIDs []int) ([]model.ReturnItemWithSale, error)
 }
 
 type PharmacyRepository interface {
