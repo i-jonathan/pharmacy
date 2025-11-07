@@ -48,6 +48,12 @@ type SalePaymentResponse struct {
 	Amount     float64 `json:"amount"`
 }
 
+type ReturnItemResponse struct {
+	Name         string `json:"product_name"`
+	Manufacturer string `json:"manufacturer"`
+	Quantity     int    `json:"quantity"`
+}
+
 type SaleResponse struct {
 	ID            int                   `json:"id"`
 	ReceiptNumber string                `json:"receipt_number"`
@@ -58,6 +64,7 @@ type SaleResponse struct {
 	Total         float64               `json:"total"`
 	Items         []SaleItemResponse    `json:"items"`
 	Payments      []SalePaymentResponse `json:"payments"`
+	Returns       []ReturnItemResponse  `json:"returns"`
 }
 
 type SaleHistory struct {

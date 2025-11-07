@@ -162,6 +162,19 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		salesByID[payments[i].SaleID].Payments = append(salesByID[payments[i].SaleID].Payments, payments[i])
 	}
 
+	// fetch return items (joined with returns table to get sale_id)
+	returns, err := s.repo.BulkFetchReturnItemsBySaleIDs(ctx, saleIDs)
+	if err != nil {
+		log.Println(err)
+		return types.SaleHistory{}, httperror.ServerError("fetching return items failed", err)
+	}
+
+	// group return items by sale_id
+	returnsBySaleID := make(map[int][]model.ReturnItemWithSale)
+	for _, r := range returns {
+		returnsBySaleID[r.SaleID] = append(returnsBySaleID[r.SaleID], r)
+	}
+
 	// fetch & index products to prepare for final structuring
 	products, err := s.repo.BulkFetchProductByIDsTx(ctx, tx, productIDs)
 	if err != nil {
@@ -193,6 +206,8 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	responses := make([]types.SaleResponse, 0, len(sales))
 	salesHistoryTotal := float64(0)
 	for _, s := range sales {
+		saleItemsByID := make(map[int]model.SaleItem)
+
 		// build items
 		items := make([]types.SaleItemResponse, 0, len(s.SaleItems))
 		for _, item := range s.SaleItems {
@@ -205,6 +220,8 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 				UnitPrice:    float64(item.UnitPrice) / 100,
 				Discount:     float64(item.Discount) / 100,
 			})
+
+			saleItemsByID[item.ID] = item
 		}
 
 		// build payments
@@ -213,6 +230,18 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			payments = append(payments, types.SalePaymentResponse{
 				MethodName: pay.PaymentMethod,
 				Amount:     float64(pay.Amount) / 100,
+			})
+		}
+
+		// build returns
+		returnsResp := make([]types.ReturnItemResponse, 0, len(returnsBySaleID[s.ID]))
+		for _, r := range returnsBySaleID[s.ID] {
+			item := saleItemsByID[r.SaleItemID]
+			p := productsByID[item.ProductID]
+			returnsResp = append(returnsResp, types.ReturnItemResponse{
+				Name:         p.Name,
+				Manufacturer: *p.Manufacturer,
+				Quantity:     r.Quantity,
 			})
 		}
 
@@ -227,6 +256,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			Total:         float64(s.Total) / 100,
 			Items:         items,
 			Payments:      payments,
+			Returns:       returnsResp,
 		}
 		responses = append(responses, resp)
 		salesHistoryTotal += float64(s.Total) / 100
@@ -315,11 +345,6 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 		return httperror.ServerError("failed to fetch return records by sale id", err)
 	}
 
-	previousReturns := make(map[int]int)
-	for _, r := range returnRecord {
-		previousReturns[r.SaleItemID] = r.Quantity
-	}
-
 	validItems := make(map[int]model.SaleItem)
 	for _, item := range sale.SaleItems {
 		validItems[item.ID] = item
@@ -346,11 +371,10 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 			)
 		}
 
-		previousReturned := previousReturns[r.SaleItemID]
-		if (r.Quantity + previousReturned) > saleItem.Quantity {
+		if (r.Quantity + returnRecord.Quantity) > saleItem.Quantity {
 			err = fmt.Errorf(
 				"cannot return %d (already returned %d of %d sold) for item %d",
-				r.Quantity, previousReturned, saleItem.Quantity, r.SaleItemID,
+				r.Quantity, returnRecord.Quantity, saleItem.Quantity, r.SaleItemID,
 			)
 			return httperror.BadRequest(err.Error(), err)
 		}

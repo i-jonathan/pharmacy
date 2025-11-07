@@ -59,6 +59,12 @@ type ReturnItems struct {
 	SaleItem SaleItem
 }
 
+type ReturnItemWithSale struct {
+	SaleID     int `db:"sale_id"`
+	SaleItemID int `db:"sale_item_id"`
+	Quantity   int `db:"quantity"`
+}
+
 func (s *Sale) GenerateReceiptNumber() {
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	days := int(time.Since(start).Hours() / 24)
