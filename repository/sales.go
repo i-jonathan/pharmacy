@@ -105,3 +105,59 @@ func (r *repo) DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.
 	_, err := tx.ExecContext(ctx, deleteHeldTransactionByReferenceQuery, reference)
 	return err
 }
+
+func (r *repo) CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return) (int, error) {
+	var id int
+	err := tx.QueryRowContext(
+		ctx, createReturnQuery, rtn.SaleID, rtn.CashierID, rtn.TotalRefunded, rtn.Notes,
+	).Scan(&id)
+
+	if err != nil {
+		return 0, nil
+	}
+	return id, nil
+}
+
+func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error {
+	_, err := tx.NamedExecContext(ctx, bulkCreateReturnItemQuery, returnItems)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error) {
+	var sale model.Sale
+
+	err := r.Data.GetContext(ctx, &sale, fetchSalesByIDQuery, saleID)
+	if err != nil {
+		return model.Sale{}, err
+	}
+
+	var items []model.SaleItem
+	err = r.Data.SelectContext(ctx, &items, fetchSaleItemsBySaleIDQuery, saleID)
+	if err != nil {
+		return model.Sale{}, err
+	}
+
+	sale.SaleItems = items
+	return sale, nil
+}
+
+func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) (model.ReturnItems, error) {
+	var returnItems model.ReturnItems
+	err := r.Data.GetContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
+	if err != nil {
+		return model.ReturnItems{}, err
+	}
+	return returnItems, nil
+}
+
+func (r *repo) BulkFetchReturnItemsBySaleIDs(ctx context.Context, saleIDs []int) ([]model.ReturnItemWithSale, error) {
+	var returnItems []model.ReturnItemWithSale
+	err := r.Data.SelectContext(ctx, &returnItems, bulkFetchReturnsForSaleBySaleIDQuery, saleIDs)
+	if err != nil {
+		return nil, err
+	}
+	return returnItems, nil
+}

@@ -114,9 +114,18 @@ const fetchSalesQuery = `
     AND ($2::date IS NULL OR created_at::date <= $2::date)
   ORDER BY created_at DESC
 `
-
+const fetchSalesByIDQuery = `
+	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
+	FROM sales WHERE id = $1;
+`
+const fetchSaleItemsBySaleIDQuery = `
+	SELECT id, product_id, quantity, unit_price, discount, total_price
+	FROM sales_item
+	WHERE sale_id = $1
+	ORDER BY created_at
+`
 const bulkFetchSaleItemsQuery = `
-	SELECT sale_id, product_id, quantity, unit_price, discount, total_price
+	SELECT id, sale_id, product_id, quantity, unit_price, discount, total_price
 	FROM sales_item WHERE sale_id = ANY($1)
 	ORDER BY created_at DESC
 `
@@ -153,4 +162,30 @@ const fetchHeldTransactionByTypeQuery = `
 const deleteHeldTransactionByReferenceQuery = `
 	DELETE from held_transaction
 	WHERE reference = $1;
+`
+const createReturnQuery = `
+	INSERT INTO returns (sale_id, cashier_id, total_refunded, notes)
+	VALUES ($1, $2, $3, $4)
+	RETURNING id;
+`
+const bulkCreateReturnItemQuery = `
+	INSERT INTO return_items (return_id, sale_item_id, quantity)
+	VALUES (:return_id, :sale_item_id, :quantity);
+`
+const fetchReturnsForSaleBySaleIDQuery = `
+	SELECT ri.sale_item_id as sale_item_id, SUM(ri.quantity) as quantity
+	FROM return_items ri
+	JOIN returns r ON r.id = ri.return_id
+	WHERE r.sale_id = $1
+	GROUP BY ri.sale_item_id;
+`
+const bulkFetchReturnsForSaleBySaleIDQuery = `
+	SELECT 
+	    r.sale_id,
+	    ri.sale_item_id,
+	    SUM(ri.quantity) AS quantity
+	FROM return_items ri
+	JOIN returns r ON r.id = ri.return_id
+	WHERE r.sale_id = ANY($1)
+	GROUP BY r.sale_id, ri.sale_item_id;
 `

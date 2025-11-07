@@ -38,6 +38,33 @@ type SalePayment struct {
 	PaymentMethod string `db:"payment_method"`
 }
 
+type Return struct {
+	baseModel
+	SaleID        int    `db:"sale_id"`
+	CashierID     int    `db:"cashier_id"`
+	TotalRefunded int    `db:"total_refunded"`
+	Notes         string `db:"notes"`
+
+	Sale    Sale
+	Cashier User
+}
+
+type ReturnItems struct {
+	baseModel
+	ReturnID   int `db:"return_id"`
+	SaleItemID int `db:"sale_item_id"`
+	Quantity   int `db:"quantity"`
+
+	Return   Return
+	SaleItem SaleItem
+}
+
+type ReturnItemWithSale struct {
+	SaleID     int `db:"sale_id"`
+	SaleItemID int `db:"sale_item_id"`
+	Quantity   int `db:"quantity"`
+}
+
 func (s *Sale) GenerateReceiptNumber() {
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	days := int(time.Since(start).Hours() / 24)

@@ -35,6 +35,7 @@ type Sale struct {
 }
 
 type SaleItemResponse struct {
+	ID           int     `json:"id"`
 	ProductName  string  `json:"product_name"`
 	Manufacturer string  `json:"manufacturer"`
 	Quantity     int     `json:"quantity"`
@@ -47,7 +48,15 @@ type SalePaymentResponse struct {
 	Amount     float64 `json:"amount"`
 }
 
+type ReturnItemResponse struct {
+	Name         string  `json:"product_name"`
+	Manufacturer string  `json:"manufacturer"`
+	UnitPrice    float64 `json:"unit_price"`
+	Quantity     int     `json:"quantity"`
+}
+
 type SaleResponse struct {
+	ID            int                   `json:"id"`
 	ReceiptNumber string                `json:"receipt_number"`
 	Cashier       string                `json:"cashier"`
 	CreatedAt     string                `json:"created_at"`
@@ -56,6 +65,7 @@ type SaleResponse struct {
 	Total         float64               `json:"total"`
 	Items         []SaleItemResponse    `json:"items"`
 	Payments      []SalePaymentResponse `json:"payments"`
+	Returns       []ReturnItemResponse  `json:"returns"`
 }
 
 type SaleHistory struct {
@@ -73,4 +83,16 @@ type HeldTransactionResponse struct {
 	Payload   json.RawMessage `json:"payload"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+type ReturnSaleItem struct {
+	SaleItemID int `json:"sale_item_id"`
+	Quantity   int `json:"quantity"`
+}
+
+type ReturnSale struct {
+	SaleID      int              `json:"sale_id"`
+	CashierID   int              `json:"cashier_id"`
+	Notes       string           `json:"notes"`
+	ReturnItems []ReturnSaleItem `json:"return_items"`
 }

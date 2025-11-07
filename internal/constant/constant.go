@@ -12,6 +12,7 @@ const UserSessionKey string = "user_id"
 const DefaultPriceName string = "Base"
 
 const ReceivingSupplyMovementName string = "IN_PURCHASE"
+const ReturnSaleMovementName string = "IN_SALE_RETURN"
 const SaleMovementName string = "OUT_SALE"
 
 const CompleteSaleStatus = "COMPLETED"

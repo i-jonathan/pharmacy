@@ -16,6 +16,14 @@ const saleChangeCell = document.getElementById("sale-change");
 const startDate = document.getElementById("start-date");
 const endDate = document.getElementById("end-date");
 const rangeSelect = document.getElementById("predefined-range");
+const returnModal = document.getElementById("return-modal");
+const returnsSection = document.getElementById("returns-section");
+const returnItemsBody = document.getElementById("return-items-body");
+const openReturnModalBtn = document.getElementById("open-return-modal");
+const closeReturnModalBtn = document.getElementById("close-return-modal");
+const confirmReturnModalBtn = document.getElementById("confirm-return");
+const returnsBody = document.getElementById("returns-body");
+const refundTotalCell = document.getElementById("refund-total");
 
 let rows = [];
 let selectedRowIndex = -1;
@@ -146,11 +154,6 @@ function updatePanel(sale) {
   const totalPaid = sale.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   totalPaidCell.textContent = fmtNaira(totalPaid);
 
-  // Items
-  // <td class="px-3 py-2">
-  //   <span class="font-medium">${it.product_name}</span>
-  //   <span class="ml-1 text-sm text-gray-500">– ${it.manufacturer}</span>
-  // </td>
   itemsBody.innerHTML = sale.items
     .map(
       (it) => `
@@ -173,6 +176,38 @@ function updatePanel(sale) {
   saleTotalCell.textContent = fmtNaira(sale.total);
   const change = Math.max(0, totalPaid - sale.total);
   saleChangeCell.textContent = fmtNaira(change);
+
+  if (sale.returns && sale.returns.length > 0) {
+    returnsSection.classList.remove("hidden");
+    returnsBody.innerHTML = sale.returns
+      .map(
+        (r) => `
+        <tr>
+          <td class="px-3 py-2">
+            <div>
+              <div class="font-medium">${r.product_name}</div>
+              <div class="text-xs text-gray-500">${r.manufacturer || ""}</div>
+            </div>
+          </td>
+          <td class="px-3 py-2 text-right">${r.quantity}</td>
+          <td class="px-3 py-2 text-right">${fmtNaira(r.unit_price)}</td>
+          <td class="px-3 py-2 text-right">${fmtNaira(r.quantity * r.unit_price)}</td>
+        </tr>
+      `,
+      )
+      .join("");
+
+    const totalRefund = sale.returns.reduce(
+      (sum, r) => sum + r.quantity * r.unit_price,
+      0,
+    );
+    refundTotalCell.textContent = fmtNaira(totalRefund);
+  } else {
+    returnsSection.classList.add("hidden");
+  }
+
+  populateReturnItems(sale.items);
+  returnModal.dataset.saleId = sale.id;
 }
 
 // ===== Keyboard navigation (non-blocking) =====
@@ -286,3 +321,152 @@ async function applyFilter(start, end) {
     console.error("Error fetching sales:", err);
   }
 }
+
+function populateReturnItems(items) {
+  const tbody = document.getElementById("return-items-body");
+  tbody.innerHTML = items
+    .map(
+      (it) => `
+      <tr>
+        <td class="px-4 py-3">${it.product_name}</td>
+        <td class="px-4 py-3 text-right">${it.quantity}</td>
+        <td class="px-4 py-3 text-right">${fmtNaira(it.unit_price)}</td>
+        <td class="px-4 py-3 text-right">
+          <input
+            type="number"
+            min="0"
+            max="${it.quantity}"
+            class="return-qty no-spinners border rounded px-2 py-1 w-20 text-right"
+            data-sale-item-id="${it.id}"
+            data-unit-price="${it.unit_price}"
+          />
+        </td>
+        <td class="px-4 py-3 text-right refund-amount">₦0</td>
+      </tr>
+    `,
+    )
+    .join("");
+
+  // Add listeners for dynamic refund updates
+  tbody.querySelectorAll(".return-qty").forEach((input) => {
+    input.addEventListener("input", updateRefunds);
+  });
+
+  updateRefunds();
+}
+
+function updateRefunds() {
+  const tbody = document.getElementById("return-items-body");
+  let totalRefund = 0;
+
+  tbody.querySelectorAll("tr").forEach((row) => {
+    const qtyInput = row.querySelector(".return-qty");
+    const refundCell = row.querySelector(".refund-amount");
+    const qty = Number(qtyInput.value) || 0;
+    const unitPrice = Number(qtyInput.dataset.unitPrice);
+
+    const refund = qty * unitPrice;
+    totalRefund += refund;
+    refundCell.textContent = fmtNaira(refund);
+  });
+
+  document.getElementById("total-refund").textContent = fmtNaira(totalRefund);
+}
+
+openReturnModalBtn.addEventListener("click", () => {
+  returnModal.classList.remove("hidden");
+});
+
+closeReturnModalBtn.addEventListener("click", () => {
+  returnModal.classList.add("hidden");
+});
+
+returnModal.addEventListener("click", (e) => {
+  if (e.target === returnModal) {
+    returnModal.classList.add("hidden");
+  }
+});
+
+async function confirmReturn() {
+  const modal = document.getElementById("return-modal");
+  const saleId = modal.dataset.saleId;
+  if (!saleId) {
+    alert("No sale selected for return.");
+    return;
+  }
+
+  const items = Array.from(modal.querySelectorAll(".return-qty"))
+    .map((input) => ({
+      sale_item_id: parseInt(input.dataset.saleItemId, 10),
+      quantity: Number(input.value) || 0,
+      unit_price: Number(input.dataset.unitPrice),
+      refund_amount:
+        (Number(input.value) || 0) * Number(input.dataset.unitPrice),
+    }))
+    .filter((it) => it.quantity > 0);
+
+  if (items.length === 0) {
+    alert("Please enter at least one quantity to return.");
+    return;
+  }
+
+  const totalRefund = items.reduce((sum, it) => sum + it.refund_amount, 0);
+
+  const confirmed = confirm(
+    `Confirm return for ${items.length} item(s)?\nTotal refund: ${fmtNaira(
+      totalRefund,
+    )}`,
+  );
+  if (!confirmed) {
+    console.log("Return cancelled.");
+    return;
+  }
+
+  const payload = {
+    sale_id: parseInt(saleId, 10),
+    return_items: items.map(({ sale_item_id, quantity }) => ({
+      sale_item_id,
+      quantity,
+    })),
+  };
+
+  console.log("🧾 Sending return request:", payload);
+
+  try {
+    const response = await fetch("/sales/returns", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || "Failed to process return.");
+    }
+
+    // const result = await response.json();
+
+    showToast(
+      `Return processed successfully.\nRefund: ${fmtNaira(totalRefund)}`,
+    );
+    returnModal.classList.add("hidden");
+  } catch (err) {
+    console.error("❌ Return submission error:", err);
+    showToast(
+      "An error occurred while processing the return. Check console for details.",
+      { type: "error" },
+    );
+  }
+}
+
+confirmReturnModalBtn.addEventListener("click", confirmReturn);
+
+document.getElementById("reprint-receipt").addEventListener("click", () => {
+  if (selectedRowIndex === -1) {
+    alert("No sale selected.");
+    return;
+  }
+  printReceipt(sales.data[selectedRowIndex]);
+});

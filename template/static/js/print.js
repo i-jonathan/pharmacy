@@ -14,9 +14,9 @@ function printReceipt(sale) {
     .map(
       (item) => `
     <tr>
-      <td>${item.name}</td>
+      <td>${item.name ?? item.product_name}</td>
       <td style="text-align:center;">${item.quantity}</td>
-      <td style="text-align:right;">${item.unit_price.toFixed(2)}</td>
+      <td style="text-align:right;">${(item.unit_price * item.quantity).toFixed(2)}</td>
     </tr>
   `,
     )
@@ -26,7 +26,7 @@ function printReceipt(sale) {
     .map(
       (p) => `
     <tr>
-      <td>${p.payment_method}</td>
+      <td>${p.payment_method ?? p.method_name}</td>
       <td style="text-align:right;">${p.amount.toFixed(2)}</td>
     </tr>
   `,
@@ -90,10 +90,14 @@ function printReceipt(sale) {
             <td colspan="2">Subtotal</td>
             <td style="text-align:right;">${subtotal.toFixed(2)}</td>
           </tr>
-          <tr class="totals">
-            <td colspan="2">Discount</td>
-            <td style="text-align:right;">${discount.toFixed(2)}</td>
-          </tr>
+          
+          ${discount > 0 ? `
+            <tr class="totals">
+              <td colspan="2">Discount</td>
+              <td style="text-align:right;">${discount.toFixed(2)}</td>
+            </tr>
+          ` : ""}
+
           <tr class="totals">
             <td colspan="2">Total</td>
             <td style="text-align:right;">${total.toFixed(2)}</td>
