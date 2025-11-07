@@ -17,10 +17,13 @@ const startDate = document.getElementById("start-date");
 const endDate = document.getElementById("end-date");
 const rangeSelect = document.getElementById("predefined-range");
 const returnModal = document.getElementById("return-modal");
+const returnsSection = document.getElementById("returns-section");
 const returnItemsBody = document.getElementById("return-items-body");
 const openReturnModalBtn = document.getElementById("open-return-modal");
 const closeReturnModalBtn = document.getElementById("close-return-modal");
 const confirmReturnModalBtn = document.getElementById("confirm-return");
+const returnsBody = document.getElementById("returns-body");
+const refundTotalCell = document.getElementById("refund-total");
 
 let rows = [];
 let selectedRowIndex = -1;
@@ -151,11 +154,6 @@ function updatePanel(sale) {
   const totalPaid = sale.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   totalPaidCell.textContent = fmtNaira(totalPaid);
 
-  // Items
-  // <td class="px-3 py-2">
-  //   <span class="font-medium">${it.product_name}</span>
-  //   <span class="ml-1 text-sm text-gray-500">– ${it.manufacturer}</span>
-  // </td>
   itemsBody.innerHTML = sale.items
     .map(
       (it) => `
@@ -178,6 +176,35 @@ function updatePanel(sale) {
   saleTotalCell.textContent = fmtNaira(sale.total);
   const change = Math.max(0, totalPaid - sale.total);
   saleChangeCell.textContent = fmtNaira(change);
+
+  if (sale.returns && sale.returns.length > 0) {
+    returnsSection.classList.remove("hidden");
+    returnsBody.innerHTML = sale.returns
+      .map(
+        (r) => `
+        <tr>
+          <td class="px-3 py-2">
+            <div>
+              <div class="font-medium">${r.product_name}</div>
+              <div class="text-xs text-gray-500">${r.manufacturer || ""}</div>
+            </div>
+          </td>
+          <td class="px-3 py-2 text-right">${r.quantity}</td>
+          <td class="px-3 py-2 text-right">${fmtNaira(r.unit_price)}</td>
+          <td class="px-3 py-2 text-right">${fmtNaira(r.quantity * r.unit_price)}</td>
+        </tr>
+      `,
+      )
+      .join("");
+
+    const totalRefund = sale.returns.reduce(
+      (sum, r) => sum + r.quantity * r.unit_price,
+      0,
+    );
+    refundTotalCell.textContent = fmtNaira(totalRefund);
+  } else {
+    returnsSection.classList.add("hidden");
+  }
 
   populateReturnItems(sale.items);
   returnModal.dataset.saleId = sale.id;

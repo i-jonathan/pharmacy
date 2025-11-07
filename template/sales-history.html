@@ -348,7 +348,7 @@
                 </section>
 
                 <!-- Payments -->
-                <section>
+                <section class="mb-6">
                     <h3
                         class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
                     >
@@ -385,6 +385,68 @@
                             </tfoot>
                         </table>
                     </div>
+                </section>
+                
+                <section id="returns-section" class="mb-6 hidden">
+                  <h3
+                    class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                  >
+                    Returned Items
+                  </h3>
+                  <div class="overflow-x-auto">
+                    <table
+                      class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                    >
+                      <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th
+                            class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Item
+                          </th>
+                          <th
+                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Qty Returned
+                          </th>
+                          <th
+                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Unit Price
+                          </th>
+                          <th
+                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Refund Amount
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody
+                        id="returns-body"
+                        class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                      >
+                        <!-- return rows inserted dynamically -->
+                      </tbody>
+                      <tfoot
+                        class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                      >
+                        <tr>
+                          <td
+                            class="px-3 py-2 font-semibold"
+                            colspan="3"
+                          >
+                            Total Refunded
+                          </td>
+                          <td
+                            id="refund-total"
+                            class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                          >
+                            ₦0
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </section>
                 
                 <!-- Return Items Button -->
