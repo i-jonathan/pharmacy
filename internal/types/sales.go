@@ -49,9 +49,10 @@ type SalePaymentResponse struct {
 }
 
 type ReturnItemResponse struct {
-	Name         string `json:"product_name"`
-	Manufacturer string `json:"manufacturer"`
-	Quantity     int    `json:"quantity"`
+	Name         string  `json:"product_name"`
+	Manufacturer string  `json:"manufacturer"`
+	UnitPrice    float64 `json:"unit_price"`
+	Quantity     int     `json:"quantity"`
 }
 
 type SaleResponse struct {

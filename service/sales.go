@@ -241,6 +241,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			returnsResp = append(returnsResp, types.ReturnItemResponse{
 				Name:         p.Name,
 				Manufacturer: *p.Manufacturer,
+				UnitPrice:    float64(item.UnitPrice) / 100,
 				Quantity:     r.Quantity,
 			})
 		}
