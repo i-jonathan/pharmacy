@@ -16,6 +16,7 @@ type User struct {
 	baseModel
 	UserName string `json:"username"`
 	Password string `json:"password"`
+	RoleID   int    `json:"role_id" db:"role_id"`
 }
 
 func (u *User) HashPassword() error {

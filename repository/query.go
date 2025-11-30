@@ -2,7 +2,7 @@ package repository
 
 const createUserQuery = `INSERT INTO users (username, password) VALUES ($1, $2)`
 const usernameExistsQuery = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
-const fetchUserByNameQuery = `SELECT id, username, password FROM users WHERE username = $1`
+const fetchUserByNameQuery = `SELECT id, username, password, role_id FROM users WHERE username = $1`
 const bulkFetchUserByIDQuery = `SELECT id, username FROM users WHERE id = ANY($1)`
 const createProductQuery = `INSERT INTO product
 	(name, barcode, category_id, reorder_level, manufacturer, cost_price)
