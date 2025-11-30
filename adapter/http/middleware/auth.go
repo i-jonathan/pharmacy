@@ -9,9 +9,10 @@ import (
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := config.SessionStore.Get(r, "session")
+		store := config.NewSessionStore()
+		session, err := store.Get(r, "session")
 		if err != nil {
-			session, _ = config.SessionStore.New(r, "session")
+			session, _ = store.New(r, "session")
 		}
 
 		val, ok := session.Values[constant.UserSessionKey]
