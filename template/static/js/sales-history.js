@@ -442,8 +442,8 @@ async function confirmReturn() {
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(errText || "Failed to process return.");
+      const data = await response.json();
+      throw new Error(data.error || "Failed to process return.");
     }
 
     // const result = await response.json();
@@ -453,9 +453,12 @@ async function confirmReturn() {
     );
     returnModal.classList.add("hidden");
   } catch (err) {
-    console.error("❌ Return submission error:", err);
+    const msg = err.response?.data?.error || err.message || "Return failed";
+
+    console.error("❌ Return submission error:", msg);
     showToast(
-      "An error occurred while processing the return. Check console for details.",
+      msg ||
+        "An error occurred while processing the return. Check console for details.",
       { type: "error" },
     );
   }
