@@ -14,9 +14,16 @@ import (
 
 type User struct {
 	baseModel
-	UserName string `json:"username"`
-	Password string `json:"password"`
-	RoleID   int    `json:"role_id" db:"role_id"`
+	UserName    string       `json:"username"`
+	Password    string       `json:"password"`
+	RoleID      int          `json:"role_id" db:"role_id"`
+	Permissions []Permission `json:"permissions" db:"permissions" `
+}
+
+type Permission struct {
+	baseModel
+	Resource string `json:"resource" db:"resource"`
+	Action   string `json:"action" db:"action"`
 }
 
 func (u *User) HashPassword() error {
