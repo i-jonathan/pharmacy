@@ -28,3 +28,44 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			store := config.NewSessionStore()
+			session, err := store.Get(r, "session")
+			if err != nil {
+				session, _ = store.New(r, "session")
+			}
+
+			userPermissions, ok := session.Values["permissions"].(map[string]bool)
+			if !ok {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
+			switch mode {
+			case constant.RequireAllPermissions:
+				for _, p := range requiredPermissions {
+					if !userPermissions[p] {
+						http.Error(w, "Forbidden", http.StatusForbidden)
+						return
+					}
+				}
+			case constant.RequireAnyPermissions:
+				for _, p := range requiredPermissions {
+					if userPermissions[p] {
+						ctx := context.WithValue(r.Context(), constant.RoleSessionKey, userPermissions)
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					}
+				}
+			default:
+				http.Error(w, "Server Error", http.StatusInternalServerError)
+			}
+
+			ctx := context.WithValue(r.Context(), constant.RoleSessionKey, userPermissions)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}

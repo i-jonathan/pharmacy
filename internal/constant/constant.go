@@ -40,3 +40,8 @@ func NormalizePaymentMethod(input string) string {
 		return CashPaymentMethod
 	}
 }
+
+type RequirePermissionMode string
+
+const RequireAllPermissions RequirePermissionMode = "ALL"
+const RequireAnyPermissions RequirePermissionMode = "ANY"
