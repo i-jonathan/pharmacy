@@ -345,6 +345,10 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 		log.Println("fetching return record failed: ", err)
 		return httperror.ServerError("failed to fetch return records by sale id", err)
 	}
+	returnMap := make(map[int]int)
+	for _, rr := range returnRecord {
+		returnMap[rr.SaleItemID] += rr.Quantity
+	}
 
 	validItems := make(map[int]model.SaleItem)
 	for _, item := range sale.SaleItems {
@@ -372,10 +376,10 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 			)
 		}
 
-		if (r.Quantity + returnRecord.Quantity) > saleItem.Quantity {
+		if (r.Quantity + returnMap[r.SaleItemID]) > saleItem.Quantity {
 			err = fmt.Errorf(
 				"cannot return %d (already returned %d of %d sold) for item %d",
-				r.Quantity, returnRecord.Quantity, saleItem.Quantity, r.SaleItemID,
+				r.Quantity, returnMap[r.SaleItemID], saleItem.Quantity, r.SaleItemID,
 			)
 			return httperror.BadRequest(err.Error(), err)
 		}

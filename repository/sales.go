@@ -144,11 +144,11 @@ func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error
 	return sale, nil
 }
 
-func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) (model.ReturnItems, error) {
-	var returnItems model.ReturnItems
-	err := r.Data.GetContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
+func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error) {
+	var returnItems []model.ReturnItems
+	err := r.Data.SelectContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
 	if err != nil {
-		return model.ReturnItems{}, err
+		return nil, err
 	}
 	return returnItems, nil
 }
