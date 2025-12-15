@@ -378,8 +378,8 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 
 		if (r.Quantity + returnMap[r.SaleItemID]) > saleItem.Quantity {
 			err = fmt.Errorf(
-				"cannot return %d (already returned %d of %d sold) for item %d",
-				r.Quantity, returnMap[r.SaleItemID], saleItem.Quantity, r.SaleItemID,
+				"cannot return %d (already returned %d of %d sold)",
+				r.Quantity, returnMap[r.SaleItemID], saleItem.Quantity,
 			)
 			return httperror.BadRequest(err.Error(), err)
 		}
