@@ -69,3 +69,22 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 		})
 	}
 }
+
+func AddPermissionsToContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		store := config.NewSessionStore()
+		session, err := store.Get(r, "session")
+		if err != nil {
+			session, _ = store.New(r, "session")
+		}
+
+		userPermissions, ok := session.Values["permissions"].(map[string]bool)
+		if !ok {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), constant.RoleSessionKey, userPermissions)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
