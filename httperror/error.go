@@ -32,7 +32,7 @@ func (e *HTTPError) Unwrap() error {
 func (e *HTTPError) JSONRespond(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(e.Code)
-	json.NewEncoder(w).Encode(map[string]string{"error": e.Error()})
+	json.NewEncoder(w).Encode(map[string]string{"error": e.Message})
 }
 
 func BadRequest(msg string, err error) *HTTPError {
