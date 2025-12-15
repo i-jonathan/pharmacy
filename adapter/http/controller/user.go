@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"pharmacy/config"
@@ -9,6 +10,7 @@ import (
 	"pharmacy/internal/constant"
 	"pharmacy/model"
 	"pharmacy/service"
+	"strings"
 
 	"github.com/gorilla/csrf"
 )
@@ -93,8 +95,15 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		session, _ = store.New(r, "session")
 	}
 
+	permMap := map[string]bool{}
+	for _, p := range u.Permissions {
+		key := strings.ToLower(fmt.Sprintf("%s:%s", p.Resource, p.Action))
+		permMap[key] = true
+	}
+
 	session.Values[constant.UserSessionKey] = u.ID
 	session.Values[constant.RoleSessionKey] = u.RoleID
+	session.Values[constant.PermissionsSessionKey] = permMap
 	_ = session.Save(r, w)
 
 	nextURL, _ := session.Values["next"].(string)
