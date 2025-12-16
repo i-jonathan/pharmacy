@@ -55,7 +55,7 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 			case constant.RequireAnyPermissions:
 				for _, p := range requiredPermissions {
 					if userPermissions[p] {
-						ctx := context.WithValue(r.Context(), constant.RoleSessionKey, userPermissions)
+						ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)
 						next.ServeHTTP(w, r.WithContext(ctx))
 						return
 					}
@@ -64,7 +64,7 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 				http.Error(w, "Server Error", http.StatusInternalServerError)
 			}
 
-			ctx := context.WithValue(r.Context(), constant.RoleSessionKey, userPermissions)
+			ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -78,13 +78,8 @@ func AddPermissionsToContext(next http.Handler) http.Handler {
 			session, _ = store.New(r, "session")
 		}
 
-		userPermissions, ok := session.Values["permissions"].(map[string]bool)
-		if !ok {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), constant.RoleSessionKey, userPermissions)
+		userPermissions, _ := session.Values["permissions"].(map[string]bool)
+		ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
