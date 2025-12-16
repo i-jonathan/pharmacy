@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -103,7 +104,10 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	session.Values[constant.UserSessionKey] = u.ID
 	session.Values[constant.RoleSessionKey] = u.RoleID
-	session.Values[constant.PermissionsSessionKey] = permMap
+
+	permJSON, _ := json.Marshal(permMap)
+	session.Values[constant.PermissionsSessionKey] = string(permJSON)
+
 	_ = session.Save(r, w)
 
 	nextURL, _ := session.Values["next"].(string)

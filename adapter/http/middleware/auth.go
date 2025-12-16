@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"pharmacy/config"
 	"pharmacy/internal/constant"
@@ -38,8 +39,14 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 				session, _ = store.New(r, "session")
 			}
 
-			userPermissions, ok := session.Values["permissions"].(map[string]bool)
+			permJSON, ok := session.Values["permissions"].(string)
 			if !ok {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
+			var userPermissions map[string]bool
+			if err := json.Unmarshal([]byte(permJSON), &userPermissions); err != nil {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
@@ -78,8 +85,24 @@ func AddPermissionsToContext(next http.Handler) http.Handler {
 			session, _ = store.New(r, "session")
 		}
 
-		userPermissions, _ := session.Values["permissions"].(map[string]bool)
+		permJSON, ok := session.Values[constant.PermissionsSessionKey].(string)
+		if !ok {
+			// If missing or invalid, treat as empty
+			userPermissions := make(map[string]bool)
+			ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+
+		// Unmarshal into map[string]bool
+		var userPermissions map[string]bool
+		if err := json.Unmarshal([]byte(permJSON), &userPermissions); err != nil {
+			userPermissions = make(map[string]bool)
+		}
+
+		// Store in context
 		ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)
 		next.ServeHTTP(w, r.WithContext(ctx))
+
 	})
 }
