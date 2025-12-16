@@ -82,7 +82,9 @@ function renderTable() {
   });
   rows = Array.from(salesBody.querySelectorAll("tr"));
 
-  totalEl.textContent = `Total: ₦${sales.total.toLocaleString()}`;
+  if (PERMISSIONS["salestotal:view"]) {
+    totalEl.textContent = `Total: ₦${sales.total.toLocaleString()}`;
+  }
 }
 
 function selectRow(idx, scrollIntoView = false) {
