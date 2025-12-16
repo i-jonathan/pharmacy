@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"pharmacy/config"
@@ -9,6 +11,7 @@ import (
 	"pharmacy/internal/constant"
 	"pharmacy/model"
 	"pharmacy/service"
+	"strings"
 
 	"github.com/gorilla/csrf"
 )
@@ -48,9 +51,10 @@ func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Reques
 }
 
 func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
-	session, err := config.SessionStore.Get(r, "session")
+	store := config.NewSessionStore()
+	session, err := store.Get(r, "session")
 	if err != nil {
-		session, _ = config.SessionStore.New(r, "session")
+		session, _ = store.New(r, "session")
 	}
 
 	if userID, ok := session.Values[constant.UserSessionKey]; ok && userID != nil {
@@ -85,12 +89,25 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := config.SessionStore.Get(r, "session")
+	store := config.NewSessionStore()
+
+	session, err := store.Get(r, "session")
 	if err != nil {
-		session, _ = config.SessionStore.New(r, "session")
+		session, _ = store.New(r, "session")
+	}
+
+	permMap := map[string]bool{}
+	for _, p := range u.Permissions {
+		key := strings.ToLower(fmt.Sprintf("%s:%s", p.Resource, p.Action))
+		permMap[key] = true
 	}
 
 	session.Values[constant.UserSessionKey] = u.ID
+	session.Values[constant.RoleSessionKey] = u.RoleID
+
+	permJSON, _ := json.Marshal(permMap)
+	session.Values[constant.PermissionsSessionKey] = string(permJSON)
+
 	_ = session.Save(r, w)
 
 	nextURL, _ := session.Values["next"].(string)
@@ -114,7 +131,8 @@ func (c *userController) GetRegisterPage(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *userController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	session, err := config.SessionStore.Get(r, "session")
+	store := config.NewSessionStore()
+	session, err := store.Get(r, "session")
 	if err != nil {
 		http.Error(w, "Failed to get session", http.StatusInternalServerError)
 		return

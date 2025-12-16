@@ -83,8 +83,11 @@ func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	perms, _ := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
+
 	data := map[string]any{
-		"SalesJSON": template.JS(salesJSON),
+		"SalesJSON":   template.JS(salesJSON),
+		"Permissions": perms,
 	}
 
 	err = c.template.ExecuteTemplate(w, "sales-history.html", data)

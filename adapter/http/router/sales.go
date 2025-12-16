@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
+	"pharmacy/adapter/http/middleware"
 	"pharmacy/service"
 )
 
@@ -13,7 +14,9 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 
 	saleMux.HandleFunc(http.MethodPost+" /", saleController.CreateSale)
 	saleMux.HandleFunc(http.MethodGet+" /", saleController.RenderSalesReceipt)
-	saleMux.HandleFunc(http.MethodGet+" /history", saleController.RenderSalesHistory)
+	saleMux.Handle(http.MethodGet+" /history", middleware.AddPermissionsToContext(
+		http.HandlerFunc(saleController.RenderSalesHistory),
+	))
 	saleMux.HandleFunc(http.MethodGet+" /filter", saleController.FilterSales)
 	saleMux.HandleFunc(http.MethodPost+" /hold", saleController.HoldSaleTransaction)
 	saleMux.HandleFunc(http.MethodGet+" /held", saleController.RenderHeldSaleReceipts)

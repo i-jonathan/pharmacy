@@ -8,6 +8,8 @@ type contextKey string
 
 const UserIDKey contextKey = "userID"
 const UserSessionKey string = "user_id"
+const RoleSessionKey string = "role_id"
+const PermissionsSessionKey string = "permissions"
 
 const DefaultPriceName string = "Base"
 
@@ -38,3 +40,8 @@ func NormalizePaymentMethod(input string) string {
 		return CashPaymentMethod
 	}
 }
+
+type RequirePermissionMode string
+
+const RequireAllPermissions RequirePermissionMode = "ALL"
+const RequireAnyPermissions RequirePermissionMode = "ANY"

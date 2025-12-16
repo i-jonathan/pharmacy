@@ -19,25 +19,25 @@ func NewUserService(repo repository.PharmacyRepository) *userService {
 
 func (s *userService) CreateUserAccount(ctx context.Context, user model.User) error {
 	user.UserName = strings.TrimSpace(user.UserName)
-	
+
 	err := user.ValidateUsername()
 	if err != nil {
 		log.Println(err)
 		return httperror.BadRequest("invalid username", err)
 	}
-	
+
 	usernameExists, err := s.repo.CheckUserNameExists(ctx, user.UserName)
 	if err != nil || usernameExists {
 		log.Println(err)
 		return httperror.BadRequest("username already exists", err)
 	}
-	
+
 	err = user.ValidatePassword()
 	if err != nil {
 		log.Println(err)
 		return httperror.BadRequest("invalid password", err)
 	}
-	
+
 	user.HashPassword()
 	err = s.repo.CreateUserAccount(ctx, user)
 	if err != nil {
@@ -52,17 +52,20 @@ func (s *userService) AuthenticateUser(ctx context.Context, user *model.User) er
 		log.Println(err)
 		return httperror.Unauthorized("invalid username or password", err)
 	}
-	
+
 	correct, err := user.VerifyPassword(storedUser.Password)
 	if err != nil {
 		log.Println(err)
 		return httperror.Unauthorized("invalid username or password", err)
 	}
-	
+
 	if !correct {
 		log.Println(err)
 		return httperror.Unauthorized("invalid username or password", err)
 	}
 	user.ID = storedUser.ID
+	user.RoleID = storedUser.RoleID
+	user.Password = ""
+	user.Permissions = storedUser.Permissions
 	return nil
 }

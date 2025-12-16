@@ -2,7 +2,29 @@ package repository
 
 const createUserQuery = `INSERT INTO users (username, password) VALUES ($1, $2)`
 const usernameExistsQuery = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
-const fetchUserByNameQuery = `SELECT id, username, password FROM users WHERE username = $1`
+const fetchUserByNameQuery = `
+	SELECT
+	    u.id,
+	    u.username,
+	    u.password,
+	    u.role_id,
+	    COALESCE(
+	        json_agg(
+	            json_build_object(
+	                'id', p.id,
+	                'resource', p.resource,
+	                'action', p.action
+	            )
+	        ) FILTER (WHERE p.id IS NOT NULL),
+	        '[]'
+	    ) AS permissions
+	FROM users u
+	JOIN roles r ON r.id = u.role_id
+	LEFT JOIN role_permissions rp ON rp.role_id = r.id
+	LEFT JOIN permissions p ON p.id = rp.permission_id
+	WHERE u.username = $1
+	GROUP BY u.id, u.username, u.password, u.role_id;
+`
 const bulkFetchUserByIDQuery = `SELECT id, username FROM users WHERE id = ANY($1)`
 const createProductQuery = `INSERT INTO product
 	(name, barcode, category_id, reorder_level, manufacturer, cost_price)
@@ -180,7 +202,7 @@ const fetchReturnsForSaleBySaleIDQuery = `
 	GROUP BY ri.sale_item_id;
 `
 const bulkFetchReturnsForSaleBySaleIDQuery = `
-	SELECT 
+	SELECT
 	    r.sale_id,
 	    ri.sale_item_id,
 	    SUM(ri.quantity) AS quantity

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -14,8 +15,32 @@ import (
 
 type User struct {
 	baseModel
-	UserName string `json:"username"`
-	Password string `json:"password"`
+	UserName    string      `json:"username"`
+	Password    string      `json:"password"`
+	RoleID      int         `json:"role_id" db:"role_id"`
+	Permissions Permissions `json:"permissions" db:"permissions" `
+}
+
+type Permission struct {
+	baseModel
+	Resource string `json:"resource" db:"resource"`
+	Action   string `json:"action" db:"action"`
+}
+
+type Permissions []Permission
+
+func (p *Permissions) Scan(value any) error {
+	if value == nil {
+		*p = Permissions{}
+		return nil
+	}
+
+	b, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into permissions", value)
+	}
+
+	return json.Unmarshal(b, p)
 }
 
 func (u *User) HashPassword() error {

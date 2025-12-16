@@ -205,6 +205,8 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 
 	responses := make([]types.SaleResponse, 0, len(sales))
 	salesHistoryTotal := float64(0)
+
+	canViewTotal := HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
 	for _, s := range sales {
 		saleItemsByID := make(map[int]model.SaleItem)
 
@@ -260,7 +262,9 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			Returns:       returnsResp,
 		}
 		responses = append(responses, resp)
-		salesHistoryTotal += float64(s.Total) / 100
+		if canViewTotal {
+			salesHistoryTotal += float64(s.Total) / 100
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -268,10 +272,15 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		return types.SaleHistory{}, httperror.ServerError("failed to commit transaction", err)
 	}
 
-	return types.SaleHistory{
-		TotalAmount: salesHistoryTotal,
-		Data:        responses,
-	}, nil
+	history := types.SaleHistory{
+		Data: responses,
+	}
+
+	if canViewTotal {
+		history.TotalAmount = salesHistoryTotal
+	}
+
+	return history, nil
 }
 
 func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error {

@@ -205,12 +205,14 @@
                 </div>
 
                 <!-- Right: Total -->
-                <div
-                    id="filter-total"
-                    class="bg-emerald-50 dark:bg-emerald-900/40 rounded px-4 py-2 text-emerald-700 dark:text-emerald-300 font-semibold text-base whitespace-nowrap"
-                >
-                    Total: ₦0
-                </div>
+                {{ if hasPerm .Permissions "salestotal:view" }}
+                    <div
+                        id="filter-total"
+                        class="bg-emerald-50 dark:bg-emerald-900/40 rounded px-4 py-2 text-emerald-700 dark:text-emerald-300 font-semibold text-base whitespace-nowrap"
+                    >
+                        Total: ₦0
+                    </div>
+                {{ end }}
             </div>
 
             <!-- Table -->
@@ -564,6 +566,7 @@
 
         <script>
             sales = {{ .SalesJSON }};
+            window.PERMISSIONS = {{ .Permissions }};
         </script>
         <script src="/static/js/theme.js"></script>
         <script src="/static/js/toast.js"></script>

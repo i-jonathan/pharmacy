@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -116,6 +117,17 @@ func parseTemplates() {
 			}
 
 			return string(out) + "." + decPart
+		},
+		"hasPerm": func(perms map[string]bool, permissionKey string) bool {
+			return perms[permissionKey]
+		},
+		"toJSON": func(v any) template.JS {
+			b, err := json.Marshal(v)
+			if err != nil {
+				log.Println(err)
+				return template.JS("null")
+			}
+			return template.JS(b)
 		},
 	}).ParseFS(templateFS, "template/*.html")
 	if err != nil {
