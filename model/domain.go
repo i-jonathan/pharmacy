@@ -3,8 +3,8 @@ package model
 import "time"
 
 type baseModel struct {
-	ID        int       `db:"id"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        int       `db:"id" json:"id"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
 type passwordConfig struct {
