@@ -199,3 +199,34 @@ func (c *inventoryController) DownloadInventoryReport(w http.ResponseWriter, r *
 		})
 	}
 }
+
+func (c *inventoryController) RenderStockTakingPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	err := c.template.ExecuteTemplate(w, "stock-taking.html", nil)
+	if err != nil {
+		http.Error(w, "inventory page render error", http.StatusInternalServerError)
+	}
+}
+
+func (c *inventoryController) FetchInventory(w http.ResponseWriter, r *http.Request) {
+	inventory, err := c.service.FetchInventory(r.Context())
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"error": err})
+		return
+	}
+
+	resp := struct {
+		Items []model.InventoryItem `json:"items"`
+	}{
+		Items: inventory.Items,
+	}
+
+	helper.JSONResponse(w, http.StatusOK, resp)
+}
