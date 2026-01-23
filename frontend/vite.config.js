@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   build: {
-    outDir: "../../template/static/dist",
+    outDir: "../../backend/template/static/dist",
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {
