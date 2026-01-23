@@ -3,7 +3,7 @@ module.exports = {
   content: [
     "./backend/template/**/*.html",
     "./backend/template/static/js/*.js",
-    "./frontend/pharmacy-frontend/src/**/*.{vue,js,ts}",
+    "./frontend/src/**/*.{vue,js,ts}",
   ],
   darkMode: "class",
   theme: {
