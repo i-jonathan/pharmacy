@@ -338,7 +338,7 @@ function populateReturnItems(items) {
             type="number"
             min="0"
             max="${it.quantity}"
-            class="return-qty no-spinners border rounded px-2 py-1 w-20 text-right"
+            class="return-qty no-spinners border rounded px-2 py-1 w-20 text-right border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
             data-sale-item-id="${it.id}"
             data-unit-price="${it.unit_price}"
           />
