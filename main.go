@@ -24,7 +24,19 @@ var templateFS embed.FS
 //go:embed template/static/**
 var embeddedStatic embed.FS
 
+//go:embed template/static/dist/.vite/manifest.json
+var manifestFS embed.FS
+
 var tmpl *template.Template
+
+type ViteManifestEntry struct {
+	File    string `json:"file"`
+	Name    string `json:"name"`
+	Src     string `json:"src"`
+	IsEntry bool   `json:"isEntry"`
+}
+
+var viteManifest map[string]ViteManifestEntry
 
 func main() {
 	_ = config.Conf
@@ -38,6 +50,7 @@ func main() {
 	log.SetOutput(file)
 
 	parseTemplates()
+	loadManifest()
 	subFS, err := fs.Sub(embeddedStatic, "template/static")
 	if err != nil {
 		log.Fatal(err)
@@ -129,8 +142,28 @@ func parseTemplates() {
 			}
 			return template.JS(b)
 		},
+		"ViteAsset": viteAsset,
 	}).ParseFS(templateFS, "template/*.html")
 	if err != nil {
 		panic("failed to parse templates: " + err.Error())
 	}
+}
+
+func loadManifest() {
+	data, err := manifestFS.ReadFile("template/static/dist/.vite/manifest.json")
+	if err != nil {
+		log.Fatalf("unable to read manifest file: %v", err)
+	}
+
+	err = json.Unmarshal(data, &viteManifest)
+	if err != nil {
+		log.Fatalf("failed to parse manifest: %v", err)
+	}
+}
+
+func viteAsset(entry string) string {
+	if e, ok := viteManifest[entry]; ok {
+		return "/static/dist/" + e.File
+	}
+	return ""
 }
