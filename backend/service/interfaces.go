@@ -28,3 +28,9 @@ type SaleService interface {
 	DeleteHeldTransaction(ctx context.Context, reference string) error
 	ReturnItems(ctx context.Context, returnParams types.ReturnSale) error
 }
+
+type StockTakingService interface {
+	CreateStockTaking(ctx context.Context, data types.StockTakingData) (int, error)
+	FetchStockTaking(ctx context.Context, stockTakingID int) (types.StockTakingData, error)
+	FetchStockTakingItems(ctx context.Context, stockTakingID int) (types.StockTakingItems, error)
+}
