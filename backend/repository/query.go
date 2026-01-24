@@ -211,3 +211,58 @@ const bulkFetchReturnsForSaleBySaleIDQuery = `
 	WHERE r.sale_id = ANY($1)
 	GROUP BY r.sale_id, ri.sale_item_id;
 `
+const createStockTakingQuery = `
+	INSERT INTO stock_taking
+	(name, status, created_by_id)
+	VALUES
+	($1, $2, $3);
+`
+const getStockTakingByIDQuery = `
+	SELECT
+	    st.id,
+	    st.name,
+	    st.status,
+	    st.created_at,
+	    st.started_at,
+	    st.completed_at,
+	    u.id   AS created_by_id,
+	    u.username AS created_by_name
+	FROM stock_taking st
+	JOIN users u ON u.id = st.created_by_id
+	WHERE st.id = $1;
+`
+const getStockTakingItemsQuery = `
+SELECT
+	    p.id AS product_id,
+	    sti.id AS stock_take_item_id,
+	    p.name AS product_name,
+	    p.manufacturer,
+	    sti.snapshot_quantity,
+	    sti.dispensary_count,
+	    sti.store_count,
+	    MIN(pb.expiry_date) AS earliest_expiry,
+	    ARRAY_AGG(DISTINCT pb.expiry_date ORDER BY pb.expiry_date) AS expiry_options,
+	    sti.notes,
+	    u.username AS last_updated_by,
+	    sti.last_updated_at AS last_updated_at
+	FROM product p
+	LEFT JOIN stock_taking_item sti
+	    ON sti.product_id = p.id
+	   AND sti.stock_taking_id = $1
+	LEFT JOIN product_batch pb
+	    ON pb.product_id = p.id
+	LEFT JOIN users u
+	    ON u.id = sti.last_updated_by_id
+	GROUP BY
+	    p.id,
+	    sti.id,
+	    p.name,
+	    p.manufacturer,
+	    sti.snapshot_quantity,
+	    sti.dispensary_count,
+	    sti.store_count,
+	    sti.notes,
+	    sti.last_updated_at,
+	    u.username
+	ORDER BY p.name
+`
