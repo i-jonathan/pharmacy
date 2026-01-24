@@ -212,10 +212,9 @@ const bulkFetchReturnsForSaleBySaleIDQuery = `
 	GROUP BY r.sale_id, ri.sale_item_id;
 `
 const createStockTakingQuery = `
-	INSERT INTO stock_taking
-	(name, status, created_by_id)
-	VALUES
-	($1, $2, $3);
+	INSERT INTO stock_taking (name, status, created_by_id)
+	VALUES ($1, $2, $3) 
+	RETURNING id;
 `
 const getStockTakingByIDQuery = `
 	SELECT
