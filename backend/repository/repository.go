@@ -56,6 +56,12 @@ type ReturnRepository interface {
 	BulkFetchReturnItemsBySaleIDs(ctx context.Context, saleIDs []int) ([]model.ReturnItemWithSale, error)
 }
 
+type StockTakingRepository interface {
+	CreateStockTaking(ctx context.Context, stockTakingData model.StockTaking) (int, error)
+	GetStockTaking(ctx context.Context, stockTakingID int) (model.StockTaking, error)
+	GetStockTakingItems(ctx context.Context, stockTakingID int) (types.StockTakingItems, error)
+}
+
 type PharmacyRepository interface {
 	BeginTx(ctx context.Context) (*sqlx.Tx, error)
 	CommitTx(tx *sqlx.Tx) error
