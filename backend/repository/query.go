@@ -213,7 +213,7 @@ const bulkFetchReturnsForSaleBySaleIDQuery = `
 `
 const createStockTakingQuery = `
 	INSERT INTO stock_taking (name, status, created_by_id)
-	VALUES ($1, $2, $3) 
+	VALUES ($1, $2, $3)
 	RETURNING id;
 `
 const getStockTakingByIDQuery = `
@@ -231,7 +231,7 @@ const getStockTakingByIDQuery = `
 	WHERE st.id = $1;
 `
 const getStockTakingItemsQuery = `
-SELECT
+	SELECT
 	    p.id AS product_id,
 	    sti.id AS stock_take_item_id,
 	    p.name AS product_name,
@@ -264,4 +264,9 @@ SELECT
 	    sti.last_updated_at,
 	    u.username
 	ORDER BY p.name
+`
+const checkIfActiveStockTaking = `
+	SELECT EXISTS (
+		SELECT 1 FROM stock_taking WHERE status = $1
+	);
 `

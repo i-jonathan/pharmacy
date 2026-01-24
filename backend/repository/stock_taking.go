@@ -40,3 +40,13 @@ func (r *repo) GetStockTakingItems(ctx context.Context, stockTakingID int) (type
 
 	return stockTakingItems, nil
 }
+
+func (r *repo) HasActiveStockTaking(ctx context.Context) (bool, error) {
+	var exists bool
+	err := r.Data.GetContext(ctx, &exists, checkIfActiveStockTaking, model.StockTakingInProgress)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
