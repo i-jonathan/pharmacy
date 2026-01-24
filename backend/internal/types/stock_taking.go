@@ -21,6 +21,7 @@ type StockTakingData struct {
 	Name        string
 	Status      string
 	CreatedBy   string
+	CreatedByID int
 	StartedAt   time.Time
 	CompletedAt *time.Time
 }
