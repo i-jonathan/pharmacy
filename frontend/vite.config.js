@@ -1,5 +1,6 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -10,8 +11,13 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
-        stockTake: "./src/stock-take/main.js"
-      }
-    }
-  }
-})
+        stockTake: "./src/stock-take/main.js",
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"), // <-- this makes @/ point to src/
+    },
+  },
+});
