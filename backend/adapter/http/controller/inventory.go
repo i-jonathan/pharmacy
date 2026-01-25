@@ -200,15 +200,6 @@ func (c *inventoryController) DownloadInventoryReport(w http.ResponseWriter, r *
 	}
 }
 
-func (c *inventoryController) RenderStockTakingPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	err := c.template.ExecuteTemplate(w, "stock-taking.html", nil)
-	if err != nil {
-		http.Error(w, "inventory page render error", http.StatusInternalServerError)
-	}
-}
-
 func (c *inventoryController) FetchInventory(w http.ResponseWriter, r *http.Request) {
 	inventory, err := c.service.FetchInventory(r.Context())
 	if err != nil {
