@@ -9,7 +9,7 @@
             </div>
             <div class="text-xs text-gray-500">
                 Last edited by {{ item.last_updated_by }} ·
-                {{ lastEditedAgo }}
+                {{ timeAgo(item.last_updated_at) }}
             </div>
         </td>
 
@@ -72,6 +72,8 @@
 </template>
 
 <script>
+import { formatMonthYear, timeAgo } from "@/utils/formatters";
+
 export default {
     props: {
         item: Object,
@@ -94,38 +96,10 @@ export default {
                 (this.item.snapshot_quantity ?? 0)
             );
         },
-        lastEditedAgo() {
-            const updatedAt = this.item.last_updated_at;
-            if (!updatedAt) return "Never";
-
-            const now = new Date();
-            const updatedDate = new Date(updatedAt);
-            const diffMs = now - updatedDate; // difference in milliseconds
-
-            const diffSeconds = Math.floor(diffMs / 1000);
-            const diffMinutes = Math.floor(diffSeconds / 60);
-            const diffHours = Math.floor(diffMinutes / 60);
-            const diffDays = Math.floor(diffHours / 24);
-
-            if (diffSeconds < 60) return "Just now";
-            if (diffMinutes < 60) return `${diffMinutes}m ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
-            if (diffDays < 7) return `${diffDays}d ago`;
-
-            // Otherwise show a date like "Jan 25"
-            return updatedDate.toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-            });
-        },
     },
     methods: {
-        formatMonthYear(dateStr) {
-            if (!dateStr) return "";
-            const date = new Date(dateStr);
-            const options = { year: "numeric", month: "short" }; // e.g. Oct 2026
-            return date.toLocaleDateString(undefined, options);
-        },
+        formatMonthYear,
+        timeAgo,
         save() {
             const updated = {
                 ...this.item,

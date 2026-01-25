@@ -7,7 +7,8 @@
             <div>
                 <h1 class="text-2xl font-semibold">Stock Taking: {{ name }}</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Started: {{ startDate }} · Created by {{ createdBy }} ·
+                    Started: {{ formatDate(startDate) }} · Created by
+                    {{ createdBy }} ·
                     <span class="text-primary font-medium">{{ status }}</span>
                 </p>
             </div>
@@ -64,6 +65,7 @@
 
 <script>
 import StockTable from "./components/StockTable.vue";
+import { formatDate } from "@/utils/formatters";
 
 export default {
     components: { StockTable },
@@ -113,6 +115,7 @@ export default {
         this.completeStockPermission = permissions["stock:complete"];
     },
     methods: {
+        formatDate,
         updateItem(updatedItem) {
             //send to backend
             console.log("updating stuff");
