@@ -233,14 +233,22 @@ const getStockTakingByIDQuery = `
 const getStockTakingItemsQuery = `
 	SELECT
 	    p.id AS product_id,
-	    sti.id AS stock_take_item_id,
+	    sti.id AS stock_taking_item_id,
 	    p.name AS product_name,
 	    p.manufacturer,
-	    sti.snapshot_quantity,
+	    COALESCE(sti.snapshot_quantity,
+	        COALESCE(SUM(
+	            CASE
+	                WHEN sm.movement_type LIKE 'IN%'  THEN sm.quantity
+	                WHEN sm.movement_type LIKE 'OUT%' THEN -sm.quantity
+	                ELSE 0
+	            END
+	        ), 0)
+	    ) AS snapshot_quantity,
 	    sti.dispensary_count,
 	    sti.store_count,
 	    MIN(pb.expiry_date) AS earliest_expiry,
-	    ARRAY_AGG(DISTINCT pb.expiry_date ORDER BY pb.expiry_date) AS expiry_options,
+	    ARRAY_AGG(DISTINCT pb.expiry_date ORDER BY pb.expiry_date) FILTER (WHERE pb.expiry_date IS NOT NULL) AS expiry_options,
 	    sti.notes,
 	    u.username AS last_updated_by,
 	    sti.last_updated_at AS last_updated_at
@@ -250,6 +258,8 @@ const getStockTakingItemsQuery = `
 	   AND sti.stock_taking_id = $1
 	LEFT JOIN product_batch pb
 	    ON pb.product_id = p.id
+	LEFT JOIN stock_movement sm
+    	ON sm.product_id = p.id
 	LEFT JOIN users u
 	    ON u.id = sti.last_updated_by_id
 	GROUP BY
