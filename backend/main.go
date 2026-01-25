@@ -79,6 +79,10 @@ func main() {
 	saleRouter := router.InitSalesRouter(saleService, tmpl)
 	r.Handle("/sales/", middleware.AuthMiddleware(saleRouter))
 
+	stockTakingService := service.NewStockTakingService(store)
+	stockTakingRouter := router.InitStockTakingRouter(stockTakingService, tmpl)
+	r.Handle("/stock-taking/", middleware.AuthMiddleware(stockTakingRouter))
+
 	middlewareStack := middleware.CreateStack(
 		// middleware.CSRFMiddleware,
 		middleware.Logging,
