@@ -85,13 +85,13 @@ export default {
             return this.items.reduce(
                 (acc, i) =>
                     acc +
-                    ((i.dispCount ?? 0) + (i.storeCount ?? 0) - (i.stock ?? 0)),
+                    ((i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0)),
                 0,
             );
         },
         totalIssues() {
             return this.items.filter(
-                (i) => i.dispCount !== i.stock || i.storeCount !== i.stock,
+                (i) => i.dispensary_count !== i.snapshot_quantity || i.store_count !== i.snapshot_quantity,
             ).length;
         },
     },
