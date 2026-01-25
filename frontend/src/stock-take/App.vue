@@ -5,9 +5,7 @@
             class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
         >
             <div>
-                <h1 class="text-2xl font-semibold">
-                    Stock Take: {{ stockTakeName }}
-                </h1>
+                <h1 class="text-2xl font-semibold">Stock Taking: {{ name }}</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     Started: {{ startDate }} · Created by {{ createdBy }} ·
                     <span class="text-primary font-medium">{{ status }}</span>
@@ -67,19 +65,17 @@
 <script>
 import StockTable from "./components/StockTable.vue";
 
-const permissions = window.Permissions || {};
-const showQuantityAndVariance = permissions["stock:view"] || false;
-const completeStockPermission = permissions["stock:complete"];
-
 export default {
     components: { StockTable },
     data() {
         return {
-            stockTakeName: "HardCoded Stock",
-            startDate: "Today",
-            createdBy: "Admin",
-            status: "In Progress",
+            name: "",
+            startDate: "",
+            createdBy: "",
+            status: "",
             items: [],
+            showQuantityAndVariance: false,
+            completeStockPermission: false,
         };
     },
     computed: {
@@ -98,9 +94,23 @@ export default {
         },
     },
     async mounted() {
-        const res = await fetch("/inventory/item-list");
+        const el = document.getElementById("stock-taking-app");
+        const stockTakingID = el.dataset.stockTakingId;
+
+        const res = await fetch(`/stock-taking/api/${stockTakingID}`);
         const data = await res.json();
+
+        const stData = data.stock_taking_data;
+        this.name = stData.name;
+        this.startDate = stData.started_at;
+        this.createdBy = stData.created_by;
+        this.status = stData.status;
+
         this.items = data.items;
+
+        const permissions = data.permissions || {};
+        this.showQuantityAndVariance = permissions["stock:view"];
+        this.completeStockPermission = permissions["stock:complete"];
     },
     methods: {
         updateItem(updatedItem) {

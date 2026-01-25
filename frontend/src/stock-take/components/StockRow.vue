@@ -3,24 +3,24 @@
         <td
             class="px-4 py-3 font-medium sticky left-0 bg-white dark:bg-gray-800 z-10"
         >
-            {{ item.name }}
+            {{ item.product_name }}
             <div class="text-sm text-gray-600 dark:text-gray-400">
                 {{ item.manufacturer }}
             </div>
             <div class="text-xs text-gray-500">
-                Last edited by {{ item.lastEditedBy }} ·
-                {{ item.lastEditedAgo }}
+                Last edited by {{ item.last_updated_by }} ·
+                {{ lastEditedAgo }}
             </div>
         </td>
 
         <td v-if="showQuantityAndVariance" class="px-4 py-3 text-center">
-            {{ item.stock }}
+            {{ item.snapshot_quantity }}
         </td>
 
         <td class="px-4 py-3 text-center">
             <input
                 type="number"
-                v-model.number="item.dispCount"
+                v-model.number="item.dispensary_count"
                 @change="save"
                 class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
             />
@@ -29,7 +29,7 @@
         <td class="px-4 py-3 text-center">
             <input
                 type="number"
-                v-model.number="item.storeCount"
+                v-model.number="item.store_count"
                 @change="save"
                 class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
             />
@@ -52,9 +52,9 @@
                 @change="save"
                 class="w-40 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-                <option value="">Select date</option>
+                <option value="" disabled>Select date</option>
                 <option v-for="d in expiryOptions" :key="d" :value="d">
-                    {{ d }}
+                    {{ formatMonthYear(d) }}
                 </option>
             </select>
         </td>
@@ -79,23 +79,53 @@ export default {
     },
     data() {
         return {
-            dispCount: this.item.dispCount,
-            storeCount: this.item.storeCount,
-            expiry: this.item.expiry || "",
+            dispCount: this.item.dispensary_count,
+            storeCount: this.item.store_count,
+            expiry: this.item.earliest_expiry || "",
             notes: this.item.notes || "",
-            expiryOptions: this.item.expiryOptions || [],
+            expiryOptions: this.item.expiry_options || [],
         };
     },
     computed: {
         variance() {
             return (
-                (this.item.dispCount ?? 0) +
-                (this.item.storeCount ?? 0) -
-                (this.item.stock ?? 0)
+                (this.item.dispensary_count ?? 0) +
+                (this.item.store_count ?? 0) -
+                (this.item.snapshot_quantity ?? 0)
             );
+        },
+        lastEditedAgo() {
+            const updatedAt = this.item.last_updated_at;
+            if (!updatedAt) return "Never";
+
+            const now = new Date();
+            const updatedDate = new Date(updatedAt);
+            const diffMs = now - updatedDate; // difference in milliseconds
+
+            const diffSeconds = Math.floor(diffMs / 1000);
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            const diffHours = Math.floor(diffMinutes / 60);
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffSeconds < 60) return "Just now";
+            if (diffMinutes < 60) return `${diffMinutes}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+
+            // Otherwise show a date like "Jan 25"
+            return updatedDate.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+            });
         },
     },
     methods: {
+        formatMonthYear(dateStr) {
+            if (!dateStr) return "";
+            const date = new Date(dateStr);
+            const options = { year: "numeric", month: "short" }; // e.g. Oct 2026
+            return date.toLocaleDateString(undefined, options);
+        },
         save() {
             const updated = {
                 ...this.item,
