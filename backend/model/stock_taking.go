@@ -1,6 +1,12 @@
 package model
 
-import "time"
+import (
+	"strings"
+	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+)
 
 type StockTakingStatus string
 
@@ -9,6 +15,11 @@ const (
 	StockTakingCompleted  StockTakingStatus = "completed"
 	StockTakingCancelled  StockTakingStatus = "cancelled"
 )
+
+func (s StockTakingStatus) ToString() string {
+	value := strings.ReplaceAll(string(s), "_", " ")
+	return cases.Title(language.English).String(value)
+}
 
 type StockTaking struct {
 	baseModel

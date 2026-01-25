@@ -72,7 +72,7 @@ func (s *stockTakingService) FetchStockTaking(ctx context.Context, stockTakingID
 
 	return types.StockTakingData{
 		Name:        data.Name,
-		Status:      string(data.Status),
+		Status:      data.Status.ToString(),
 		CreatedBy:   data.CreatedByName,
 		StartedAt:   data.StartedAt,
 		CompletedAt: data.CompletedAt,
