@@ -11,7 +11,7 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
-        stockTake: "./src/stock-take/main.js",
+        stockCounting: "./src/stock-taking/counting/main.js",
       },
     },
   },
