@@ -22,6 +22,8 @@
                 type="number"
                 min="0"
                 v-model.number="item.dispensary_count"
+                @focus="item.isEditing = true"
+                @blur="item.isEditing = false"
                 @change="save"
                 @input="
                     item.dispensary_count = Math.max(
@@ -38,6 +40,8 @@
                 type="number"
                 min="0"
                 v-model.number="item.store_count"
+                @focus="item.isEditing = true"
+                @blur="item.isEditing = false"
                 @change="save"
                 @input="
                     item.store_count = Math.max(
@@ -46,7 +50,9 @@
                     )
                 "
                 :disabled="!dispensaryEntered"
-                :title="!dispensaryEntered ? 'Enter dispensary count first' : ''"
+                :title="
+                    !dispensaryEntered ? 'Enter dispensary count first' : ''
+                "
                 class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
         </td>
@@ -65,9 +71,13 @@
         <td class="px-4 py-3 text-center">
             <select
                 v-model="expiry"
+                @focus="item.isEditing = true"
+                @blur="item.isEditing = false"
                 @change="save"
                 :disabled="!dispensaryEntered"
-                :title="!dispensaryEntered ? 'Enter dispensary count first' : ''"
+                :title="
+                    !dispensaryEntered ? 'Enter dispensary count first' : ''
+                "
                 class="w-40 px-2 py-2 border rounded text-center disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
                 <option value="" disabled>Select date</option>
@@ -81,10 +91,14 @@
             <input
                 type="text"
                 v-model="notes"
+                @focus="item.isEditing = true"
+                @blur="item.isEditing = false"
                 @change="save"
                 placeholder="Optional"
                 :disabled="!dispensaryEntered"
-                :title="!dispensaryEntered ? 'Enter dispensary count first' : ''"
+                :title="
+                    !dispensaryEntered ? 'Enter dispensary count first' : ''
+                "
                 class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
         </td>
