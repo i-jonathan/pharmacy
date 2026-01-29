@@ -33,3 +33,13 @@ type StockTakingResponse struct {
 	Items           StockTakingItems `json:"items"`
 	Permissions     map[string]bool  `json:"permissions"` // temporary until login page moves to vue
 }
+
+type StockTakingItemCount struct {
+	StockTakingID   int     `json:"stock_taking_id"`
+	ProductID       int     `json:"product_id"`
+	DispensaryCount *int    `json:"dispensary_count,omitempty"`
+	StoreCount      *int    `json:"store_count,omitempty"`
+	UpdatedExpiry   *string `json:"updated_expiry"`
+	Notes           *string `json:"notes"`
+	UpdatedByID     int
+}
