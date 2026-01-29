@@ -17,6 +17,7 @@ func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Templa
 	stockTakingMux.Handle(http.MethodGet+" /api/{id}", middleware.AddPermissionsToContext(
 		http.HandlerFunc(stockTakingController.FetchStockTaking),
 	))
+	stockTakingMux.HandleFunc(http.MethodGet+" /api/{id}/items", stockTakingController.FetchStockTakingItems)
 	stockTakingMux.HandleFunc(http.MethodPost+" /api/{id}/item/{product_id}", stockTakingController.UpdateStockTakingItemCount)
 
 	return http.StripPrefix("/stock-taking", stockTakingMux)

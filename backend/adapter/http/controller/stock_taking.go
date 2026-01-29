@@ -76,6 +76,36 @@ func (c *stockTakingController) FetchStockTaking(w http.ResponseWriter, r *http.
 	})
 }
 
+func (c *stockTakingController) FetchStockTakingItems(w http.ResponseWriter, r *http.Request) {
+	stockTakingID := r.PathValue("id")
+	if strings.TrimSpace(stockTakingID) == "" {
+		httperror.BadRequest("invalid stock taking id provided", nil).JSONRespond(w)
+		return
+	}
+
+	id, err := strconv.Atoi(stockTakingID)
+	if err != nil {
+		httperror.BadRequest("invalid stock taking id provided", err).JSONRespond(w)
+		return
+	}
+
+	items, err := c.service.FetchStockTakingItems(r.Context(), id)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+
+		httperror.ServerError("fetching stock taking items failed", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
 func (c *stockTakingController) RenderStockTakingPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
