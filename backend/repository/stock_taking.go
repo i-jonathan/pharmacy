@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"pharmacy/internal/types"
 	"pharmacy/model"
 )
@@ -49,4 +51,48 @@ func (r *repo) HasActiveStockTaking(ctx context.Context) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (r *repo) FetchCurrentStockLevel(ctx context.Context, productID int) (int, error) {
+	var stock int
+	err := r.Data.GetContext(ctx, &stock, currentProductStockQuery, productID)
+	if err != nil {
+		return 0, err
+	}
+
+	return stock, nil
+}
+
+func (r *repo) FetchStockTakingItem(ctx context.Context, stockTakingID, productID int) (*model.StockTakingItem, error) {
+	var item model.StockTakingItem
+	err := r.Data.GetContext(ctx, &item, getStockTakingItemByProductIDQuery)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *repo) CreateStockTakingItem(ctx context.Context, item *model.StockTakingItem) (int, error) {
+	var id int
+	err := r.Data.QueryRowContext(
+		ctx, createStockTakingItemQuery, item.StockTakingID,
+		item.ProductID, item.SnapshotQuantity,
+	).Scan(&id)
+
+	if err != nil {
+		return 0, nil
+	}
+
+	return id, nil
+}
+
+func (r *repo) UpdateStockTakingItem(ctx context.Context, item *model.StockTakingItem) error {
+	_, err := r.Data.ExecContext(
+		ctx, updateStockTakingItemQuery, item.DispensaryCount,
+		item.StoreCount, item.Notes, item.LastUpdatedByID, item.ID,
+	)
+	return err
 }

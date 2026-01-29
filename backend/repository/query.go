@@ -216,6 +216,22 @@ const createStockTakingQuery = `
 	VALUES ($1, $2, $3)
 	RETURNING id;
 `
+const createStockTakingItemQuery = `
+	INSERT INTO stock_taking_item
+	(stock_taking_id, product_id, snapshot_quantity)
+	VALUES ($1, $2, $3)
+	RETURNING id;
+`
+const updateStockTakingItemQuery = `
+	UPDATE stock_taking_item
+	SET
+	    dispensary_count = $1,
+	    store_count = $2,
+	    notes = $3,
+	    last_updated_by_id = $4,
+	    last_updated_at = NOW()
+	WHERE id = $5
+`
 const getStockTakingByIDQuery = `
 	SELECT
 	    st.id,
@@ -279,4 +295,20 @@ const checkIfActiveStockTaking = `
 	SELECT EXISTS (
 		SELECT 1 FROM stock_taking WHERE status = $1
 	);
+`
+const currentProductStockQuery = `
+	SELECT COALESCE(SUM(
+        CASE
+            WHEN movement_type LIKE 'IN%'  THEN quantity
+            WHEN movement_type LIKE 'OUT%' THEN -quantity
+            ELSE 0
+        END
+    ), 0) AS stock
+    FROM stock_movement
+    WHERE product_id = $1;
+`
+const getStockTakingItemByProductIDQuery = `
+	SELECT * from stock_taking_item
+	WHERE stock_taking_id = $1
+	AND product_id = $2;
 `

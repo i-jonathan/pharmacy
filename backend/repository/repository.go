@@ -61,6 +61,10 @@ type StockTakingRepository interface {
 	GetStockTaking(ctx context.Context, stockTakingID int) (model.StockTaking, error)
 	GetStockTakingItems(ctx context.Context, stockTakingID int) (types.StockTakingItems, error)
 	HasActiveStockTaking(ctx context.Context) (bool, error)
+	FetchCurrentStockLevel(ctx context.Context, productID int) (int, error)
+	FetchStockTakingItem(ctx context.Context, stockTakingID, productID int) (*model.StockTakingItem, error)
+	CreateStockTakingItem(ctx context.Context, item *model.StockTakingItem) (int, error)
+	UpdateStockTakingItem(ctx context.Context, item *model.StockTakingItem) error
 }
 
 type PharmacyRepository interface {
