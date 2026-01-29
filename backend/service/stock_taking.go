@@ -92,3 +92,48 @@ func (s *stockTakingService) FetchStockTakingItems(ctx context.Context, stockTak
 
 	return data, nil
 }
+
+func (s *stockTakingService) UpdateStockTakingItemCount(ctx context.Context, data types.StockTakingItemCount) error {
+	item, err := s.repo.FetchStockTakingItem(ctx, data.StockTakingID, data.ProductID)
+	if err != nil {
+		log.Println(err)
+		return httperror.NotFound("unable to find item for stock taking", err)
+	}
+
+	if item == nil {
+		// create item with current stock level
+		// fetch current stock level
+		productStock, err := s.repo.FetchCurrentStockLevel(ctx, data.ProductID)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("failed to fetch current stock level", err)
+		}
+
+		item = &model.StockTakingItem{
+			StockTakingID:    data.StockTakingID,
+			ProductID:        data.ProductID,
+			SnapshotQuantity: productStock,
+		}
+
+		id, err := s.repo.CreateStockTakingItem(ctx, item)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("failed to create stock taking item", err)
+		}
+
+		item.ID = id
+	}
+
+	item.DispensaryCount = *data.DispensaryCount
+	item.StoreCount = *data.StoreCount
+	item.LastUpdatedByID = data.UpdatedByID
+	item.Notes = *data.Notes
+	
+	if err := s.repo.UpdateStockTakingItem(ctx, item); err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to update stock taking item", err)
+	}
+	
+	// update the expiry
+	return nil
+}
