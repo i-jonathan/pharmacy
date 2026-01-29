@@ -55,3 +55,17 @@ export function timeAgo(isoString) {
     day: "numeric",
   });
 }
+
+/**
+ * Formats a date to a date string like "2026-10-01"
+ * @param {Date} date
+ * @returns string
+ */
+export function formatToDateString(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
