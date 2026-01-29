@@ -66,7 +66,7 @@ func (r *repo) FetchCurrentStockLevel(ctx context.Context, productID int) (int, 
 
 func (r *repo) FetchStockTakingItem(ctx context.Context, stockTakingID, productID int) (*model.StockTakingItem, error) {
 	var item model.StockTakingItem
-	err := r.Data.GetContext(ctx, &item, getStockTakingItemByProductIDQuery)
+	err := r.Data.GetContext(ctx, &item, getStockTakingItemByProductIDQuery, stockTakingID, productID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
