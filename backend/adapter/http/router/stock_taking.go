@@ -13,10 +13,11 @@ func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Templa
 	stockTakingMux := http.NewServeMux()
 
 	// stockTakingMux.HandleFunc(http.MethodPost+" /", stockTakingController.CreateStockTaking)
-	stockTakingMux.HandleFunc(http.MethodGet+" /{stock_taking_id}", stockTakingController.RenderStockTakingPage)
-	stockTakingMux.Handle(http.MethodGet+" /api/{stock_taking_id}", middleware.AddPermissionsToContext(
+	stockTakingMux.HandleFunc(http.MethodGet+" /{id}", stockTakingController.RenderStockTakingPage)
+	stockTakingMux.Handle(http.MethodGet+" /api/{id}", middleware.AddPermissionsToContext(
 		http.HandlerFunc(stockTakingController.FetchStockTaking),
 	))
+	stockTakingMux.HandleFunc(http.MethodPost+" /api/{id}/item/{product_id}", stockTakingController.UpdateStockTakingItemCount)
 
 	return http.StripPrefix("/stock-taking", stockTakingMux)
 }
