@@ -65,7 +65,8 @@
 
 <script>
 import StockTable from "./components/StockTable.vue";
-import { formatDate } from "@/utils/formatters";
+import { formatDate, formatToDateString } from "@/utils/formatters";
+import debounce from "lodash/debounce";
 
 export default {
     components: { StockTable },
@@ -76,6 +77,7 @@ export default {
             createdBy: "",
             status: "",
             items: [],
+            stockTakingID: 0,
             showQuantityAndVariance: false,
             completeStockPermission: false,
         };
@@ -85,23 +87,28 @@ export default {
             return this.items.reduce(
                 (acc, i) =>
                     acc +
-                    ((i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0)),
+                    ((i.dispensary_count ?? 0) +
+                        (i.store_count ?? 0) -
+                        (i.snapshot_quantity ?? 0)),
                 0,
             );
         },
         totalIssues() {
             return this.items.filter(
-                (i) => i.dispensary_count !== i.snapshot_quantity || i.store_count !== i.snapshot_quantity,
+                (i) =>
+                    i.dispensary_count !== i.snapshot_quantity ||
+                    i.store_count !== i.snapshot_quantity,
             ).length;
         },
     },
     async mounted() {
         const el = document.getElementById("stock-taking-app");
-        const stockTakingID = el.dataset.stockTakingId;
+        this.stockTakingID = el.dataset.stockTakingId;
 
-        const res = await fetch(`/stock-taking/api/${stockTakingID}`);
+        const res = await fetch(`/stock-taking/api/${this.stockTakingID}`);
         const data = await res.json();
 
+        console.log(data);
         const stData = data.stock_taking_data;
         this.name = stData.name;
         this.startDate = stData.started_at;
@@ -116,10 +123,47 @@ export default {
     },
     methods: {
         formatDate,
-        updateItem(updatedItem) {
-            //send to backend
-            console.log("updating stuff");
-        },
+        updateItem: debounce(async function (updatedItem) {
+            try {
+                // Prepare the payload
+                const data = {
+                    dispensary_count: updatedItem.dispensary_count,
+                    store_count: updatedItem.storeCount,
+                    updated_expiry: updatedItem.expiry
+                        ? formatToDateString(updatedItem.expiry)
+                        : null,
+                    notes: updatedItem.notes || "",
+                };
+
+                console.log(updatedItem);
+                console.log(data);
+
+                // Make the request
+                const res = await fetch(
+                    `/stock-taking/api/${this.stockTakingID}/item/${updatedItem.product_id}`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify(data),
+                    },
+                );
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    console.error("Failed to update stock item:", errData);
+                    alert(errData.error || "Failed to update item");
+                    return;
+                }
+
+                const resp = await res.json();
+                console.log("Stock item updated successfully:", resp);
+            } catch (err) {
+                console.error("Error updating stock item:", err);
+                alert("Error updating stock item");
+            }
+        }, 1000),
         filterVariances() {
             alert("filtering variances unimplemented");
         },
