@@ -8,6 +8,7 @@ import (
 	"pharmacy/model"
 	"pharmacy/repository"
 	"strings"
+	"time"
 )
 
 type stockTakingService struct {
@@ -124,16 +125,32 @@ func (s *stockTakingService) UpdateStockTakingItemCount(ctx context.Context, dat
 		item.ID = id
 	}
 
-	item.DispensaryCount = *data.DispensaryCount
-	item.StoreCount = *data.StoreCount
+	if data.DispensaryCount != nil {
+		item.DispensaryCount = *data.DispensaryCount
+	}
+	if data.StoreCount != nil {
+		item.StoreCount = *data.StoreCount
+	}
+	if data.Notes != nil {
+		item.Notes = *data.Notes
+	}
 	item.LastUpdatedByID = data.UpdatedByID
-	item.Notes = *data.Notes
-	
+
 	if err := s.repo.UpdateStockTakingItem(ctx, item); err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to update stock taking item", err)
 	}
-	
+
 	// update the expiry
+	if data.UpdatedExpiry != nil {
+		expiryTime, err := time.Parse("2006-01-02", *data.UpdatedExpiry)
+		if err != nil {
+			return httperror.BadRequest("invalid expiry date format", err)
+		}
+
+		if err := s.repo.UpdateProductCurrentExpiry(ctx, item.ProductID, &expiryTime); err != nil {
+			return httperror.ServerError("failed to update expiry", err)
+		}
+	}
 	return nil
 }
