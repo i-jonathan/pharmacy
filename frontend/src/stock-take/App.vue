@@ -36,6 +36,7 @@
         <StockTable
             :items="items"
             :show-quantity-and-variance="showQuantityAndVariance"
+            :stock-taking-id="stockTakingID"
             @update-item="updateItem"
         />
 
@@ -108,7 +109,6 @@ export default {
         const res = await fetch(`/stock-taking/api/${this.stockTakingID}`);
         const data = await res.json();
 
-        console.log(data);
         const stData = data.stock_taking_data;
         this.name = stData.name;
         this.startDate = stData.started_at;
@@ -120,6 +120,13 @@ export default {
         const permissions = data.permissions || {};
         this.showQuantityAndVariance = permissions["stock:view"];
         this.completeStockPermission = permissions["stock:complete"];
+
+        this.pollInterval = setInterval(() => {
+            this.pollStockTakingItems();
+        }, 5000);
+    },
+    beforeUnmount() {
+        clearInterval(this.pollInterval);
     },
     methods: {
         formatDate,
@@ -134,9 +141,6 @@ export default {
                         : null,
                     notes: updatedItem.notes || "",
                 };
-
-                console.log(updatedItem);
-                console.log(data);
 
                 // Make the request
                 const res = await fetch(
@@ -169,6 +173,31 @@ export default {
         },
         completeStockTaking() {
             alert("implement complete stock taking");
+        },
+        async pollStockTakingItems() {
+            try {
+                const res = await fetch(
+                    `/stock-taking/api/${this.stockTakingID}/items`,
+                );
+                if (!res.ok) return;
+
+                const data = await res.json();
+
+                data.items.forEach((serverItem) => {
+                    const localItem = this.items.find(
+                        (i) => i.product_id === serverItem.product_id,
+                    );
+
+                    // If user is editing this row, skip it
+                    if (localItem && localItem.isEditing) return;
+
+                    if (localItem) {
+                        Object.assign(localItem, serverItem);
+                    }
+                });
+            } catch (err) {
+                console.error("Polling failed", err);
+            }
         },
     },
 };
