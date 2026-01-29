@@ -5,6 +5,7 @@ import (
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/model"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -65,6 +66,7 @@ type StockTakingRepository interface {
 	FetchStockTakingItem(ctx context.Context, stockTakingID, productID int) (*model.StockTakingItem, error)
 	CreateStockTakingItem(ctx context.Context, item *model.StockTakingItem) (int, error)
 	UpdateStockTakingItem(ctx context.Context, item *model.StockTakingItem) error
+	UpdateProductCurrentExpiry(ctx context.Context, productID int, currentExpiry *time.Time) error
 }
 
 type PharmacyRepository interface {

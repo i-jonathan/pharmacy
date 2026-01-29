@@ -312,3 +312,8 @@ const getStockTakingItemByProductIDQuery = `
 	WHERE stock_taking_id = $1
 	AND product_id = $2;
 `
+const updateProductCurrentExpiry = `
+	UPDATE product
+	SET current_expiry = $2::date
+	WHERE id = $1;
+`

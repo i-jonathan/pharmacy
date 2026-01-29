@@ -6,6 +6,7 @@ import (
 	"errors"
 	"pharmacy/internal/types"
 	"pharmacy/model"
+	"time"
 )
 
 func (r *repo) CreateStockTaking(ctx context.Context, stockTakingData model.StockTaking) (int, error) {
@@ -94,5 +95,10 @@ func (r *repo) UpdateStockTakingItem(ctx context.Context, item *model.StockTakin
 		ctx, updateStockTakingItemQuery, item.DispensaryCount,
 		item.StoreCount, item.Notes, item.LastUpdatedByID, item.ID,
 	)
+	return err
+}
+
+func (r *repo) UpdateProductCurrentExpiry(ctx context.Context, productID int, currentExpiry *time.Time) error {
+	_, err := r.Data.ExecContext(ctx, updateProductCurrentExpiry, productID, currentExpiry)
 	return err
 }
