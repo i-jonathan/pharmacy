@@ -20,8 +20,15 @@
         <td class="px-4 py-3 text-center">
             <input
                 type="number"
+                min="0"
                 v-model.number="item.dispensary_count"
                 @change="save"
+                @input="
+                    item.dispensary_count = Math.max(
+                        0,
+                        $event.target.valueAsNumber || 0,
+                    )
+                "
                 class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
             />
         </td>
@@ -29,9 +36,18 @@
         <td class="px-4 py-3 text-center">
             <input
                 type="number"
+                min="0"
                 v-model.number="item.store_count"
                 @change="save"
-                class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
+                @input="
+                    item.store_count = Math.max(
+                        0,
+                        $event.target.valueAsNumber || 0,
+                    )
+                "
+                :disabled="!dispensaryEntered"
+                :title="!dispensaryEntered ? 'Enter dispensary count first' : ''"
+                class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
         </td>
 
@@ -50,7 +66,9 @@
             <select
                 v-model="expiry"
                 @change="save"
-                class="w-40 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                :disabled="!dispensaryEntered"
+                :title="!dispensaryEntered ? 'Enter dispensary count first' : ''"
+                class="w-40 px-2 py-2 border rounded text-center disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
                 <option value="" disabled>Select date</option>
                 <option v-for="d in expiryOptions" :key="d" :value="d">
@@ -65,7 +83,9 @@
                 v-model="notes"
                 @change="save"
                 placeholder="Optional"
-                class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
+                :disabled="!dispensaryEntered"
+                :title="!dispensaryEntered ? 'Enter dispensary count first' : ''"
+                class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
         </td>
     </tr>
@@ -96,6 +116,12 @@ export default {
                 (this.item.snapshot_quantity ?? 0)
             );
         },
+        dispensaryEntered() {
+            return (
+                this.item.dispensary_count !== null &&
+                this.item.dispensary_count !== undefined
+            );
+        },
     },
     methods: {
         formatMonthYear,
@@ -103,8 +129,6 @@ export default {
         save() {
             const updated = {
                 ...this.item,
-                dispCount: this.dispCount,
-                storeCount: this.storeCount,
                 expiry: this.expiry,
                 notes: this.notes,
             };
