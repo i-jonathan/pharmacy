@@ -101,7 +101,7 @@
             <div class="flex space-x-6 whitespace-nowrap">
                 <a
                     href="#"
-                    class="text-primary font-semibold border-b-2 border-primary pb-1"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
                     >Item List</a
                 >
                 <a
@@ -114,6 +114,11 @@
                     class="text-gray-600 dark:text-gray-300 hover:text-primary"
                     >Export Stock</a
                 >
+                <a
+                    href="/stock-taking/"
+                    class="text-primary font-semibold border-b-2 border-primary pb-1"
+                    >Stock Taking</a
+                >
             </div>
         </nav>
 
@@ -121,7 +126,7 @@
         <main id="stock-taking-app" data-stock-taking-id="{{.StockTakingID}}">
         </main>
 
-        <script type="module" src="{{ ViteAsset "src/stock-take/main.js" }}"></script>
+        <script type="module" src="{{ ViteAsset "src/stock-taking/counting/main.js" }}"></script>
         <script src="/static/js/theme.js"></script>
     </body>
 </html>
