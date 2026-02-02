@@ -135,7 +135,7 @@ export default {
                 // Prepare the payload
                 const data = {
                     dispensary_count: updatedItem.dispensary_count,
-                    store_count: updatedItem.storeCount,
+                    store_count: updatedItem.store_count,
                     updated_expiry: updatedItem.expiry
                         ? formatToDateString(updatedItem.expiry)
                         : null,
