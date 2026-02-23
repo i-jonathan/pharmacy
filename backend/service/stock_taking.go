@@ -12,10 +12,10 @@ import (
 )
 
 type stockTakingService struct {
-	repo repository.StockTakingRepository
+	repo repository.PharmacyRepository
 }
 
-func NewStockTakingService(repo repository.StockTakingRepository) *stockTakingService {
+func NewStockTakingService(repo repository.PharmacyRepository) *stockTakingService {
 	return &stockTakingService{
 		repo: repo,
 	}
@@ -152,5 +152,56 @@ func (s *stockTakingService) UpdateStockTakingItemCount(ctx context.Context, dat
 			return httperror.ServerError("failed to update expiry", err)
 		}
 	}
+	return nil
+}
+
+func (s *stockTakingService) CompleteStockTaking(ctx context.Context, stockTakingID, userID int) (err error) {
+	stockTaking, err := s.repo.GetStockTaking(ctx, stockTakingID)
+	if err != nil {
+		return httperror.ServerError("failed to fetch stock taking", err)
+	}
+
+	stockTakingItems, err := s.repo.GetStockTakingItems(ctx, stockTakingID)
+	if err != nil {
+		return httperror.ServerError("failed to fetch items", err)
+	}
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return httperror.ServerError("failed to start transaction", err)
+	}
+
+	defer func() {
+		if err != nil {
+			s.repo.Rollback(tx)
+		}
+	}()
+
+	for _, item := range stockTakingItems {
+		diff, movementType, skip := calculateStockDifference(item)
+		if skip {
+			continue
+		}
+
+		movement := model.StockMovement{
+			ProductID:    item.ProductID,
+			Quantity:     diff,
+			ReferenceID:  stockTaking.ID,
+			MovementType: movementType,
+		}
+
+		if err = s.repo.CreateStockMovementTx(ctx, tx, movement); err != nil {
+			return httperror.ServerError("failed to create stock movement", err)
+		}
+	}
+
+	if err = s.repo.CompleteStockTakingTx(ctx, tx, stockTaking.ID, userID); err != nil {
+		return httperror.ServerError("failed to complete stock taking", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return httperror.ServerError("failed to commit transaction", err)
+	}
+
 	return nil
 }
