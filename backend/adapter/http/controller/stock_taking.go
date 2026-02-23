@@ -9,6 +9,7 @@ import (
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
+	"pharmacy/model"
 	"pharmacy/service"
 	"strconv"
 	"strings"
@@ -179,5 +180,42 @@ func (c *stockTakingController) UpdateStockTakingItemCount(w http.ResponseWriter
 
 	helper.JSONResponse(w, http.StatusOK, map[string]any{
 		"status": "Updated",
+	})
+}
+
+func (c *stockTakingController) CompleteStockTaking(w http.ResponseWriter, r *http.Request) {
+	uid := r.Context().Value(constant.UserIDKey)
+	userID, ok := uid.(int)
+	if !ok {
+		httperror.Unauthorized("User ID is missing in context", nil).JSONRespond(w)
+		return
+	}
+
+	stockTakingID := r.PathValue("id")
+	if strings.TrimSpace(stockTakingID) == "" {
+		httperror.BadRequest("invalid stock taking id provided", nil).JSONRespond(w)
+		return
+	}
+
+	stockID, err := strconv.Atoi(stockTakingID)
+	if err != nil {
+		httperror.BadRequest("invalid stock taking id provided", err).JSONRespond(w)
+		return
+	}
+
+	err = c.service.CompleteStockTaking(r.Context(), stockID, userID)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+
+		httperror.ServerError("failed to update stock taking item count", err)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"status": model.StockTakingCompleted,
 	})
 }
