@@ -15,6 +15,8 @@ const DefaultPriceName string = "Base"
 
 const ReceivingSupplyMovementName string = "IN_PURCHASE"
 const ReturnSaleMovementName string = "IN_SALE_RETURN"
+const StockTakingIncrease string = "IN_STOCK_TAKING"
+const StockTakingDecrease string = "OUT_STOCK_TAKING"
 const SaleMovementName string = "OUT_SALE"
 
 const CompleteSaleStatus = "COMPLETED"

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"pharmacy/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -16,14 +17,14 @@ type repo struct {
 func InitStore() (*repo, error) {
 	c := config.Conf
 	dsn := fmt.Sprintf(
-        "postgres://%s:%s@%s:%s/%s?sslmode=disable",
-        c.DBUser, c.DBPass, c.DBHost, c.DBPort, c.DBName,
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		c.DBUser, c.DBPass, c.DBHost, c.DBPort, c.DBName,
 	)
 	db, err := sqlx.Connect("pgx", dsn)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	dataRepo := new(repo)
 	dataRepo.Data = db
 	return dataRepo, nil
@@ -38,5 +39,8 @@ func (r *repo) CommitTx(tx *sqlx.Tx) error {
 }
 
 func (r *repo) Rollback(tx *sqlx.Tx) {
-	_ = tx.Rollback()
+	err := tx.Rollback()
+	if err != nil {
+		log.Printf("Failed to roll back transaction: %v", err)
+	}
 }
