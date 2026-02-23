@@ -26,6 +26,7 @@ type StockTaking struct {
 	Name          string            `db:"name"`
 	Status        StockTakingStatus `db:"status"`
 	CreatedByID   int               `db:"created_by_id"`
+	CompletedByID int               `db:"completed_by_id"`
 	StartedAt     time.Time         `db:"started_at"`
 	CompletedAt   *time.Time        `db:"completed_at"`
 	CreatedByName string            `db:"created_by_name"`
