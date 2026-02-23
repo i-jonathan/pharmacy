@@ -7,6 +7,8 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func (r *repo) CreateStockTaking(ctx context.Context, stockTakingData model.StockTaking) (int, error) {
@@ -100,5 +102,10 @@ func (r *repo) UpdateStockTakingItem(ctx context.Context, item *model.StockTakin
 
 func (r *repo) UpdateProductCurrentExpiry(ctx context.Context, productID int, currentExpiry *time.Time) error {
 	_, err := r.Data.ExecContext(ctx, updateProductCurrentExpiry, productID, currentExpiry)
+	return err
+}
+
+func (r *repo) CompleteStockTakingTx(ctx context.Context, tx *sqlx.Tx, stockTakingID, userID int) error {
+	_, err := tx.ExecContext(ctx, completeStockTakingQuery, stockTakingID, model.StockTakingCompleted, time.Now(), userID)
 	return err
 }

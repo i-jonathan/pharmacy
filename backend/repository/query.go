@@ -80,8 +80,14 @@ const createProductBatchQuery = `INSERT INTO product_batch (
 		:product_id, :price_id, :receiving_batch_id, :quantity, :cost_price, :expiry_date
 	)
 	RETURNING id, product_id, quantity`
-const createMovementFromBatchQuery = `INSERT INTO stock_movement (product_id, reference_id, movement_type, quantity)
-VALUES (:product_id, :reference_id, :movement_type, :quantity)`
+const createStockMovementQuery = `
+	INSERT INTO stock_movement (product_id, reference_id, movement_type, quantity)
+	VALUES ($1, $2, $3, $4)
+`
+const createMovementFromBatchQuery = `
+	INSERT INTO stock_movement (product_id, reference_id, movement_type, quantity)
+	VALUES (:product_id, :reference_id, :movement_type, :quantity)
+`
 const fetchDefaultPriceIDQuery = `
 	SELECT COALESCE(
         p.default_price_id,
@@ -315,5 +321,10 @@ const getStockTakingItemByProductIDQuery = `
 const updateProductCurrentExpiry = `
 	UPDATE product
 	SET current_expiry = $2::date
+	WHERE id = $1;
+`
+const completeStockTakingQuery = `
+	UPDATE stock_taking
+	SET status = $2, completed_at = $3, completed_by_id = $4
 	WHERE id = $1;
 `

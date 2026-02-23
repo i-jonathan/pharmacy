@@ -26,6 +26,7 @@ type InventoryRepository interface {
 	SearchSuppliersName(ctx context.Context, query string) ([]string, error)
 	FetchDefaultPriceID(ctx context.Context, productID int) (int, error)
 	CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivingBatch model.ReceivingBatch) (int, error)
+	CreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovement model.StockMovement) error
 	BulkCreateProductBatchTx(ctx context.Context, tx *sqlx.Tx, productBatches []model.ProductBatch) ([]types.BatchInsertReturn, error)
 	BulkCreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovements []model.StockMovement) error
 	BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error
@@ -67,6 +68,7 @@ type StockTakingRepository interface {
 	CreateStockTakingItem(ctx context.Context, item *model.StockTakingItem) (int, error)
 	UpdateStockTakingItem(ctx context.Context, item *model.StockTakingItem) error
 	UpdateProductCurrentExpiry(ctx context.Context, productID int, currentExpiry *time.Time) error
+	CompleteStockTakingTx(ctx context.Context, tx *sqlx.Tx, stockTakingID, userID int) error
 }
 
 type PharmacyRepository interface {
@@ -76,4 +78,5 @@ type PharmacyRepository interface {
 	UserRepository
 	InventoryRepository
 	SaleRepository
+	StockTakingRepository
 }

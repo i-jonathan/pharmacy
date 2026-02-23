@@ -79,6 +79,14 @@ func (r *repo) CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivin
 	return receivingBatchID, nil
 }
 
+func (r *repo) CreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovement model.StockMovement) error {
+	_, err := tx.ExecContext(ctx, createStockMovementQuery, stockMovement)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *repo) BulkCreateProductBatchTx(_ context.Context, tx *sqlx.Tx, productBatches []model.ProductBatch) ([]types.BatchInsertReturn, error) {
 	rows, err := tx.NamedQuery(createProductBatchQuery, productBatches)
 	if err != nil {
