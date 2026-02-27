@@ -19,6 +19,7 @@
 
         <td class="px-4 py-3 text-center">
             <input
+                v-if="!isCompleted"
                 type="number"
                 min="0"
                 v-model.number="item.dispensary_count"
@@ -33,10 +34,15 @@
                 "
                 class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
             />
+
+            <span v-else>
+                {{ item.dispensary_count ?? 0 }}
+            </span>
         </td>
 
         <td class="px-4 py-3 text-center">
             <input
+                v-if="!isCompleted"
                 type="number"
                 min="0"
                 v-model.number="item.store_count"
@@ -55,6 +61,10 @@
                 "
                 class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
+
+            <span v-else>
+                {{ item.store_count ?? 0 }}
+            </span>
         </td>
 
         <td
@@ -70,6 +80,7 @@
 
         <td class="px-4 py-3 text-center">
             <select
+                v-if="!isCompleted"
                 v-model="expiry"
                 @focus="item.isEditing = true"
                 @blur="item.isEditing = false"
@@ -85,10 +96,15 @@
                     {{ formatMonthYear(d) }}
                 </option>
             </select>
+
+            <span v-else>
+                {{ formatMonthYear(expiry) }}
+            </span>
         </td>
 
-        <td class="px-4 py-3">
+        <td class="px-4 py-3 text-center">
             <input
+                v-if="!isCompleted"
                 type="text"
                 v-model="notes"
                 @focus="item.isEditing = true"
@@ -101,6 +117,10 @@
                 "
                 class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
+
+            <span v-else>
+                {{ notes }}
+            </span>
         </td>
     </tr>
 </template>
@@ -112,6 +132,7 @@ export default {
     props: {
         item: Object,
         showQuantityAndVariance: Boolean,
+        isCompleted: Boolean,
     },
     data() {
         return {

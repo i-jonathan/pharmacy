@@ -50,6 +50,7 @@
                     :key="item.id"
                     :item="item"
                     :show-quantity-and-variance="showQuantityAndVariance"
+                    :is-completed="isCompleted"
                     @update="(i) => $emit('update-item', i)"
                 />
             </tbody>
@@ -64,6 +65,7 @@ export default {
     props: {
         items: Array,
         showQuantityAndVariance: Boolean,
+        isCompleted: Boolean,
     },
     components: { StockRow },
 };

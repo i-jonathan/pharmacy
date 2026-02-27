@@ -24,10 +24,16 @@
 
                 <button
                     v-if="completeStockPermission"
-                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
+                    :disabled="isCompleted"
+                    class="px-4 py-2 rounded-lg text-white"
+                    :class="
+                        isCompleted
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-primary hover:bg-emerald-700'
+                    "
                     @click="completeStockTaking"
                 >
-                    Complete Stock Take
+                    {{ isCompleted ? "Completed" : "Complete Stock Taking" }}
                 </button>
             </div>
         </div>
@@ -37,6 +43,7 @@
             :items="items"
             :show-quantity-and-variance="showQuantityAndVariance"
             :stock-taking-id="stockTakingID"
+            :is-completed="isCompleted"
             @update-item="updateItem"
         />
 
@@ -101,6 +108,9 @@ export default {
                     i.store_count !== i.snapshot_quantity,
             ).length;
         },
+        isCompleted() {
+            return this.status === "Completed";
+        },
     },
     async mounted() {
         const el = document.getElementById("stock-taking-app");
@@ -121,9 +131,11 @@ export default {
         this.showQuantityAndVariance = permissions["stock:view"];
         this.completeStockPermission = permissions["stock:complete"];
 
-        this.pollInterval = setInterval(() => {
-            this.pollStockTakingItems();
-        }, 5000);
+        if (!isCompleted()) {
+            this.pollInterval = setInterval(() => {
+                this.pollStockTakingItems();
+            }, 5000);
+        }
     },
     beforeUnmount() {
         clearInterval(this.pollInterval);
@@ -171,8 +183,28 @@ export default {
         filterVariances() {
             alert("filtering variances unimplemented");
         },
-        completeStockTaking() {
-            alert("implement complete stock taking");
+        async completeStockTaking() {
+            try {
+                const res = await fetch(
+                    `/stock-taking/api/${this.stockTakingID}`,
+                    {
+                        method: "POST",
+                    },
+                );
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    console.error("Failed to complete stock taking:", errData);
+                    alert(errData.error || "Failed to complete stock taking");
+                    return;
+                }
+
+                const resp = await res.json();
+                console.log("Stock taking completed successfully:", resp);
+            } catch (err) {
+                console.error("Error completing stock taking:", err);
+                alert("Error completing stock taking");
+            }
         },
         async pollStockTakingItems() {
             try {
