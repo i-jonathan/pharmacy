@@ -161,6 +161,10 @@ func (s *stockTakingService) CompleteStockTaking(ctx context.Context, stockTakin
 		return httperror.ServerError("failed to fetch stock taking", err)
 	}
 
+	if stockTaking.Status == model.StockTakingCompleted || stockTaking.Status == model.StockTakingCancelled {
+		return httperror.BadRequest("stock taking is not in progress unable to complete it", nil)
+	}
+
 	stockTakingItems, err := s.repo.GetStockTakingItems(ctx, stockTakingID)
 	if err != nil {
 		return httperror.ServerError("failed to fetch items", err)
