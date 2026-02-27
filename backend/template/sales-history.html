@@ -184,25 +184,26 @@
                             id="predefined-range"
                             class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
                         >
-                            <option value="all" selected>All</option>
-                            <option value="today">Today</option>
+                            <option value="today" selected>Today</option>
                             <option value="yesterday">Yesterday</option>
                             <option value="this-week">This Week</option>
                             <option value="last-week">Last Week</option>
                             <option value="this-month">This Month</option>
                             <option value="last-month">Last Month</option>
+                            <option value="all">All</option>
+                            <option value="custom">Custom</option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Right: Total -->
                 {{ if hasPerm .Permissions "salestotal:view" }}
-                    <div
-                        id="filter-total"
-                        class="bg-emerald-50 dark:bg-emerald-900/40 rounded px-4 py-2 text-emerald-700 dark:text-emerald-300 font-semibold text-base whitespace-nowrap"
-                    >
-                        Total: ₦0
-                    </div>
+                <div
+                    id="filter-total"
+                    class="bg-emerald-50 dark:bg-emerald-900/40 rounded px-4 py-2 text-emerald-700 dark:text-emerald-300 font-semibold text-base whitespace-nowrap"
+                >
+                    Total: ₦0
+                </div>
                 {{ end }}
             </div>
 
@@ -379,69 +380,69 @@
                         </table>
                     </div>
                 </section>
-                
+
                 <section id="returns-section" class="mb-6 hidden">
-                  <h3
-                    class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
-                  >
-                    Returned Items
-                  </h3>
-                  <div class="overflow-x-auto">
-                    <table
-                      class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                    <h3
+                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
                     >
-                      <thead class="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                          <th
-                            class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                          >
-                            Item
-                          </th>
-                          <th
-                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                          >
-                            Qty Returned
-                          </th>
-                          <th
-                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                          >
-                            Unit Price
-                          </th>
-                          <th
-                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                          >
-                            Refund Amount
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody
-                        id="returns-body"
-                        class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
-                      >
-                        <!-- return rows inserted dynamically -->
-                      </tbody>
-                      <tfoot
-                        class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
-                      >
-                        <tr>
-                          <td
-                            class="px-3 py-2 font-semibold"
-                            colspan="3"
-                          >
-                            Total Refunded
-                          </td>
-                          <td
-                            id="refund-total"
-                            class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
-                          >
-                            ₦0
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                        Returned Items
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table
+                            class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                        >
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th
+                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Item
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Qty Returned
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Unit Price
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Refund Amount
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody
+                                id="returns-body"
+                                class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                            >
+                                <!-- return rows inserted dynamically -->
+                            </tbody>
+                            <tfoot
+                                class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                            >
+                                <tr>
+                                    <td
+                                        class="px-3 py-2 font-semibold"
+                                        colspan="3"
+                                    >
+                                        Total Refunded
+                                    </td>
+                                    <td
+                                        id="refund-total"
+                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                                    >
+                                        ₦0
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </section>
-                
+
                 <!-- Return Items & Reprint Receipt Buttons -->
                 <div class="mt-6 flex justify-between">
                     <!-- Left: Reprint Receipt -->
@@ -451,7 +452,7 @@
                     >
                         Reprint Receipt
                     </button>
-                
+
                     <!-- Right: Return Items -->
                     <button
                         id="open-return-modal"
@@ -462,97 +463,100 @@
                 </div>
             </div>
         </aside>
-        
+
         <!-- Return Items Modal -->
         <div
-          id="return-modal"
-          class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center"
+            id="return-modal"
+            class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center"
         >
-          <div
-            class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-9/12 max-w-3xl mx-4"
-          >
             <div
-              class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 px-6 py-4"
+                class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-9/12 max-w-3xl mx-4"
             >
-              <h3
-                class="text-lg font-bold text-emerald-600 dark:text-emerald-400"
-              >
-                Return Items
-              </h3>
-              <button
-                id="close-return-modal"
-                class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-              >
-                ✕
-              </button>
+                <div
+                    class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 px-6 py-4"
+                >
+                    <h3
+                        class="text-lg font-bold text-emerald-600 dark:text-emerald-400"
+                    >
+                        Return Items
+                    </h3>
+                    <button
+                        id="close-return-modal"
+                        class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <table
+                        class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                    >
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th
+                                    class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                >
+                                    Item
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                >
+                                    Qty Sold
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                >
+                                    Unit Price
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                >
+                                    Qty to Return
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                >
+                                    Refund
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody
+                            id="return-items-body"
+                            class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                        >
+                            <!-- Rows get inserted dynamically -->
+                        </tbody>
+                        <tfoot
+                            class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                        >
+                            <tr>
+                                <td
+                                    colspan="4"
+                                    class="px-4 py-3 text-right text-gray-700 dark:text-gray-200"
+                                >
+                                    Total Refund
+                                </td>
+                                <td
+                                    id="total-refund"
+                                    class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                                >
+                                    ₦0
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="mt-6 flex justify-end">
+                        <button
+                            id="confirm-return"
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                        >
+                            Confirm Return
+                        </button>
+                    </div>
+                </div>
             </div>
-        
-            <div class="p-6">
-              <table
-                class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
-              >
-                <thead class="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th
-                      class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                    >
-                      Item
-                    </th>
-                    <th
-                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                    >
-                      Qty Sold
-                    </th>
-                    <th
-                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                    >
-                      Unit Price
-                    </th>
-                    <th
-                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                    >
-                      Qty to Return
-                    </th>
-                    <th
-                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                    >
-                      Refund
-                    </th>
-                  </tr>
-                </thead>
-                <tbody
-                  id="return-items-body"
-                  class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
-                >
-                  <!-- Rows get inserted dynamically -->
-                </tbody>
-                <tfoot
-                  class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
-                >
-                  <tr>
-                    <td colspan="4" class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
-                      Total Refund
-                    </td>
-                    <td
-                      id="total-refund"
-                      class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400"
-                    >
-                      ₦0
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-        
-              <div class="mt-6 flex justify-end">
-                <button
-                  id="confirm-return"
-                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
-                >
-                  Confirm Return
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <script>

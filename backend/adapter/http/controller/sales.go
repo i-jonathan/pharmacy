@@ -65,7 +65,14 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	sales, err := c.service.FetchSalesHistory(r.Context(), types.SaleFilter{})
+	// defaults to today
+	now := time.Now()
+	todayFilter := types.SaleFilter{
+		StartDate: &now,
+		EndDate:   &now,
+	}
+
+	sales, err := c.service.FetchSalesHistory(r.Context(), todayFilter)
 	if err != nil {
 		var httperr *httperror.HTTPError
 		if errors.As(err, &httperr) {

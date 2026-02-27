@@ -30,8 +30,17 @@ let selectedRowIndex = -1;
 let panelOpen = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-  // select all in drop down by default
-  rangeSelect.value = "all";
+  // select today in drop down by default
+  const today = new Date();
+
+  start = new Date(today);
+  end = new Date(today);
+
+  if (start && end) {
+    startDate.value = formatDate(start);
+    endDate.value = formatDate(end);
+  }
+  rangeSelect.value = "today";
 });
 
 function renderTable() {
@@ -304,6 +313,30 @@ rangeSelect.addEventListener("change", () => {
 
   applyFilter(start, end);
 });
+
+function handleDateChange() {
+  const startValue = startDate.value;
+  const endValue = endDate.value;
+
+  // If either is missing → do nothing
+  if (!startValue || !endValue) {
+    return;
+  }
+
+  rangeSelect.value = "custom";
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+
+  // Ensure valid range
+  if (end < start) {
+    endDate.value = startValue;
+  }
+
+  applyFilter(start, new Date(endDate.value));
+}
+
+startDate.addEventListener("change", handleDateChange);
+endDate.addEventListener("change", handleDateChange);
 
 async function applyFilter(start, end) {
   const params = new URLSearchParams();
