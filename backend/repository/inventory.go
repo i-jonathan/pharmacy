@@ -80,7 +80,10 @@ func (r *repo) CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivin
 }
 
 func (r *repo) CreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovement model.StockMovement) error {
-	_, err := tx.ExecContext(ctx, createStockMovementQuery, stockMovement)
+	_, err := tx.ExecContext(
+		ctx, createStockMovementQuery, stockMovement.ProductID, 
+		stockMovement.ReferenceID, stockMovement.MovementType, stockMovement.Quantity,
+	)
 	if err != nil {
 		return err
 	}
