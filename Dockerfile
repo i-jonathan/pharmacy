@@ -4,18 +4,23 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-COPY . .
+COPY backend/ .
 
 RUN go build -o main .
 
 FROM alpine:latest
 
-RUN adduser -D appuser
+RUN adduser -D appuser \
+    && mkdir /app \
+    && chown -R appuser:appuser /app
+
+WORKDIR /
 
 COPY --from=builder /app/main /main
+
 USER appuser
 
-ENTRYPOINT [ "/main" ]
+ENTRYPOINT ["/main"]

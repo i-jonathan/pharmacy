@@ -1,4 +1,6 @@
 .env
+tailwind.config.js
 **.DS_STORE
 **.log
 **.exe
+**/dist

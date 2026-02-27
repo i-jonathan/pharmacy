@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en" class="">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sales History | PharmaPOS</title>
+        <link href="/static/css/tailwind.css" rel="stylesheet" />
+        <style>
+            /* Slide-in side panel */
+            .panel {
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+            .panel.open {
+                transform: translateX(0);
+            }
+            /* Selected row styling */
+            .selected-row {
+                background-color: rgb(240 249 255); /* sky-50 */
+            }
+            .dark .selected-row {
+                background-color: rgb(31 41 55 / 0.6); /* dark bg overlay-ish */
+            }
+        </style>
+    </head>
+    <body
+        class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
+    >
+        <!-- Navigation -->
+        <nav
+            class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between"
+        >
+            <div class="flex items-center gap-6">
+                <div class="text-xl font-bold text-primary">PharmaPOS</div>
+                <div class="hidden md:flex space-x-6">
+                    <a
+                        href="/app/dashboard"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Dashboard</a
+                    >
+                    <a
+                        href="/inventory/items"
+                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
+                        >Inventory</a
+                    >
+                    <a
+                        href="/sales/receipt"
+                        class="text-primary font-semibold border-b-2 border-primary pb-1"
+                        >Sales</a
+                    >
+                </div>
+            </div>
+
+            <!-- Right: Search and Theme Toggle -->
+            <div
+                class="flex items-center space-x-4 max-w-md w-full justify-end"
+            >
+                <div class="relative w-full">
+                    <span
+                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
+                        >🔍</span
+                    >
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                </div>
+                <button
+                    id="theme-toggle"
+                    class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
+                >
+                    🌙
+                </button>
+
+                <!-- User Menu -->
+                <div class="relative">
+                    <button
+                        id="user-menu-button"
+                        class="flex items-center text-gray-600 dark:text-gray-300 hover:text-primary focus:outline-none"
+                    >
+                        ⚙️
+                    </button>
+
+                    <!-- Dropdown -->
+                    <div
+                        id="user-menu-dropdown"
+                        class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all"
+                    >
+                        <a
+                            href="/user/register"
+                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
+                        >
+                            Create New Account
+                        </a>
+
+                        <a
+                            href="/user/logout"
+                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
+                        >
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Sub Navigation -->
+        <nav
+            class="bg-gray-50 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 px-6 py-3"
+        >
+            <div class="flex space-x-6">
+                <a
+                    href="/sales/receipt"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Make a Sale</a
+                >
+                <a
+                    href="/sales/history"
+                    class="text-primary font-semibold border-b-2 border-primary pb-1"
+                    >Sales History</a
+                >
+                <a
+                    href="/sales/held"
+                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
+                    >Held Receipts</a
+                >
+            </div>
+        </nav>
+
+        <!-- Main -->
+        <main class="p-6 flex-1 w-full space-y-6">
+            <div class="flex items-end justify-between">
+                <h1 class="text-2xl font-semibold">Sales History</h1>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    Use ↑/↓ to browse sales; Enter to open/close details
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div
+                class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow flex flex-wrap items-center justify-between gap-3"
+            >
+                <!-- Left: Filters -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <!-- Start Date -->
+                    <div class="flex flex-col">
+                        <label
+                            for="start-date"
+                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                            >Start Date</label
+                        >
+                        <input
+                            type="date"
+                            id="start-date"
+                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
+                            placeholder="Start"
+                        />
+                    </div>
+
+                    <!-- End Date -->
+                    <div class="flex flex-col">
+                        <label
+                            for="end-date"
+                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                            >End Date</label
+                        >
+                        <input
+                            type="date"
+                            id="end-date"
+                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
+                            placeholder="End"
+                        />
+                    </div>
+
+                    <!-- Quick Range -->
+                    <div class="flex flex-col">
+                        <label
+                            for="predefined-range"
+                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                            >Quick Range</label
+                        >
+                        <select
+                            id="predefined-range"
+                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="all" selected>All</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="this-week">This Week</option>
+                            <option value="last-week">Last Week</option>
+                            <option value="this-month">This Month</option>
+                            <option value="last-month">Last Month</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Right: Total -->
+                {{ if hasPerm .Permissions "salestotal:view" }}
+                    <div
+                        id="filter-total"
+                        class="bg-emerald-50 dark:bg-emerald-900/40 rounded px-4 py-2 text-emerald-700 dark:text-emerald-300 font-semibold text-base whitespace-nowrap"
+                    >
+                        Total: ₦0
+                    </div>
+                {{ end }}
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+                <table
+                    class="min-w-full bg-white dark:bg-gray-800 text-sm"
+                    id="sales-table"
+                    aria-label="Sales history table"
+                >
+                    <thead class="bg-gray-100 dark:bg-gray-700 text-left">
+                        <tr
+                            class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300"
+                        >
+                            <th class="px-4 py-3">Receipt #</th>
+                            <th class="px-4 py-3">Date</th>
+                            <th class="px-4 py-3">Items</th>
+                            <th class="px-4 py-3">Total</th>
+                            <th class="px-4 py-3">Cashier</th>
+                        </tr>
+                    </thead>
+                    <tbody
+                        id="sales-body"
+                        class="divide-y dark:divide-gray-700"
+                    ></tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- Side Panel (non-blocking) -->
+        <aside
+            id="sale-panel"
+            class="panel fixed right-0 top-0 h-full w-full md:w-1/2 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-xl z-40 overflow-y-auto"
+        >
+            <div class="p-6 relative">
+                <button
+                    class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                    id="close-panel"
+                    aria-label="Close details"
+                >
+                    ✕
+                </button>
+
+                <h2
+                    class="text-xl font-bold text-emerald-600 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-700 pb-2"
+                >
+                    Sale Details
+                </h2>
+                <p
+                    id="sale-meta"
+                    class="text-sm text-gray-500 dark:text-gray-400 mb-4 mt-2"
+                >
+                    Select a sale to view details.
+                </p>
+
+                <!-- Items -->
+                <section class="mb-6">
+                    <h3
+                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                    >
+                        Items in Sale
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table
+                            class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                        >
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th
+                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Item
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Qty
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Unit Price
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Discount
+                                    </th>
+                                    <th
+                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    >
+                                        Line Total
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody
+                                id="items-body"
+                                class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                            >
+                                <!-- rows get inserted here -->
+                            </tbody>
+                            <tfoot
+                                class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                            >
+                                <tr>
+                                    <td
+                                        class="px-3 py-3 text-gray-700 dark:text-gray-200"
+                                        colspan="4"
+                                    >
+                                        Sale Total
+                                    </td>
+                                    <td
+                                        id="sale-total"
+                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                                    >
+                                        ₦0
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        class="px-3 py-3 text-gray-700 dark:text-gray-200"
+                                        colspan="4"
+                                    >
+                                        Change
+                                    </td>
+                                    <td
+                                        id="sale-change"
+                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                                    >
+                                        ₦0
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Payments -->
+                <section class="mb-6">
+                    <h3
+                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                    >
+                        Payment Methods
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table
+                            class="min-w-full text-sm border dark:border-gray-700"
+                        >
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Method</th>
+                                    <th class="px-3 py-2 text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody
+                                id="payments-body"
+                                class="divide-y dark:divide-gray-700"
+                            ></tbody>
+                            <tfoot
+                                class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                            >
+                                <tr>
+                                    <td class="px-3 py-2 font-semibold">
+                                        Total Paid
+                                    </td>
+                                    <td
+                                        id="total-paid"
+                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                                    >
+                                        ₦0
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+                
+                <section id="returns-section" class="mb-6 hidden">
+                  <h3
+                    class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                  >
+                    Returned Items
+                  </h3>
+                  <div class="overflow-x-auto">
+                    <table
+                      class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                    >
+                      <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th
+                            class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Item
+                          </th>
+                          <th
+                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Qty Returned
+                          </th>
+                          <th
+                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Unit Price
+                          </th>
+                          <th
+                            class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                          >
+                            Refund Amount
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody
+                        id="returns-body"
+                        class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                      >
+                        <!-- return rows inserted dynamically -->
+                      </tbody>
+                      <tfoot
+                        class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                      >
+                        <tr>
+                          <td
+                            class="px-3 py-2 font-semibold"
+                            colspan="3"
+                          >
+                            Total Refunded
+                          </td>
+                          <td
+                            id="refund-total"
+                            class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                          >
+                            ₦0
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </section>
+                
+                <!-- Return Items & Reprint Receipt Buttons -->
+                <div class="mt-6 flex justify-between">
+                    <!-- Left: Reprint Receipt -->
+                    <button
+                        id="reprint-receipt"
+                        class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                    >
+                        Reprint Receipt
+                    </button>
+                
+                    <!-- Right: Return Items -->
+                    <button
+                        id="open-return-modal"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                    >
+                        Return Items
+                    </button>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Return Items Modal -->
+        <div
+          id="return-modal"
+          class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center"
+        >
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-9/12 max-w-3xl mx-4"
+          >
+            <div
+              class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 px-6 py-4"
+            >
+              <h3
+                class="text-lg font-bold text-emerald-600 dark:text-emerald-400"
+              >
+                Return Items
+              </h3>
+              <button
+                id="close-return-modal"
+                class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+        
+            <div class="p-6">
+              <table
+                class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+              >
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th
+                      class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Item
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Qty Sold
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Unit Price
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Qty to Return
+                    </th>
+                    <th
+                      class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                    >
+                      Refund
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="return-items-body"
+                  class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                >
+                  <!-- Rows get inserted dynamically -->
+                </tbody>
+                <tfoot
+                  class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
+                >
+                  <tr>
+                    <td colspan="4" class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
+                      Total Refund
+                    </td>
+                    <td
+                      id="total-refund"
+                      class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                    >
+                      ₦0
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+        
+              <div class="mt-6 flex justify-end">
+                <button
+                  id="confirm-return"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                >
+                  Confirm Return
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+            sales = {{ .SalesJSON }};
+            window.PERMISSIONS = {{ .Permissions }};
+        </script>
+        <script src="/static/js/theme.js"></script>
+        <script src="/static/js/toast.js"></script>
+        <script src="/static/js/print.js"></script>
+        <script src="/static/js/sales-history.js"></script>
+    </body>
+</html>
