@@ -204,7 +204,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	responses := make([]types.SaleResponse, 0, len(sales))
-	salesHistoryTotal := float64(0)
+	salesHistoryTotal := int(0)
 
 	canViewTotal := HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
 	for _, s := range sales {
@@ -246,6 +246,8 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 				UnitPrice:    float64(item.UnitPrice) / 100,
 				Quantity:     r.Quantity,
 			})
+
+			salesHistoryTotal -= item.UnitPrice * r.Quantity
 		}
 
 		// build the final response
@@ -263,7 +265,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		}
 		responses = append(responses, resp)
 		if canViewTotal {
-			salesHistoryTotal += float64(s.Total) / 100
+			salesHistoryTotal += s.Total
 		}
 	}
 
@@ -277,7 +279,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	if canViewTotal {
-		history.TotalAmount = salesHistoryTotal
+		history.TotalAmount = float64(salesHistoryTotal) / 100
 	}
 
 	return history, nil
