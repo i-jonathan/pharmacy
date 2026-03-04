@@ -131,7 +131,7 @@ export default {
         this.showQuantityAndVariance = permissions["stock:view"];
         this.completeStockPermission = permissions["stock:complete"];
 
-        if (!isCompleted()) {
+        if (!this.isCompleted) {
             this.pollInterval = setInterval(() => {
                 this.pollStockTakingItems();
             }, 5000);
