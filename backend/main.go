@@ -12,6 +12,7 @@ import (
 	"pharmacy/adapter/http/middleware"
 	"pharmacy/adapter/http/router"
 	"pharmacy/config"
+	"pharmacy/httperror"
 	"pharmacy/repository"
 	"pharmacy/service"
 	"strings"
@@ -82,6 +83,14 @@ func main() {
 	stockTakingService := service.NewStockTakingService(store)
 	stockTakingRouter := router.InitStockTakingRouter(stockTakingService, tmpl)
 	r.Handle("/stock-taking/", middleware.AuthMiddleware(stockTakingRouter))
+
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			httperror.NotFound("Page Not Found", nil).Render(w, tmpl)
+			return
+		}
+		http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+	})
 
 	middlewareStack := middleware.CreateStack(
 		// middleware.CSRFMiddleware,
