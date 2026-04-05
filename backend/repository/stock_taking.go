@@ -109,3 +109,12 @@ func (r *repo) CompleteStockTakingTx(ctx context.Context, tx *sqlx.Tx, stockTaki
 	_, err := tx.ExecContext(ctx, completeStockTakingQuery, stockTakingID, model.StockTakingCompleted, time.Now(), userID)
 	return err
 }
+
+func (r *repo) ListAllStockTakings(ctx context.Context) ([]model.StockTaking, error) {
+	var stockTakings []model.StockTaking
+	err := r.Data.SelectContext(ctx, &stockTakings, listAllStockTakingsQuery)
+	if err != nil {
+		return nil, err
+	}
+	return stockTakings, nil
+}
