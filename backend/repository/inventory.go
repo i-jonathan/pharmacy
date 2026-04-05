@@ -163,3 +163,32 @@ func (r *repo) FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, 
 	}
 	return inventoryItems, nil
 }
+
+func (r *repo) UpdateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) error {
+	_, err := tx.ExecContext(
+		ctx, updateProductQuery, product.Name, product.Barcode, product.CategoryID,
+		product.ReorderLevel, product.Manufacturer, product.CostPriceKobo, product.ID,
+	)
+	return err
+}
+
+func (r *repo) UpdateProductPriceTx(ctx context.Context, tx *sqlx.Tx, price model.ProductPrice) error {
+	_, err := tx.ExecContext(
+		ctx, updateProductPriceQuery, price.QuantityPerUnit, price.SellingPriceKobo, price.Name, price.ID,
+	)
+	return err
+}
+
+func (r *repo) DeleteProductPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int) error {
+	_, err := tx.ExecContext(ctx, deleteProductPriceQuery, priceID)
+	return err
+}
+
+func (r *repo) FetchProductByIDWithPrices(ctx context.Context, id int) (model.Product, error) {
+	var product model.Product
+	err := r.Data.GetContext(ctx, &product, fetchProductByIDWithPricesQuery, id)
+	if err != nil {
+		return model.Product{}, err
+	}
+	return product, nil
+}

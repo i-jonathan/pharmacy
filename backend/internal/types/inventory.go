@@ -37,6 +37,9 @@ type ProductResult struct {
 	Manufacturer string               `json:"manufacturer"`
 	Barcode      string               `json:"barcode"`
 	CostPrice    float64              `json:"cost_price"`
+	CategoryID   int                  `json:"category_id"`
+	ReorderLevel int                  `json:"reorder_level"`
+	Stock        int                  `json:"stock"`
 	DefaultPrice ProductPriceResult   `json:"default_price"`
 	PriceOptions []ProductPriceResult `json:"price_options"`
 }
@@ -60,4 +63,24 @@ type ReceiveSupplyRequest struct {
 	Supplier string        `json:"supplier"`
 	Products []ReceiveItem `json:"products"`
 	UserID   int
+}
+
+type ProductPriceUpdate struct {
+	ID              *int    `json:"id"`
+	Name            string  `json:"name"`
+	SellingPrice    float64 `json:"selling_price"`
+	QuantityPerUnit int     `json:"quantity_per_unit"`
+	IsDefault       bool    `json:"is_default"`
+}
+
+type UpdateProductRequest struct {
+	ID           int                  `json:"id"`
+	Name         string               `json:"name"`
+	Barcode      string               `json:"barcode"`
+	Manufacturer string               `json:"manufacturer"`
+	CategoryID   int                  `json:"category_id"`
+	ReorderLevel int                  `json:"reorder_level"`
+	Stock        int                  `json:"stock"`
+	CostPrice    float64              `json:"cost_price"`
+	Prices       []ProductPriceUpdate `json:"prices"`
 }

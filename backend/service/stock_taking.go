@@ -177,7 +177,7 @@ func (s *stockTakingService) CompleteStockTaking(ctx context.Context, stockTakin
 
 	defer func() {
 		if err != nil {
-			s.repo.Rollback(tx)
+			s.repo.RollbackTx(tx)
 		}
 	}()
 

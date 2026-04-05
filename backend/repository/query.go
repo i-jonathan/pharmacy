@@ -342,3 +342,51 @@ const listAllStockTakingsQuery = `
 	LEFT JOIN users cbu ON cbu.id = st.completed_by_id
 	ORDER BY st.started_at DESC;
 `
+
+const updateProductQuery = `
+	UPDATE product
+	SET name = $1, barcode = $2, category_id = $3, reorder_level = $4, manufacturer = $5, cost_price = $6
+	WHERE id = $7
+`
+
+const updateProductPriceQuery = `
+	UPDATE product_price
+	SET quantity_per_unit = $1, selling_price = $2, name = $3
+	WHERE id = $4
+`
+
+const deleteProductPriceQuery = `
+	DELETE FROM product_price WHERE id = $1
+`
+
+const fetchProductByIDWithPricesQuery = `
+	SELECT
+		p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level, p.default_price_id,
+		COALESCE(
+			(SELECT SUM(
+				CASE
+					WHEN movement_type LIKE 'IN%'  THEN quantity
+					WHEN movement_type LIKE 'OUT%' THEN -quantity
+					ELSE 0
+				END
+			) FROM stock_movement WHERE product_id = p.id), 0
+		) AS stock,
+		pp.id as "default_price.id", pp.selling_price as "default_price.selling_price",
+		pp.name as "default_price.name", pp.quantity_per_unit as "default_price.quantity_per_unit",
+		COALESCE(
+	      json_agg(
+	        json_build_object(
+	          'id', ppo.id,
+	          'selling_price', ppo.selling_price,
+	          'name', ppo.name,
+	          'quantity_per_unit', ppo.quantity_per_unit
+	        )
+	      ) FILTER (WHERE ppo.id IS NOT NULL), '[]'
+	    ) AS price_options
+	FROM product p
+	LEFT JOIN product_price pp ON p.default_price_id = pp.id
+	LEFT JOIN product_price ppo ON p.id = ppo.product_id
+	WHERE p.id = $1
+	GROUP BY p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level, 
+	p.default_price_id, pp.id, pp.selling_price, pp.name, pp.quantity_per_unit;
+`

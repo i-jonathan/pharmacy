@@ -19,7 +19,12 @@ type UserRepository interface {
 
 type InventoryRepository interface {
 	CreateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) (int, error)
+	UpdateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) error
+
 	CreateProductPriceTx(ctx context.Context, tx *sqlx.Tx, productPrice model.ProductPrice) (int, error)
+	UpdateProductPriceTx(ctx context.Context, tx *sqlx.Tx, price model.ProductPrice) error
+	DeleteProductPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int) error
+
 	UpdateProductDefaultPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int, productID int) error
 	FetchProductCategories(ctx context.Context) ([]model.Category, error)
 	SearchProductByName(ctx context.Context, searchTerm string) ([]model.Product, error)
@@ -33,6 +38,8 @@ type InventoryRepository interface {
 	BulkFetchProductByIDsTx(ctx context.Context, tx *sqlx.Tx, productIDs []int) ([]model.Product, error)
 	FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, error)
 	FetchPriceByID(ctx context.Context, priceID int) (model.ProductPrice, error)
+	FetchProductByIDWithPrices(ctx context.Context, id int) (model.Product, error)
+
 }
 
 type SaleRepository interface {
@@ -75,7 +82,7 @@ type StockTakingRepository interface {
 type PharmacyRepository interface {
 	BeginTx(ctx context.Context) (*sqlx.Tx, error)
 	CommitTx(tx *sqlx.Tx) error
-	Rollback(tx *sqlx.Tx)
+	RollbackTx(tx *sqlx.Tx)
 	UserRepository
 	InventoryRepository
 	SaleRepository

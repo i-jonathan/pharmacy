@@ -13,11 +13,13 @@ type UserService interface {
 
 type InventoryService interface {
 	CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error)
+	UpdateProduct(ctx context.Context, id int, params types.UpdateProductRequest) error
 	FetchCategories(ctx context.Context) ([]types.CategoriesResponse, error)
 	SearchProducts(ctx context.Context, query string) ([]types.ProductResult, error)
 	SearchForSuppliers(ctx context.Context, query string) ([]string, error)
 	ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error
 	FetchInventory(ctx context.Context) (*model.Inventory, error)
+	FetchProductByID(ctx context.Context, id int) (types.ProductResult, error)
 }
 
 type SaleService interface {

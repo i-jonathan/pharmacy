@@ -80,7 +80,7 @@ function renderCart() {
 
   cart.forEach((item, i) => {
     const selectedOption = item.price_options?.find(
-      (opt) => opt.id === item.selected_price_id,
+      (opt) => opt.id == item.selected_price_id,
     );
 
     const isDiscounted =
@@ -130,6 +130,9 @@ function renderCart() {
       </td>
 
       <td class="px-4 py-2 text-center">
+        <span class="price-type-badge block text-[10px] text-gray-500 uppercase font-bold mb-1">
+          ${selectedOption ? selectedOption.name : "Custom"}
+        </span>
         <span class="price-display block cursor-pointer font-medium text-gray-800 dark:text-gray-200"
               data-index="${i}">
           ₦${item.price.toDecimalPlaces(2).toString()}
@@ -221,6 +224,7 @@ function commitUnitPriceChange(input) {
 
   const newPrice = new Decimal(input.value || 0);
   cart[index].price = newPrice;
+  cart[index].selected_price_id = null;
 
   span.textContent = `₦${newPrice.toDecimalPlaces(2).toNumber().toLocaleString()}`;
   span.classList.remove("hidden");
@@ -402,6 +406,7 @@ receiptItems.addEventListener("click", (e) => {
     const v = new Decimal(input.value || 0);
     if (!v.isNaN()) {
       cart[idx].price = v;
+      cart[idx].selected_price_id = null;
       renderCart();
     }
   }
