@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
+	"pharmacy/httperror"
 )
 
 func InitAppRouter(tmpl *template.Template) http.Handler {
@@ -11,5 +12,10 @@ func InitAppRouter(tmpl *template.Template) http.Handler {
 	appMux := http.NewServeMux()
 	
 	appMux.HandleFunc(http.MethodGet + " /dashboard", appController.GetDashboard)
+	
+	appMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httperror.NotFound("", nil).Render(w, tmpl)
+	})
+	
 	return http.StripPrefix("/app", appMux)
 }

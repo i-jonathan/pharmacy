@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"pharmacy/adapter/http/controller"
 	"pharmacy/adapter/http/middleware"
+	"pharmacy/httperror"
 	"pharmacy/service"
 )
 
@@ -17,6 +18,10 @@ func InitUserRouter(svc service.UserService, tmpl *template.Template) http.Handl
 	userMux.HandleFunc(http.MethodPost+" /login", userController.HandleLogin)
 	userMux.Handle(http.MethodGet+" /register", middleware.AuthMiddleware(http.HandlerFunc(userController.GetRegisterPage)))
 	userMux.Handle("/logout", middleware.AuthMiddleware(http.HandlerFunc(userController.LogoutHandler)))
+
+	userMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httperror.NotFound("User Page Not Found", nil).Render(w, tmpl)
+	})
 
 	return http.StripPrefix("/user", userMux)
 }

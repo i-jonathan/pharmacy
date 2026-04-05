@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"pharmacy/adapter/http/controller"
 	"pharmacy/adapter/http/middleware"
+	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/service"
 )
@@ -29,6 +30,10 @@ func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Templa
 	)
 	stockTakingMux.HandleFunc(http.MethodGet+" /api/{id}/items", stockTakingController.FetchStockTakingItems)
 	stockTakingMux.HandleFunc(http.MethodPost+" /api/{id}/item/{product_id}", stockTakingController.UpdateStockTakingItemCount)
+
+	stockTakingMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httperror.NotFound("Stock Taking Page Not Found", nil).Render(w, tmpl)
+	})
 
 	return http.StripPrefix("/stock-taking", stockTakingMux)
 }
