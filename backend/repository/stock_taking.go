@@ -53,7 +53,7 @@ func (r *repo) HasActiveStockTaking(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	return true, nil
+	return exists, nil
 }
 
 func (r *repo) FetchCurrentStockLevel(ctx context.Context, productID int) (int, error) {
