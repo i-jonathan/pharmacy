@@ -21,7 +21,7 @@ import (
 //go:embed template/*.html
 var templateFS embed.FS
 
-//go:embed template/static/**
+//go:embed all:template/static/**
 var embeddedStatic embed.FS
 
 //go:embed template/static/dist/.vite/manifest.json
