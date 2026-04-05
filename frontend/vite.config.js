@@ -12,6 +12,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         stockCounting: "./src/stock-taking/counting/main.js",
+        stockDashboard: "./src/stock-taking/dashboard/main.js",
       },
     },
   },

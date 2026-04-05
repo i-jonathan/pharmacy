@@ -69,6 +69,7 @@ type StockTakingRepository interface {
 	UpdateStockTakingItem(ctx context.Context, item *model.StockTakingItem) error
 	UpdateProductCurrentExpiry(ctx context.Context, productID int, currentExpiry *time.Time) error
 	CompleteStockTakingTx(ctx context.Context, tx *sqlx.Tx, stockTakingID, userID int) error
+	ListAllStockTakings(ctx context.Context) ([]model.StockTaking, error)
 }
 
 type PharmacyRepository interface {

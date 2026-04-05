@@ -209,3 +209,26 @@ func (s *stockTakingService) CompleteStockTaking(ctx context.Context, stockTakin
 
 	return nil
 }
+
+func (s *stockTakingService) ListAllStockTakings(ctx context.Context) ([]types.StockTakingListItem, error) {
+	stockTakings, err := s.repo.ListAllStockTakings(ctx)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch stock takings", err)
+	}
+
+	items := make([]types.StockTakingListItem, len(stockTakings))
+	for i, st := range stockTakings {
+		items[i] = types.StockTakingListItem{
+			ID:          st.ID,
+			Name:        st.Name,
+			Status:      st.Status.ToString(),
+			CreatedBy:   st.CreatedByName,
+			StartedAt:   st.StartedAt,
+			CompletedAt: st.CompletedAt,
+			CompletedBy: st.CompletedByName,
+		}
+	}
+
+	return items, nil
+}

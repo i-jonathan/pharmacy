@@ -23,13 +23,14 @@ func (s StockTakingStatus) ToString() string {
 
 type StockTaking struct {
 	baseModel
-	Name          string            `db:"name"`
-	Status        StockTakingStatus `db:"status"`
-	CreatedByID   int               `db:"created_by_id"`
-	CompletedByID int               `db:"completed_by_id"`
-	StartedAt     time.Time         `db:"started_at"`
-	CompletedAt   *time.Time        `db:"completed_at"`
-	CreatedByName string            `db:"created_by_name"`
+	Name            string            `db:"name"`
+	Status          StockTakingStatus `db:"status"`
+	CreatedByID     int               `db:"created_by_id"`
+	CompletedByID   int               `db:"completed_by_id"`
+	StartedAt       time.Time         `db:"started_at"`
+	CompletedAt     *time.Time        `db:"completed_at"`
+	CreatedByName   string            `db:"created_by_name"`
+	CompletedByName *string           `db:"completed_by_name"`
 }
 
 type StockTakingItem struct {

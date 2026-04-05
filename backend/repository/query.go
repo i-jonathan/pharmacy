@@ -328,3 +328,17 @@ const completeStockTakingQuery = `
 	SET status = $2, completed_at = $3, completed_by_id = $4
 	WHERE id = $1;
 `
+const listAllStockTakingsQuery = `
+	SELECT
+	    st.id,
+	    st.name,
+	    st.status,
+	    st.started_at,
+	    st.completed_at,
+	    cu.username AS created_by_name,
+	    cbu.username AS completed_by_name
+	FROM stock_taking st
+	JOIN users cu ON cu.id = st.created_by_id
+	LEFT JOIN users cbu ON cbu.id = st.completed_by_id
+	ORDER BY st.started_at DESC;
+`

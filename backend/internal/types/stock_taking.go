@@ -43,3 +43,17 @@ type StockTakingItemCount struct {
 	Notes           *string `json:"notes"`
 	UpdatedByID     int
 }
+
+type StockTakingListItem struct {
+	ID          int        `json:"id"`
+	Name        string     `json:"name"`
+	Status      string     `json:"status"`
+	CreatedBy   string     `json:"created_by"`
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CompletedBy *string    `json:"completed_by,omitempty"`
+}
+
+type CreateStockTakingRequest struct {
+	Name string `json:"name"`
+}

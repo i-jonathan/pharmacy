@@ -53,7 +53,7 @@ func (r *repo) HasActiveStockTaking(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	return true, nil
+	return exists, nil
 }
 
 func (r *repo) FetchCurrentStockLevel(ctx context.Context, productID int) (int, error) {
@@ -108,4 +108,13 @@ func (r *repo) UpdateProductCurrentExpiry(ctx context.Context, productID int, cu
 func (r *repo) CompleteStockTakingTx(ctx context.Context, tx *sqlx.Tx, stockTakingID, userID int) error {
 	_, err := tx.ExecContext(ctx, completeStockTakingQuery, stockTakingID, model.StockTakingCompleted, time.Now(), userID)
 	return err
+}
+
+func (r *repo) ListAllStockTakings(ctx context.Context) ([]model.StockTaking, error) {
+	var stockTakings []model.StockTaking
+	err := r.Data.SelectContext(ctx, &stockTakings, listAllStockTakingsQuery)
+	if err != nil {
+		return nil, err
+	}
+	return stockTakings, nil
 }

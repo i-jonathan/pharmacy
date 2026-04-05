@@ -13,7 +13,9 @@ func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Templa
 	stockTakingController := controller.NewStockTakingController(svc, tmpl)
 	stockTakingMux := http.NewServeMux()
 
-	// stockTakingMux.HandleFunc(http.MethodPost+" /", stockTakingController.CreateStockTaking)
+	stockTakingMux.HandleFunc(http.MethodGet+" /{$}", stockTakingController.RenderStockTakingDashboard)
+	stockTakingMux.HandleFunc(http.MethodGet+" /api/list", stockTakingController.ListStockTakings)
+	stockTakingMux.HandleFunc(http.MethodPost+" /api/create", stockTakingController.CreateStockTaking)
 	stockTakingMux.HandleFunc(http.MethodGet+" /{id}", stockTakingController.RenderStockTakingPage)
 	stockTakingMux.Handle(http.MethodGet+" /api/{id}", middleware.AddPermissionsToContext(
 		http.HandlerFunc(stockTakingController.FetchStockTaking),
