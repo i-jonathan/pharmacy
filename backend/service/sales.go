@@ -65,7 +65,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 			ProductID:    v.ProductID,
 			Quantity:     v.Quantity * selectedPrice.QuantityPerUnit, // has to be quantity * selected price * quantity
 			ReferenceID:  saleID,
-			MovementType: constant.SaleMovementName,
+			MovementType: model.MovementTypeOutSale,
 		}
 	}
 
@@ -404,7 +404,7 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 			ProductID:    saleItem.ProductID,
 			Quantity:     r.Quantity,
 			ReferenceID:  returnParams.SaleID,
-			MovementType: constant.ReturnSaleMovementName,
+			MovementType: model.MovementTypeInSaleReturn,
 		})
 
 		refundTotal += saleItem.UnitPrice * r.Quantity
