@@ -5,6 +5,18 @@ import (
 	"fmt"
 	"time"
 )
+ 
+type MovementType string
+
+const (
+	MovementTypeInPurchase          MovementType = "IN_PURCHASE"
+	MovementTypeInSaleReturn        MovementType = "IN_SALE_RETURN"
+	MovementTypeInStockTaking       MovementType = "IN_STOCK_TAKING"
+	MovementTypeOutStockTaking      MovementType = "OUT_STOCK_TAKING"
+	MovementTypeInManualAdjustment  MovementType = "IN_MANUAL_ADJUSTMENT"
+	MovementTypeOutManualAdjustment MovementType = "OUT_MANUAL_ADJUSTMENT"
+	MovementTypeOutSale             MovementType = "OUT_SALE"
+)
 
 type Product struct {
 	baseModel
@@ -14,6 +26,7 @@ type Product struct {
 	ReorderLevel   int           `db:"reorder_level"`
 	Manufacturer   *string       `db:"manufacturer"`
 	CostPriceKobo  int           `db:"cost_price"`
+	Stock          int           `db:"stock"`
 	DefaultPriceID int           `db:"default_price_id"`
 	Category       Category      `db:"category"`
 	DefaultPrice   ProductPrice  `db:"default_price"`
@@ -61,10 +74,10 @@ type ProductBatch struct {
 
 type StockMovement struct {
 	baseModel
-	ProductID    int    `db:"product_id"`
-	MovementType string `db:"movement_type"`
-	Quantity     int    `db:"quantity"`
-	ReferenceID  int    `db:"reference_id"`
+	ProductID    int          `db:"product_id"`
+	Quantity     int          `db:"quantity"`
+	ReferenceID  int          `db:"reference_id"`
+	MovementType MovementType `db:"movement_type"`
 }
 
 type InventoryItem struct {
