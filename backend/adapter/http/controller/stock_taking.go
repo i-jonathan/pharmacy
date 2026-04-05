@@ -27,8 +27,66 @@ func NewStockTakingController(service service.StockTakingService, tmpl *template
 	}
 }
 
-func (c *inventoryController) CreateStockTaking(w http.ResponseWriter, r *http.Request) {
+func (c *stockTakingController) RenderStockTakingDashboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	err := c.template.ExecuteTemplate(w, "stock-taking-dashboard.html", nil)
+	if err != nil {
+		http.Error(w, "stock taking dashboard render error", http.StatusInternalServerError)
+	}
+}
 
+func (c *stockTakingController) ListStockTakings(w http.ResponseWriter, r *http.Request) {
+	items, err := c.service.ListAllStockTakings(r.Context())
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+
+		httperror.ServerError("fetching stock takings failed", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"stock_takings": items,
+	})
+}
+
+func (c *stockTakingController) CreateStockTaking(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(constant.UserIDKey)
+	uid, ok := userID.(int)
+	if !ok {
+		httperror.Unauthorized("User ID is missing in context", nil).JSONRespond(w)
+		return
+	}
+
+	var req types.CreateStockTakingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+
+	data := types.StockTakingData{
+		Name:        req.Name,
+		CreatedByID: uid,
+	}
+
+	id, err := c.service.CreateStockTaking(r.Context(), data)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+
+		httperror.ServerError("failed to create stock taking", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusCreated, map[string]any{
+		"id": id,
+	})
 }
 
 func (c *stockTakingController) FetchStockTaking(w http.ResponseWriter, r *http.Request) {
