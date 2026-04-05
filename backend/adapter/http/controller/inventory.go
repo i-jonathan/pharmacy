@@ -153,7 +153,10 @@ func (c *inventoryController) RenderInventoryPage(w http.ResponseWriter, r *http
 		return
 	}
 
-	perms := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
+	perms, ok := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
+	if !ok {
+		perms = make(map[string]bool)
+	}
 	data := struct {
 		Categories  []model.Category
 		Items       []model.InventoryItem
