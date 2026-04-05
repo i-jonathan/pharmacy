@@ -38,7 +38,7 @@ func (r *repo) CommitTx(tx *sqlx.Tx) error {
 	return tx.Commit()
 }
 
-func (r *repo) Rollback(tx *sqlx.Tx) {
+func (r *repo) RollbackTx(tx *sqlx.Tx) {
 	err := tx.Rollback()
 	if err != nil {
 		log.Printf("Failed to roll back transaction: %v", err)
