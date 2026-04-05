@@ -122,12 +122,14 @@
             <!-- Heading and Add Button -->
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-semibold">Inventory</h1>
+                {{if hasPerm .Permissions "inventory:edit"}}
                 <button
                     id="add-btn"
                     class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
                 >
                     + Add New Item
                 </button>
+                {{end}}
             </div>
 
             <!-- Inventory-specific Search -->
@@ -271,12 +273,18 @@
 
                             <!-- Action -->
                             <td class="px-4 py-3 text-right">
+                                {{if hasPerm $.Permissions "inventory:edit"}}
                                 <button
                                     onclick='openEditModal("{{.ID}}")'
                                     class="text-sm text-primary hover:underline hover:text-emerald-700"
                                 >
                                     Edit
                                 </button>
+                                {{else}}
+                                <span class="text-sm text-gray-400 italic"
+                                    >No Actions</span
+                                >
+                                {{end}}
                             </td>
                         </tr>
                         {{end}}
