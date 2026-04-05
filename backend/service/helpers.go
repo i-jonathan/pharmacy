@@ -4,6 +4,7 @@ import (
 	"context"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
+	"pharmacy/model"
 )
 
 func HasPermission(ctx context.Context, permissionKey string) bool {
@@ -15,31 +16,31 @@ func HasPermission(ctx context.Context, permissionKey string) bool {
 	return perms[permissionKey]
 }
 
-func calculateStockDifference(item types.StockTakingItemData) (int, string, bool) {
+func calculateStockDifference(item types.StockTakingItemData) (int, model.MovementType, bool) {
 	total := 0
-
+ 
 	if item.DispensaryCount != nil {
 		total += *item.DispensaryCount
 	}
 	if item.StoreCount != nil {
 		total += *item.StoreCount
 	}
-
+ 
 	snapshot := 0
 	if item.SnapshotQuantity != nil {
 		snapshot = *item.SnapshotQuantity
 	}
-
+ 
 	diff := total - snapshot
 	if diff == 0 {
 		return 0, "", true
 	}
-
-	movementType := constant.StockTakingIncrease
+ 
+	movementType := model.MovementTypeInStockTaking
 	if diff < 0 {
-		movementType = constant.StockTakingDecrease
+		movementType = model.MovementTypeOutStockTaking
 		diff = -diff
 	}
-
+ 
 	return diff, movementType, false
 }
