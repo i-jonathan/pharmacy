@@ -221,3 +221,51 @@ func (c *inventoryController) FetchInventory(w http.ResponseWriter, r *http.Requ
 
 	helper.JSONResponse(w, http.StatusOK, resp)
 }
+func (c *inventoryController) UpdateProduct(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		httperror.BadRequest("invalid product id", err).JSONRespond(w)
+		return
+	}
+
+	var params types.UpdateProductRequest
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+
+	if err := c.service.UpdateProduct(r.Context(), id, params); err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to update product", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Product updated successfully"})
+}
+
+func (c *inventoryController) GetProductDetails(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		httperror.BadRequest("invalid product id", err).JSONRespond(w)
+		return
+	}
+
+	product, err := c.service.FetchProductByID(r.Context(), id)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to fetch product", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, product)
+}
