@@ -29,7 +29,12 @@ func NewStockTakingController(service service.StockTakingService, tmpl *template
 
 func (c *stockTakingController) RenderStockTakingDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := c.template.ExecuteTemplate(w, "stock-taking-dashboard.html", nil)
+	data := map[string]any{
+		"Title":         "Stock Taking Dashboard",
+		"ActivePage":    "stock-taking",
+		"SubActivePage": "dashboard",
+	}
+	err := c.template.ExecuteTemplate(w, "stock-taking-dashboard.html", data)
 	if err != nil {
 		http.Error(w, "stock taking dashboard render error", http.StatusInternalServerError)
 	}
@@ -172,8 +177,14 @@ func (c *stockTakingController) RenderStockTakingPage(w http.ResponseWriter, r *
 
 	data := struct {
 		StockTakingID string
+		Title         string
+		ActivePage    string
+		SubActivePage string
 	}{
 		StockTakingID: id,
+		Title:         "Stock Taking",
+		ActivePage:    "stock-taking",
+		SubActivePage: "stock-taking-page",
 	}
 
 	err := c.template.ExecuteTemplate(w, "stock-taking.html", data)
