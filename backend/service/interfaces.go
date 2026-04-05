@@ -35,4 +35,5 @@ type StockTakingService interface {
 	FetchStockTakingItems(ctx context.Context, stockTakingID int) (types.StockTakingItems, error)
 	UpdateStockTakingItemCount(ctx context.Context, data types.StockTakingItemCount) error
 	CompleteStockTaking(ctx context.Context, stockTakingID, userID int) error
+	ListAllStockTakings(ctx context.Context) ([]types.StockTakingListItem, error)
 }
