@@ -5,9 +5,11 @@
 {{$activeStockTaking := eq .ActivePage "stock-taking"}}
 
 <!-- Top Nav -->
-<nav class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between">
+<nav class="bg-white dark:bg-gray-800 shadow px-4 md:px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-6">
         <div class="text-xl font-bold text-primary">Primocrest Pharmacy</div>
+        
+        <!-- Desktop Navigation -->
         <div class="hidden md:flex space-x-6">
             <a href="/app/dashboard" class="{{if $activeDashboard}}text-primary font-semibold border-b-2 border-primary pb-1{{else}}text-gray-700 dark:text-gray-200 hover:text-primary{{end}}">
                 Dashboard
@@ -31,8 +33,9 @@
     </div>
 
     <!-- Right: Search and Theme Toggle -->
-    <div class="flex items-center space-x-4 max-w-md w-full justify-end">
-        <div class="relative w-full">
+    <div class="flex items-center space-x-2 md:space-x-4 max-w-md w-full justify-end">
+        <!-- Desktop Search -->
+        <div class="hidden md:relative md:w-full">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300">🔍</span>
             <input
                 type="text"
@@ -40,14 +43,19 @@
                 class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
         </div>
-        <button id="theme-toggle" class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary">
+        
+        <!-- Desktop Theme Toggle -->
+        <button
+            id="theme-toggle-desktop"
+            class="hidden md:block text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
+        >
             🌙
         </button>
 
         <!-- User Menu -->
-        <div class="relative">
+        <div class="relative hidden md:block">
             <button
-                id="user-menu-button"
+                id="user-menu-button-desktop"
                 class="flex items-center text-gray-600 dark:text-gray-300 hover:text-primary focus:outline-none"
             >
                 ⚙️
@@ -55,8 +63,8 @@
 
             <!-- Dropdown -->
             <div
-                id="user-menu-dropdown"
-                class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all"
+                id="user-menu-dropdown-desktop"
+                class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all z-50"
             >
                 <a
                     href="/user/register"
@@ -73,5 +81,165 @@
                 </a>
             </div>
         </div>
+        
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu-button" class="md:hidden text-gray-600 dark:text-gray-300 hover:text-primary">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
     </div>
 </nav>
+
+<!-- Mobile Navigation Menu -->
+<div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+    <!-- Main Navigation -->
+    <div class="px-4 py-2 space-y-1">
+        <a href="/app/dashboard" class="{{if $activeDashboard}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md">
+            Dashboard
+        </a>
+        <a href="/inventory/items" class="{{if $activeInventory}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md">
+            Inventory
+        </a>
+        <a href="/sales/receipt" class="{{if $activeSales}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md">
+            Sales
+        </a>
+        <a href="/stock-taking/" class="{{if $activeStockTaking}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md">
+            Stock Taking
+        </a>
+    </div>
+    
+    <!-- Sub Navigation (if applicable) -->
+    {{if eq .ActivePage "inventory"}}
+    <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Inventory</div>
+        <div class="space-y-1">
+            <a href="/inventory/items" class="{{if eq .SubActivePage "item-list"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Item List
+            </a>
+            <a href="/inventory/receive-items" class="{{if eq .SubActivePage "receive-items"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Receive Items
+            </a>
+            <a href="/inventory/report/stock" class="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-sm">
+                Export Stock
+            </a>
+        </div>
+    </div>
+    {{else if eq .ActivePage "sales"}}
+    <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Sales</div>
+        <div class="space-y-1">
+            <a href="/sales/receipt" class="{{if eq .SubActivePage "new-sale"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                New Sale
+            </a>
+            <a href="/sales/history" class="{{if eq .SubActivePage "sales-history"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Sales History
+            </a>
+            <a href="/sales/held" class="{{if eq .SubActivePage "held-receipts"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Held Sales
+            </a>
+        </div>
+    </div>
+    {{else if eq .ActivePage "stock-taking"}}
+    <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Stock Taking</div>
+        <div class="space-y-1">
+            <a href="/stock-taking/" class="{{if eq .SubActivePage "dashboard"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Dashboard
+            </a>
+        </div>
+    </div>
+    {{end}}
+    
+    <!-- Mobile Search -->
+    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300">🔍</span>
+            <input
+                type="text"
+                placeholder="Search..."
+                class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+        </div>
+    </div>
+    
+    <!-- Mobile Theme Toggle -->
+    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+        <button
+            id="theme-toggle"
+            class="flex items-center text-gray-600 dark:text-gray-300 hover:text-primary"
+        >
+            <span class="mr-2">🌙</span>
+            Toggle Theme
+        </button>
+    </div>
+    
+    <!-- Mobile User Menu -->
+    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Account</div>
+        <div class="space-y-1">
+            <a
+                href="/user/register"
+                class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            >
+                Create New Account
+            </a>
+            <a
+                href="/user/logout"
+                class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+            >
+                Logout
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mobile menu toggle
+document.getElementById('mobile-menu-button').addEventListener('click', function() {
+    const menu = document.getElementById('mobile-menu');
+    menu.classList.toggle('hidden');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('mobile-menu');
+    const menuButton = document.getElementById('mobile-menu-button');
+    const userDropdown = document.getElementById('user-menu-dropdown-desktop');
+    const userButton = document.getElementById('user-menu-button-desktop');
+    
+    // Only close mobile menu if clicking outside of it
+    if (!menu.contains(event.target) && !menuButton.contains(event.target)) {
+        menu.classList.add('hidden');
+    }
+    
+    // Only close user dropdown if clicking outside of it
+    if (!userDropdown.contains(event.target) && !userButton.contains(event.target)) {
+        userDropdown.classList.add('hidden');
+    }
+});
+
+// User menu dropdown (desktop only)
+document.getElementById('user-menu-button-desktop').addEventListener('click', function() {
+    const dropdown = document.getElementById('user-menu-dropdown-desktop');
+    dropdown.classList.toggle('hidden');
+});
+
+// Theme toggle (sync both mobile and desktop buttons)
+function setupThemeToggle() {
+    const mobileToggle = document.getElementById('theme-toggle');
+    const desktopToggle = document.getElementById('theme-toggle-desktop');
+    
+    function toggleTheme() {
+        // Your existing theme toggle logic
+        if (typeof toggleTheme === 'function') {
+            toggleTheme();
+        }
+    }
+    
+    if (mobileToggle) mobileToggle.addEventListener('click', toggleTheme);
+    if (desktopToggle) desktopToggle.addEventListener('click', toggleTheme);
+}
+
+setupThemeToggle();
+</script>
