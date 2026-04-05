@@ -1,135 +1,38 @@
+{{define "sales-history.html"}}
 <!doctype html>
 <html lang="en" class="">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Sales History | PharmaPOS</title>
-        <link href="/static/css/tailwind.css" rel="stylesheet" />
-        <style>
-            /* Slide-in side panel */
-            .panel {
-                transform: translateX(100%);
-                transition: transform 0.3s ease;
-            }
-            .panel.open {
-                transform: translateX(0);
-            }
-            /* Selected row styling */
-            .selected-row {
-                background-color: rgb(240 249 255); /* sky-50 */
-            }
-            .dark .selected-row {
-                background-color: rgb(31 41 55 / 0.6); /* dark bg overlay-ish */
-            }
-        </style>
-    </head>
-    <body
-        class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
-    >
-        <!-- Navigation -->
-        <nav
-            class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between"
-        >
-            <div class="flex items-center gap-6">
-                <div class="text-xl font-bold text-primary">PharmaPOS</div>
-                <div class="hidden md:flex space-x-6">
-                    <a
-                        href="/app/dashboard"
-                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
-                        >Dashboard</a
-                    >
-                    <a
-                        href="/inventory/items"
-                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
-                        >Inventory</a
-                    >
-                    <a
-                        href="/sales/receipt"
-                        class="text-primary font-semibold border-b-2 border-primary pb-1"
-                        >Sales</a
-                    >
-                </div>
-            </div>
-
-            <!-- Right: Search and Theme Toggle -->
-            <div
-                class="flex items-center space-x-4 max-w-md w-full justify-end"
-            >
-                <div class="relative w-full">
-                    <span
-                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
-                        >🔍</span
-                    >
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </div>
-                <button
-                    id="theme-toggle"
-                    class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
-                >
-                    🌙
-                </button>
-
-                <!-- User Menu -->
-                <div class="relative">
-                    <button
-                        id="user-menu-button"
-                        class="flex items-center text-gray-600 dark:text-gray-300 hover:text-primary focus:outline-none"
-                    >
-                        ⚙️
-                    </button>
-
-                    <!-- Dropdown -->
-                    <div
-                        id="user-menu-dropdown"
-                        class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all"
-                    >
-                        <a
-                            href="/user/register"
-                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
-                        >
-                            Create New Account
-                        </a>
-
-                        <a
-                            href="/user/logout"
-                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
-                        >
-                            Logout
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Sub Navigation -->
-        <nav
-            class="bg-gray-50 dark:bg-gray-800 border-t border-b border-gray-200 dark:border-gray-700 px-6 py-3"
-        >
-            <div class="flex space-x-6">
-                <a
-                    href="/sales/receipt"
-                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
-                    >Make a Sale</a
-                >
-                <a
-                    href="/sales/history"
-                    class="text-primary font-semibold border-b-2 border-primary pb-1"
-                    >Sales History</a
-                >
-                <a
-                    href="/sales/held"
-                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
-                    >Held Receipts</a
-                >
-            </div>
-        </nav>
-
-        <!-- Main -->
-        <main class="p-6 flex-1 w-full space-y-6">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Title}} | PharmaPOS</title>
+    <link href="/static/css/tailwind.css" rel="stylesheet" />
+    <style>
+        /* Slide-in side panel */
+        .panel {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .panel.open {
+            transform: translateX(0);
+        }
+        /* Selected row styling */
+        .selected-row {
+            background-color: rgb(240 249 255); /* sky-50 */
+        }
+        .dark .selected-row {
+            background-color: rgb(31 41 55 / 0.6); /* dark bg overlay-ish */
+        }
+        html {
+            transition: background-color 0.3s, color 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+    {{template "nav.html" .}}
+    {{template "subnav.html" .}}
+    
+    <!-- Main -->
+    <main class="p-6 flex-1 w-full space-y-6">
             <div class="flex items-end justify-between">
                 <h1 class="text-2xl font-semibold">Sales History</h1>
                 <div class="text-sm text-gray-500 dark:text-gray-400">
@@ -557,15 +460,17 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
 
-        <script>
-            sales = {{ .SalesJSON }};
-            window.PERMISSIONS = {{ .Permissions }};
-        </script>
-        <script src="/static/js/theme.js"></script>
-        <script src="/static/js/toast.js"></script>
-        <script src="/static/js/print.js"></script>
-        <script src="/static/js/sales-history.js"></script>
-    </body>
+    <!-- Scripts -->
+    <script>
+        sales = {{ .SalesJSON }};
+        window.PERMISSIONS = {{ .Permissions }};
+    </script>
+    <script src="/static/js/theme.js"></script>
+    <script src="/static/js/toast.js"></script>
+    <script src="/static/js/print.js"></script>
+    <script src="/static/js/sales-history.js"></script>
+</body>
 </html>
+{{end}}

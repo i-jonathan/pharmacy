@@ -1,132 +1,28 @@
+{{define "stock-taking-dashboard.html"}}
 <!doctype html>
 <html lang="en" class="">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Stock Taking Dashboard | PharmaPOS</title>
-        <link href="/static/css/tailwind.css" rel="stylesheet" />
-        <style>
-            html {
-                transition:
-                    background-color 0.3s,
-                    color 0.3s;
-            }
-        </style>
-    </head>
-    <body
-        class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
-    >
-        <nav
-            class="bg-white dark:bg-gray-800 shadow px-6 py-4 flex items-center justify-between"
-        >
-            <div class="flex items-center gap-6">
-                <div class="text-xl font-bold text-primary">PharmaPOS</div>
-                <div class="hidden md:flex space-x-6">
-                    <a
-                        href="/app/dashboard"
-                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
-                        >Dashboard</a
-                    >
-                    <a
-                        href="#"
-                        class="text-primary font-semibold border-b-2 border-primary pb-1"
-                        >Inventory</a
-                    >
-                    <a
-                        href="/sales/receipt"
-                        class="text-gray-700 dark:text-gray-200 hover:text-primary"
-                        >Sales</a
-                    >
-                </div>
-            </div>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Title}} | PharmaPOS</title>
+    <link href="/static/css/tailwind.css" rel="stylesheet" />
+    <style>
+        html {
+            transition: background-color 0.3s, color 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+    {{template "nav.html" .}}
+    {{template "subnav.html" .}}
+    
+    <!-- Main Content -->
+    <main id="stock-taking-dashboard">
+    </main>
 
-            <!-- Right: Search and Theme Toggle -->
-            <div class="flex items-center space-x-4 justify-end">
-                <div class="relative w-full hidden md:block">
-                    <span
-                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-300"
-                        >🔍</span
-                    >
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </div>
-                <button
-                    id="theme-toggle"
-                    class="text-xl text-gray-600 dark:text-gray-300 hover:text-primary"
-                >
-                    🌙
-                </button>
-
-                <!-- User Menu -->
-                <div class="relative">
-                    <button
-                        id="user-menu-button"
-                        class="flex items-center text-gray-600 dark:text-gray-300 hover:text-primary focus:outline-none"
-                    >
-                        ⚙️
-                    </button>
-
-                    <!-- Dropdown -->
-                    <div
-                        id="user-menu-dropdown"
-                        class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all"
-                    >
-                        <a
-                            href="/user/register"
-                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
-                        >
-                            Create New Account
-                        </a>
-
-                        <a
-                            href="/user/logout"
-                            class="block px-6 py-3 text-base font-medium text-gray-800 dark:text-gray-100 hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-800 dark:hover:text-emerald-200 transition"
-                        >
-                            Logout
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Sub Navigation -->
-        <nav
-            class="bg-gray-50 dark:bg-gray-800 border-t border-b
-                   border-gray-200 dark:border-gray-700
-                   px-4 py-3 overflow-x-auto"
-        >
-            <div class="flex space-x-6 whitespace-nowrap">
-                <a
-                    href="#"
-                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
-                    >Item List</a
-                >
-                <a
-                    href="/inventory/receive-items"
-                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
-                    >Receive Items</a
-                >
-                <a
-                    href="/inventory/report/stock"
-                    class="text-gray-600 dark:text-gray-300 hover:text-primary"
-                    >Export Stock</a
-                >
-                <a
-                    href="/stock-taking/"
-                    class="text-primary font-semibold border-b-2 border-primary pb-1"
-                    >Stock Taking</a
-                >
-            </div>
-        </nav>
-
-        <!-- Main Content -->
-        <main id="stock-taking-dashboard">
-        </main>
-
-        <script type="module" src="{{ ViteAsset "src/stock-taking/dashboard/main.js" }}"></script>
-        <script src="/static/js/theme.js"></script>
-    </body>
+    <!-- Scripts -->
+    <script src="/static/js/theme.js"></script>
+    <script type="module" src="{{ ViteAsset "src/stock-taking/dashboard/main.js" }}"></script>
+</body>
 </html>
+{{end}}
