@@ -71,7 +71,7 @@ function addItemToTable(product) {
         <input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2 text-center">
-        <button onclick="this.closest('tr').remove(); updateSubtotal();" class="text-red-500 hover:text-red-700">🗑️</button>
+        <button onclick="removeProductRow(this)" class="text-red-500 hover:text-red-700">🗑️</button>
         <button onclick="togglePriceManagement(this)" class="ml-2 text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300" title="Manage Price Options">
             ⚙️
         </button>
@@ -93,20 +93,67 @@ function addItemToTable(product) {
               ? product.price_options
                   .map(
                     (price) => `
-              <div class="flex items-center gap-3 p-2 bg-white dark:bg-gray-700 rounded border dark:border-gray-600">
-                <div class="flex flex-col">
-                  <label class="text-xs text-gray-600 dark:text-gray-400 mb-1">Name</label>
-                  <input type="text" value="${price.name}" class="price-name flex-1 px-2 py-1 border rounded dark:bg-gray-600 dark:border-gray-500 text-sm" placeholder="Name" data-price-id="${price.id}"/>
-                </div>
-                <div class="flex flex-col">
-                  <label class="text-xs text-gray-600 dark:text-gray-400 mb-1">Price</label>
-                  <input type="number" value="${price.selling_price.toFixed(2)}" class="price-value w-24 px-2 py-1 border rounded dark:bg-gray-600 dark:border-gray-500 text-sm" placeholder="Price" data-price-id="${price.id}" ${price.id === product.default_price?.id ? 'disabled' : ''}/>
-                </div>
-                <div class="flex flex-col">
-                  <label class="text-xs text-gray-600 dark:text-gray-400 mb-1">Qty/Unit</label>
-                  <input type="number" value="${price.quantity || 1}" class="quantity-per-unit w-20 px-2 py-1 border rounded dark:bg-gray-600 dark:border-gray-500 text-sm" placeholder="Qty/Unit" data-price-id="${price.id}" ${price.id === product.default_price?.id ? 'disabled' : ''}/>
-                </div>
-              </div>
+                    <div class="flex items-center gap-3 p-2 rounded border
+                      ${
+                        price.id === product.default_price?.id
+                          ? "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-80"
+                          : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+                      }">
+
+                      <div class="flex flex-col">
+                        <label class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                          Name ${price.id === product.default_price?.id ? '<span class="text-purple-500">(Default)</span>' : ""}
+                        </label>
+                        <input
+                          type="text"
+                          value="${price.name}"
+                          class="price-name flex-1 px-2 py-1 border rounded text-sm
+                            ${
+                              price.id === product.default_price?.id
+                                ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed border-gray-300"
+                                : "bg-white dark:bg-gray-600 dark:border-gray-500"
+                            }"
+                          placeholder="Name"
+                          data-price-id="${price.id}"
+                          ${price.id === product.default_price?.id ? "disabled" : ""}
+                        />
+                      </div>
+
+                      <div class="flex flex-col">
+                        <label class="text-xs text-gray-600 dark:text-gray-400 mb-1">Price</label>
+                        <input
+                          type="number"
+                          value="${price.selling_price.toFixed(2)}"
+                          class="price-value w-24 px-2 py-1 border rounded text-sm
+                            ${
+                              price.id === product.default_price?.id
+                                ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed border-gray-300"
+                                : "bg-white dark:bg-gray-600 dark:border-gray-500"
+                            }"
+                          placeholder="Price"
+                          data-price-id="${price.id}"
+                          ${price.id === product.default_price?.id ? "disabled" : ""}
+                        />
+                      </div>
+
+                      <div class="flex flex-col">
+                        <label class="text-xs text-gray-600 dark:text-gray-400 mb-1">Qty/Unit</label>
+                        <input
+                          type="number"
+                          value="${price.quantity || 1}"
+                          class="quantity-per-unit w-20 px-2 py-1 border rounded text-sm
+                            ${
+                              price.id === product.default_price?.id
+                                ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed border-gray-300"
+                                : "bg-white dark:bg-gray-600 dark:border-gray-500"
+                            }"
+                          placeholder="Qty/Unit"
+                          data-price-id="${price.id}"
+                          ${price.id === product.default_price?.id ? "disabled" : ""}
+                        />
+                      </div>
+
+                    </div>
             `,
                   )
                   .join("")
@@ -133,25 +180,27 @@ function addItemToTable(product) {
     sellingPriceInput.value = suggestedPrice.toFixed(2);
     updateSubtotal();
   });
-  
+
   // Sync main selling price with default price option
   const mainSellingPriceInput = row.querySelector(".selling-price");
-  const defaultPriceInput = priceManagementRow.querySelector(`.price-value[data-price-id="${product.default_price?.id}"]`);
-  
+  const defaultPriceInput = priceManagementRow.querySelector(
+    `.price-value[data-price-id="${product.default_price?.id}"]`,
+  );
+
   if (mainSellingPriceInput && defaultPriceInput) {
     // Sync main input to default price option
-    mainSellingPriceInput.addEventListener("input", function() {
+    mainSellingPriceInput.addEventListener("input", function () {
       defaultPriceInput.value = this.value;
     });
-    
+
     // Sync default price option to main input (if it's not disabled)
-    defaultPriceInput.addEventListener("input", function() {
+    defaultPriceInput.addEventListener("input", function () {
       if (!this.disabled) {
         mainSellingPriceInput.value = this.value;
       }
     });
   }
-  
+
   // Use setupPriceLogic for price suggestions
   setupPriceLogic(row);
 
@@ -186,6 +235,21 @@ function addItemToTable(product) {
   });
 
   searchResults.classList.add("hidden");
+}
+
+// Global function to remove product row and associated price management row
+function removeProductRow(button) {
+  const currentRow = button.closest('tr');
+  const priceManagementRow = currentRow.nextElementSibling;
+  
+  // Remove price management row if it exists and is the right one
+  if (priceManagementRow && priceManagementRow.classList.contains('price-management-row')) {
+    priceManagementRow.remove();
+  }
+  
+  // Remove the main row
+  currentRow.remove();
+  updateSubtotal();
 }
 
 // Global function to toggle price management
