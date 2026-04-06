@@ -686,6 +686,22 @@ const allWarningItems = computed(() => {
 
 onMounted(() => {
     fetchDashboardData();
+    
+    // Add Escape key listener to close modals
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            showCriticalModal.value = false;
+            showWarningModal.value = false;
+            showLowStockModal.value = false;
+        }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    
+    // Cleanup on unmount
+    return () => {
+        document.removeEventListener('keydown', handleEscape);
+    };
 });
 
 // Register Chart.js plugin for "No Data" message
@@ -948,6 +964,15 @@ const fetchDashboardData = async () => {
                 quantity: item.quantity,
                 expiryDate: new Date(item.expiry_date).toLocaleDateString(),
                 daysUntilExpiry: item.days_until_expiry,
+            }));
+        }
+
+        if (data.low_stock_items && Array.isArray(data.low_stock_items)) {
+            lowStockItems.value = data.low_stock_items.map((item) => ({
+                id: item.id,
+                name: item.product_name,
+                currentStock: item.current_stock,
+                reorderLevel: item.reorder_level,
             }));
         }
     } catch (err) {
