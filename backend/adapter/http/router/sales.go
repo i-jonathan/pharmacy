@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
+	"pharmacy/httperror"
 	"pharmacy/adapter/http/middleware"
 	"pharmacy/service"
 )
@@ -24,5 +25,9 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 	saleMux.HandleFunc(http.MethodGet+" /held", saleController.RenderHeldSaleReceipts)
 	saleMux.HandleFunc(http.MethodDelete+" /held/{reference}", saleController.DeleteHeldSale)
 	saleMux.HandleFunc(http.MethodPost+" /returns", saleController.ReturnItems)
+
+	saleMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httperror.NotFound("Sales Page Not Found", nil).Render(w, tmpl)
+	})
 	return http.StripPrefix("/sales", saleMux)
 }

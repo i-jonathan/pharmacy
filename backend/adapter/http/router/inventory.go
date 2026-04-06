@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
+	"pharmacy/httperror"
 	"pharmacy/adapter/http/middleware"
 	"pharmacy/internal/constant"
 	"pharmacy/service"
@@ -27,6 +28,10 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 			http.HandlerFunc(inventoryController.UpdateProduct),
 		),
 	)
+
+	inventoryMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httperror.NotFound("Inventory Page Not Found", nil).Render(w, tmpl)
+	})
 
 	return http.StripPrefix("/inventory", inventoryMux)
 }

@@ -23,6 +23,7 @@ type InventoryRepository interface {
 
 	CreateProductPriceTx(ctx context.Context, tx *sqlx.Tx, productPrice model.ProductPrice) (int, error)
 	UpdateProductPriceTx(ctx context.Context, tx *sqlx.Tx, price model.ProductPrice) error
+	UpdateProductPriceByIDTx(ctx context.Context, tx *sqlx.Tx, priceID int, price model.ProductPrice) error
 	DeleteProductPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int) error
 
 	UpdateProductDefaultPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int, productID int) error
@@ -39,7 +40,6 @@ type InventoryRepository interface {
 	FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, error)
 	FetchPriceByID(ctx context.Context, priceID int) (model.ProductPrice, error)
 	FetchProductByIDWithPrices(ctx context.Context, id int) (model.Product, error)
-
 }
 
 type SaleRepository interface {

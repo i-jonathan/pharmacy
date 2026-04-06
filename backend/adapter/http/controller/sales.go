@@ -24,7 +24,12 @@ func NewSaleController(svc service.SaleService, tmpl *template.Template) *saleCo
 
 func (c *saleController) RenderSalesReceipt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := c.template.ExecuteTemplate(w, "receipt.html", nil)
+	data := map[string]any{
+		"Title":         "Sales Receipt",
+		"ActivePage":    "sales",
+		"SubActivePage": "new-sale",
+	}
+	err := c.template.ExecuteTemplate(w, "receipt.html", data)
 	if err != nil {
 		http.Error(w, "sales receipt render error", http.StatusInternalServerError)
 	}
@@ -93,8 +98,11 @@ func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Reque
 	perms, _ := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
 
 	data := map[string]any{
-		"SalesJSON":   template.JS(salesJSON),
-		"Permissions": perms,
+		"Title":         "Sales History",
+		"ActivePage":    "sales",
+		"SubActivePage": "sales-history",
+		"SalesJSON":     template.JS(salesJSON),
+		"Permissions":   perms,
 	}
 
 	err = c.template.ExecuteTemplate(w, "sales-history.html", data)
@@ -179,6 +187,9 @@ func (c *saleController) RenderHeldSaleReceipts(w http.ResponseWriter, r *http.R
 	}
 
 	data := map[string]any{
+		"Title":            "Held Receipts",
+		"ActivePage":       "sales",
+		"SubActivePage":    "held-receipts",
 		"HeldTransactions": template.JS(transactionJSON),
 	}
 

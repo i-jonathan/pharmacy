@@ -51,12 +51,20 @@ type BatchInsertReturn struct {
 }
 
 type ReceiveItem struct {
-	ID           int       `json:"id"`
-	Barcode      string    `json:"barcode"`
-	CostPrice    float64   `json:"cost_price"`
-	SellingPrice float64   `json:"selling_price"`
-	Quantity     int       `json:"quantity"`
-	Expiry       time.Time `json:"expiry" time_format:"2006-01-02"`
+	ID                  int                 `json:"id"`
+	Barcode             string              `json:"barcode"`
+	CostPrice           float64             `json:"cost_price"`
+	SellingPrice        float64             `json:"selling_price"`
+	Quantity            int                 `json:"quantity"`
+	Expiry              time.Time           `json:"expiry" time_format:"2006-01-02"`
+	PriceOptionsChanges []PriceOptionChange `json:"price_options_changes"`
+}
+
+type PriceOptionChange struct {
+	ID              *int    `json:"id"`
+	Name            string  `json:"name"`
+	SellingPrice    float64 `json:"selling_price"`
+	QuantityPerUnit int     `json:"quantity_per_unit"`
 }
 
 type ReceiveSupplyRequest struct {

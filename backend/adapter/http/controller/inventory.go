@@ -58,9 +58,15 @@ func (c *inventoryController) GetReceiveItems(w http.ResponseWriter, r *http.Req
 	}
 
 	data := struct {
-		Categories []types.CategoriesResponse
+		Categories    []types.CategoriesResponse
+		Title         string
+		ActivePage    string
+		SubActivePage string
 	}{
-		Categories: categories,
+		Categories:    categories,
+		Title:         "Receive Items",
+		ActivePage:    "inventory",
+		SubActivePage: "receive-items",
 	}
 
 	err = c.template.ExecuteTemplate(w, "receive-items.html", data)
@@ -158,13 +164,19 @@ func (c *inventoryController) RenderInventoryPage(w http.ResponseWriter, r *http
 		perms = make(map[string]bool)
 	}
 	data := struct {
-		Categories  []model.Category
-		Items       []model.InventoryItem
-		Permissions map[string]bool
+		Categories    []model.Category
+		Items         []model.InventoryItem
+		Permissions   map[string]bool
+		Title         string
+		ActivePage    string
+		SubActivePage string
 	}{
-		Categories:  inventory.Categories,
-		Items:       inventory.Items,
-		Permissions: perms,
+		Categories:    inventory.Categories,
+		Items:         inventory.Items,
+		Permissions:   perms,
+		Title:         "Inventory",
+		ActivePage:    "inventory",
+		SubActivePage: "item-list",
 	}
 
 	err = c.template.ExecuteTemplate(w, "inventory.html", data)

@@ -123,7 +123,9 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 func (c *userController) GetRegisterPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	err := c.template.ExecuteTemplate(w, "register.html", map[string]any{
-		"CSRFField": csrf.TemplateField(r),
+		"Title":      "Register",
+		"ActivePage": "",
+		"CSRFField":  csrf.TemplateField(r),
 	})
 	if err != nil {
 		http.Error(w, "render error", http.StatusInternalServerError)
