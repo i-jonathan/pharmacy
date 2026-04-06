@@ -79,12 +79,24 @@ type StockTakingRepository interface {
 	ListAllStockTakings(ctx context.Context) ([]model.StockTaking, error)
 }
 
+type DashboardRepository interface {
+	GetTotalSales(ctx context.Context, startDate, endDate time.Time) (int, error)
+	GetTransactionCount(ctx context.Context, startDate, endDate time.Time) (int, error)
+	GetTotalInventoryItems(ctx context.Context) (int, error)
+	GetLowStockCount(ctx context.Context) (int, error)
+	GetLowStockItems(ctx context.Context) ([]model.LowStockItem, error)
+	GetSalesByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.SalesByCategory, error)
+	GetExpiringItems(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiringItem, error)
+}
+
 type PharmacyRepository interface {
 	BeginTx(ctx context.Context) (*sqlx.Tx, error)
 	CommitTx(tx *sqlx.Tx) error
 	RollbackTx(tx *sqlx.Tx)
+	GetSalesByTime(ctx context.Context, startTime, endTime time.Time) ([]model.Sale, error)
 	UserRepository
 	InventoryRepository
 	SaleRepository
 	StockTakingRepository
+	DashboardRepository
 }
