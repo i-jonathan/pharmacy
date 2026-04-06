@@ -153,6 +153,7 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 
 	var updatePriceData []map[string]any
 	productBatch := make([]model.ProductBatch, len(params.Products))
+
 	for i, value := range params.Products {
 		priceID, err := s.repo.FetchDefaultPriceID(ctx, value.ID)
 		if err != nil {
@@ -173,6 +174,30 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 			"cost_price":    int(value.CostPrice * 100),
 			"selling_price": int(value.SellingPrice * 100),
 		})
+
+		// Handle price options changes
+		for _, priceChange := range value.PriceOptionsChanges {
+			if priceChange.ID == nil {
+				// Create new price option
+				_, err = s.repo.CreateProductPriceTx(ctx, tx, model.ProductPrice{
+					ProductID:        value.ID,
+					Name:             priceChange.Name,
+					SellingPriceKobo: int(priceChange.SellingPrice * 100),
+					QuantityPerUnit:  priceChange.QuantityPerUnit,
+				})
+			} else {
+				// Update existing price option
+				err = s.repo.UpdateProductPriceByIDTx(ctx, tx, *priceChange.ID, model.ProductPrice{
+					Name:             priceChange.Name,
+					SellingPriceKobo: int(priceChange.SellingPrice * 100),
+					QuantityPerUnit:  priceChange.QuantityPerUnit,
+				})
+			}
+			if err != nil {
+				log.Println(err)
+				return httperror.ServerError("Failed to process price option change", err)
+			}
+		}
 	}
 
 	err = s.repo.BulkUpdateProductPricesTx(ctx, tx, updatePriceData)
@@ -208,6 +233,7 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		log.Println(err)
 		return httperror.ServerError("Failed to commit receiving products transaction", err)
 	}
+
 	return nil
 }
 
