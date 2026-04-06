@@ -70,6 +70,10 @@ func main() {
 	userRouter := router.InitUserRouter(userService, tmpl)
 	r.Handle("/user/", userRouter)
 
+	dashboardService := service.NewDashboardService(store)
+	dashboardRouter := router.InitDashboardRouter(dashboardService)
+	r.Handle("/api/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(dashboardRouter)))
+
 	appRouter := router.InitAppRouter(tmpl)
 	r.Handle("/app/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(appRouter)))
 

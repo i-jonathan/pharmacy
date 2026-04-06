@@ -11,6 +11,7 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
+        dashboard: "./src/main.js",
         stockCounting: "./src/stock-taking/counting/main.js",
         stockDashboard: "./src/stock-taking/dashboard/main.js",
       },
@@ -19,6 +20,14 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"), // <-- this makes @/ point to src/
+    },
+  },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
 });
