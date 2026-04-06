@@ -39,3 +39,7 @@ type StockTakingService interface {
 	CompleteStockTaking(ctx context.Context, stockTakingID, userID int) error
 	ListAllStockTakings(ctx context.Context) ([]types.StockTakingListItem, error)
 }
+
+type DashboardService interface {
+	GetDashboardData(ctx context.Context) (*types.DashboardResponse, error)
+}
