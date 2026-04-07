@@ -207,188 +207,19 @@
                 </button>
 
                 <!-- Restore button -->
-
-            <!-- Table -->
-            <div class="overflow-x-auto">
-                <table
-                    class="min-w-full bg-white dark:bg-gray-800 text-sm"
-                    id="held-receipts-table"
-                    aria-label="Held receipts table"
-                >
-                    <thead class="bg-gray-100 dark:bg-gray-700 text-left">
-                        <tr
-                            class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300"
-                        >
-                            <th class="px-4 py-3">Receipt #</th>
-                            <th class="px-4 py-3">Date</th>
-                            <th class="px-4 py-3">Items</th>
-                            <th class="px-4 py-3">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody
-                        id="held-receipts-body"
-                        class="divide-y dark:divide-gray-700"
-                    ></tbody>
-                </table>
-            </div>
-        </main>
-
-        <!-- Side Panel (non-blocking) -->
-        <aside
-            id="sale-panel"
-            class="panel fixed right-0 top-0 h-full w-full md:w-1/2 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-xl z-40 overflow-y-auto"
-        >
-            <div class="p-6 relative">
                 <button
-                    class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-                    id="close-panel"
-                    aria-label="Close details"
+                    id="restore-btn"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2 rounded-lg"
+                    onclick="restoreHeldSale()"
                 >
-                    ✕
+                    Restore Sale
                 </button>
-
-                <h2
-                    class="text-xl font-bold text-emerald-600 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-700 pb-2"
-                >
-                    Sale Details
-                </h2>
-                <p
-                    id="sale-meta"
-                    class="text-sm text-gray-500 dark:text-gray-400 mb-4 mt-2"
-                >
-                    Select a sale to view details.
-                </p>
-
-                <!-- Items -->
-                <section class="mb-6">
-                    <h3
-                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
-                    >
-                        Items in Sale
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table
-                            class="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
-                        >
-                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th
-                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                                    >
-                                        Item
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                                    >
-                                        Qty
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                                    >
-                                        Unit Price
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
-                                    >
-                                        Line Total
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody
-                                id="items-body"
-                                class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
-                            >
-                                <!-- rows get inserted here -->
-                            </tbody>
-                            <tfoot
-                                class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
-                            >
-                                <tr>
-                                    <td
-                                        class="px-3 py-3 text-gray-700 dark:text-gray-200"
-                                        colspan="3"
-                                    >
-                                        Sale Total
-                                    </td>
-                                    <td
-                                        id="sale-total"
-                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
-                                    >
-                                        ₦0
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- Payments -->
-                <section>
-                    <h3
-                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
-                    >
-                        Payment Methods
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table
-                            class="min-w-full text-sm border dark:border-gray-700"
-                        >
-                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th class="px-3 py-2 text-left">Method</th>
-                                    <th class="px-3 py-2 text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody
-                                id="payments-body"
-                                class="divide-y dark:divide-gray-700"
-                            ></tbody>
-                            <tfoot
-                                class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
-                            >
-                                <tr>
-                                    <td class="px-3 py-2 font-semibold">
-                                        Total Paid
-                                    </td>
-                                    <td
-                                        id="total-paid"
-                                        class="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400"
-                                    >
-                                        ₦0
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </section>
-
-                <div
-                    class="mt-6 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-4"
-                >
-                    <!-- Delete button -->
-                    <button
-                        id="delete-held-btn"
-                        class="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white font-medium px-5 py-2 rounded-lg flex items-center gap-2"
-                        onclick="deleteHeldSale()"
-                    >
-                        Delete Held Sale
-                    </button>
-
-                    <!-- Restore button -->
-                    <button
-                        id="restore-btn"
-                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2 rounded-lg"
-                        onclick="restoreHeldSale()"
-                    >
-                        Restore Sale
-                    </button>
-                </div>
             </div>
         </aside>
 
     <!-- Scripts -->
     <script>
-        heldSales = {{ .HeldTransactions }};
+        window.heldSales = {{ .HeldTransactions }};
     </script>
     <script src="/static/js/theme.js"></script>
     <script src="/static/js/toast.js"></script>
