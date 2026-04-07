@@ -81,6 +81,7 @@ func (r *repo) GetLowStockItems(ctx context.Context) ([]model.LowStockItem, erro
 		SELECT
 			p.id as product_id,
 			p.name as product_name,
+			p.manufacturer as manufacturer,
 			iv.stock as current_stock,
 			iv.reorder_level as reorder_level
 		FROM inventory_view iv

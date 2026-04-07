@@ -185,6 +185,7 @@ func convertLowStockItems(items []model.LowStockItem) []types.LowStockItemData {
 		result = append(result, types.LowStockItemData{
 			ID:           item.ProductID,
 			ProductName:  item.ProductName,
+			Manufacturer: item.Manufacturer,
 			CurrentStock: item.CurrentStock,
 			ReorderLevel: item.ReorderLevel,
 		})

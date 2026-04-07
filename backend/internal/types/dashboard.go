@@ -44,8 +44,9 @@ type ExpiringItemData struct {
 }
 
 type LowStockItemData struct {
-	ID           int    `json:"id"`
 	ProductName  string `json:"product_name"`
+	Manufacturer string `json:"manufacturer"`
+	ID           int    `json:"id"`
 	CurrentStock int    `json:"current_stock"`
 	ReorderLevel int    `json:"reorder_level"`
 }

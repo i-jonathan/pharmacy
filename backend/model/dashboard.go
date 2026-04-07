@@ -17,8 +17,9 @@ type ExpiringItem struct {
 }
 
 type LowStockItem struct {
-	ProductID    int    `json:"product_id" db:"product_id"`
 	ProductName  string `json:"product_name" db:"product_name"`
+	Manufacturer string `json:"manufacturer" db:"manufacturer"`
+	ProductID    int    `json:"product_id" db:"product_id"`
 	CurrentStock int    `json:"current_stock" db:"current_stock"`
 	ReorderLevel int    `json:"reorder_level" db:"reorder_level"`
 }
