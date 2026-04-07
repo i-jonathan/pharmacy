@@ -131,9 +131,10 @@ func (r *repo) GetExpiringItems(ctx context.Context, startDate, endDate time.Tim
 			(p.current_expiry - CURRENT_DATE)::integer as days_until_expiry
 		FROM product p
 		LEFT JOIN inventory_view iv ON p.id = iv.id
-		WHERE p.current_expiry IS NOT NULL 
-		  AND p.current_expiry >= CURRENT_DATE 
+		WHERE p.current_expiry IS NOT NULL
+		  AND p.current_expiry >= CURRENT_DATE
 		  AND p.current_expiry <= CURRENT_DATE + INTERVAL '90 days'
+		  AND iv.stock > 0
 		ORDER BY days_until_expiry ASC, p.current_expiry ASC
 	`
 
