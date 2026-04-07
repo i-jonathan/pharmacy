@@ -126,15 +126,15 @@ func (r *repo) GetExpiringItems(ctx context.Context, startDate, endDate time.Tim
 		SELECT
 			p.id as product_id,
 			p.name as product_name,
-			COALESCE(SUM(pb.quantity), 0) as quantity,
-			pb.cost_price as cost_price,
-			pb.expiry_date as expiry_date,
-			(pb.expiry_date - CURRENT_DATE)::integer as days_until_expiry
-		FROM product_batch pb
-		JOIN product p ON pb.product_id = p.id
-		WHERE pb.expiry_date >= CURRENT_DATE AND pb.expiry_date <= CURRENT_DATE + INTERVAL '90 days'
-		GROUP BY p.id, p.name, pb.cost_price, pb.expiry_date
-		ORDER BY days_until_expiry ASC, pb.expiry_date ASC
+			COALESCE(iv.stock, 0) as quantity,
+			p.current_expiry as expiry_date,
+			(p.current_expiry - CURRENT_DATE)::integer as days_until_expiry
+		FROM product p
+		LEFT JOIN inventory_view iv ON p.id = iv.id
+		WHERE p.current_expiry IS NOT NULL 
+		  AND p.current_expiry >= CURRENT_DATE 
+		  AND p.current_expiry <= CURRENT_DATE + INTERVAL '90 days'
+		ORDER BY days_until_expiry ASC, p.current_expiry ASC
 	`
 
 	var expiringItems []model.ExpiringItem
