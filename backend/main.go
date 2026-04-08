@@ -11,6 +11,7 @@ import (
 	"os"
 	"pharmacy/adapter/http/middleware"
 	"pharmacy/adapter/http/router"
+	"pharmacy/adapter/websocket"
 	"pharmacy/config"
 	"pharmacy/httperror"
 	"pharmacy/repository"
@@ -85,8 +86,11 @@ func main() {
 	saleRouter := router.InitSalesRouter(saleService, tmpl)
 	r.Handle("/sales/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(saleRouter)))
 
+	// Initialize WebSocket hub
+	wsHub := websocket.StartHub()
+
 	stockTakingService := service.NewStockTakingService(store)
-	stockTakingRouter := router.InitStockTakingRouter(stockTakingService, tmpl)
+	stockTakingRouter := router.InitStockTakingRouter(stockTakingService, tmpl, wsHub)
 	r.Handle("/stock-taking/", middleware.AuthMiddleware(stockTakingRouter))
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -102,9 +106,25 @@ func main() {
 		middleware.Logging,
 	)
 
+	// Create a new router for WebSocket endpoint that bypasses middleware
+	wsRouter := http.NewServeMux()
+	wsRouter.HandleFunc("/ws", wsHub.HandleWebSocket)
+
+	// Apply middleware to main router
+	mainHandler := middlewareStack(r)
+
+	// Combine main router (with middleware) and WebSocket router (without middleware)
+	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ws" {
+			wsRouter.ServeHTTP(w, r)
+		} else {
+			mainHandler.ServeHTTP(w, r)
+		}
+	})
+
 	server := http.Server{
 		Addr:    "0.0.0.0:8000",
-		Handler: middlewareStack(r),
+		Handler: finalHandler,
 	}
 	log.Println("Listening on port 8000...")
 	server.ListenAndServe()
