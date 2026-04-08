@@ -37,6 +37,7 @@ type InventoryRepository interface {
 	BulkCreateStockMovementTx(ctx context.Context, tx *sqlx.Tx, stockMovements []model.StockMovement) error
 	BulkUpdateProductPricesTx(ctx context.Context, tx *sqlx.Tx, updateValues []map[string]any) error
 	BulkFetchProductByIDsTx(ctx context.Context, tx *sqlx.Tx, productIDs []int) ([]model.Product, error)
+	UpdateProductCurrentExpiryAfterReceiving(ctx context.Context, productID int, expiryDate time.Time) error
 	FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, error)
 	FetchPriceByID(ctx context.Context, priceID int) (model.ProductPrice, error)
 	FetchProductByIDWithPrices(ctx context.Context, id int) (model.Product, error)
