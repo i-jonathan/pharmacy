@@ -10,6 +10,7 @@ type StockTakingItemData struct {
 	StoreCount        *int       `db:"store_count" json:"store_count"`
 	ProductName       string     `db:"product_name" json:"product_name"`
 	Manufacturer      string     `db:"manufacturer" json:"manufacturer"`
+	Category          string     `db:"category" json:"category"`
 	Notes             *string    `db:"notes" json:"notes"`
 	LastUpdatedBy     *string    `db:"last_updated_by" json:"last_updated_by"`
 	EarliestExpiry    *time.Time `db:"earliest_expiry" json:"earliest_expiry"`

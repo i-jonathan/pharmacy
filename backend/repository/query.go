@@ -258,6 +258,7 @@ const getStockTakingItemsQuery = `
 	    sti.id AS stock_taking_item_id,
 	    p.name AS product_name,
 	    p.manufacturer,
+	    c.name AS category,
 	    COALESCE(sti.snapshot_quantity,
 	        COALESCE(SUM(
 	            CASE
@@ -275,6 +276,7 @@ const getStockTakingItemsQuery = `
 	    u.username AS last_updated_by,
 	    sti.last_updated_at AS last_updated_at
 	FROM product p
+	LEFT JOIN category c ON p.category_id = c.id
 	LEFT JOIN stock_taking_item sti
 	    ON sti.product_id = p.id
 	   AND sti.stock_taking_id = $1
@@ -289,13 +291,14 @@ const getStockTakingItemsQuery = `
 	    sti.id,
 	    p.name,
 	    p.manufacturer,
+	    c.name,
 	    sti.snapshot_quantity,
 	    sti.dispensary_count,
 	    sti.store_count,
 	    sti.notes,
 	    sti.last_updated_at,
 	    u.username
-	ORDER BY p.name
+	ORDER BY c.name, p.name
 `
 const checkIfActiveStockTaking = `
 	SELECT EXISTS (

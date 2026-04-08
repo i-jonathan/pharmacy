@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"pharmacy/adapter/http/controller"
 	"pharmacy/adapter/http/middleware"
+	"pharmacy/adapter/websocket"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/service"
 )
 
-func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Template) http.Handler {
-	stockTakingController := controller.NewStockTakingController(svc, tmpl)
+func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Template, wsHub *websocket.Hub) http.Handler {
+	stockTakingController := controller.NewStockTakingController(svc, tmpl, wsHub)
 	stockTakingMux := http.NewServeMux()
 
 	stockTakingMux.HandleFunc(http.MethodGet+" /{$}", stockTakingController.RenderStockTakingDashboard)

@@ -136,8 +136,6 @@ export default {
     },
     data() {
         return {
-            dispCount: this.item.dispensary_count,
-            storeCount: this.item.store_count,
             expiry: this.item.earliest_expiry || "",
             notes: this.item.notes || "",
             expiryOptions: this.item.expiry_options || [],
@@ -158,13 +156,25 @@ export default {
             );
         },
     },
+    watch: {
+        item: {
+            handler(newItem) {
+                this.expiry = newItem.earliest_expiry || "";
+                this.notes = newItem.notes || "";
+                this.expiryOptions = newItem.expiry_options || [];
+            },
+            deep: true,
+        },
+    },
     methods: {
         formatMonthYear,
         timeAgo,
         save() {
             const updated = {
                 ...this.item,
-                expiry: this.expiry,
+                dispensary_count: this.item.dispensary_count,
+                store_count: this.item.store_count,
+                earliest_expiry: this.expiry,
                 notes: this.notes,
             };
             this.$emit("update", updated);

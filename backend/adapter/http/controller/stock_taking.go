@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/helper"
+	"pharmacy/adapter/websocket"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
@@ -18,12 +19,14 @@ import (
 type stockTakingController struct {
 	service  service.StockTakingService
 	template *template.Template
+	wsHub    *websocket.Hub
 }
 
-func NewStockTakingController(service service.StockTakingService, tmpl *template.Template) *stockTakingController {
+func NewStockTakingController(service service.StockTakingService, tmpl *template.Template, wsHub *websocket.Hub) *stockTakingController {
 	return &stockTakingController{
 		service:  service,
 		template: tmpl,
+		wsHub:    wsHub,
 	}
 }
 
@@ -247,6 +250,17 @@ func (c *stockTakingController) UpdateStockTakingItemCount(w http.ResponseWriter
 		return
 	}
 
+	// Broadcast the updated item to WebSocket clients
+	items, err := c.service.FetchStockTakingItems(r.Context(), id)
+	if err == nil {
+		for _, item := range items {
+			if item.ProductID == productID {
+				c.wsHub.BroadcastStockItemUpdate(id, item)
+				break
+			}
+		}
+	}
+
 	helper.JSONResponse(w, http.StatusOK, map[string]any{
 		"status": "Updated",
 	})
@@ -283,6 +297,9 @@ func (c *stockTakingController) CompleteStockTaking(w http.ResponseWriter, r *ht
 		httperror.ServerError("failed to update stock taking item count", err)
 		return
 	}
+
+	// Broadcast stock taking completion to WebSocket clients
+	c.wsHub.BroadcastStockTakingComplete(stockID)
 
 	helper.JSONResponse(w, http.StatusOK, map[string]any{
 		"status": model.StockTakingCompleted,
