@@ -88,6 +88,7 @@ export default {
             stockTakingID: 0,
             showQuantityAndVariance: false,
             completeStockPermission: false,
+            websocket: null,
         };
     },
     computed: {
@@ -132,13 +133,11 @@ export default {
         this.completeStockPermission = permissions["stock:complete"];
 
         if (!this.isCompleted) {
-            this.pollInterval = setInterval(() => {
-                this.pollStockTakingItems();
-            }, 5000);
+            this.initWebSocket();
         }
     },
     beforeUnmount() {
-        clearInterval(this.pollInterval);
+        this.closeWebSocket();
     },
     methods: {
         formatDate,
@@ -181,7 +180,21 @@ export default {
             }
         }, 1000),
         filterVariances() {
-            alert("filtering variances unimplemented");
+            const itemsWithVariance = this.items.filter(
+                (i) => {
+                    const variance = (i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0);
+                    return variance !== 0;
+                }
+            );
+            
+            if (itemsWithVariance.length === 0) {
+                alert("No items with variance found");
+                return;
+            }
+            
+            // For now, just show the count. In a real implementation, you might want to
+            // filter the displayed table or navigate to a filtered view
+            alert(`Found ${itemsWithVariance.length} items with variance`);
         },
         async completeStockTaking() {
             try {
@@ -206,29 +219,59 @@ export default {
                 alert("Error completing stock taking");
             }
         },
-        async pollStockTakingItems() {
-            try {
-                const res = await fetch(
-                    `/stock-taking/api/${this.stockTakingID}/items`,
-                );
-                if (!res.ok) return;
-
-                const data = await res.json();
-
-                data.items.forEach((serverItem) => {
-                    const localItem = this.items.find(
-                        (i) => i.product_id === serverItem.product_id,
-                    );
-
-                    // If user is editing this row, skip it
-                    if (localItem && localItem.isEditing) return;
-
-                    if (localItem) {
-                        Object.assign(localItem, serverItem);
+        initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws?stockTakingId=${this.stockTakingID}`;
+            
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                console.log('WebSocket connected');
+            };
+            
+            this.websocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                this.handleWebSocketMessage(message);
+            };
+            
+            this.websocket.onclose = () => {
+                console.log('WebSocket disconnected');
+                // Attempt to reconnect after 3 seconds
+                setTimeout(() => {
+                    if (!this.isCompleted) {
+                        this.initWebSocket();
                     }
-                });
-            } catch (err) {
-                console.error("Polling failed", err);
+                }, 3000);
+            };
+            
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        },
+        
+        closeWebSocket() {
+            if (this.websocket) {
+                this.websocket.close();
+                this.websocket = null;
+            }
+        },
+        
+        handleWebSocketMessage(message) {
+            if (message.type === 'stock_item_update') {
+                const serverItem = message.data;
+                const localItem = this.items.find(
+                    (i) => i.product_id === serverItem.product_id,
+                );
+
+                // If user is editing this row, skip it
+                if (localItem && localItem.isEditing) return;
+
+                if (localItem) {
+                    Object.assign(localItem, serverItem);
+                }
+            } else if (message.type === 'stock_taking_complete') {
+                // Refresh the page data to show completion status
+                window.location.reload();
             }
         },
     },
