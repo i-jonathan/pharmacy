@@ -34,10 +34,31 @@ export function timeAgo(isoString) {
   if (!isoString) return "Never";
 
   const now = new Date();
-  const past = new Date(isoString);
+  let past;
+  
+  // Handle various timestamp formats
+  try {
+    past = new Date(isoString);
+  } catch (e) {
+    console.error("Invalid date format:", isoString, e);
+    return "Invalid date";
+  }
+
+  // Check if date parsing failed
+  if (isNaN(past.getTime())) {
+    console.error("Failed to parse date:", isoString);
+    return "Invalid date";
+  }
+
   const diff = now - past; // difference in milliseconds
 
+  // If diff is negative, date is in the future
+  if (diff < 0) {
+    return "Just now";
+  }
+
   const seconds = Math.floor(diff / 1000);
+  if (seconds < 30) return "Just now";
   if (seconds < 60) return `${seconds}s ago`;
 
   const minutes = Math.floor(seconds / 60);
@@ -50,7 +71,7 @@ export function timeAgo(isoString) {
   if (days < 30) return `${days}d ago`;
 
   // Otherwise show a date like "Jan 25"
-  return updatedDate.toLocaleDateString(undefined, {
+  return past.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });
