@@ -41,6 +41,70 @@
             </div>
         </div>
 
+        <!-- Mobile Search Bar (full width above table) -->
+        <div class="md:hidden">
+            <div class="relative">
+                <input
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="Search items..."
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
+                />
+                <svg
+                    class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Desktop Search Bar (in header) -->
+        <div class="hidden md:flex md:justify-start">
+            <div class="relative w-full max-w-md">
+                <input
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="Search items..."
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
+                />
+                <svg
+                    class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Filter Results Indicator -->
+        <div
+            v-if="isFiltering"
+            class="text-sm text-gray-600 dark:text-gray-400 mb-4"
+        >
+            Showing {{ filteredItemsCount }} of {{ items.length }} items
+            <span v-if="searchQueryDebounced.trim()">
+                for "{{ searchQueryDebounced }}"
+            </span>
+            <span v-if="filterVariancesOnly">
+                with variance
+            </span>
+        </div>
+
         <!-- Stock Table -->
         <StockTable
             :items="filteredItems"
@@ -93,6 +157,9 @@ export default {
             completeStockPermission: false,
             websocket: null,
             filterVariancesOnly: false,
+            searchQuery: "",
+            searchQueryDebounced: "",
+            searchIndex: new Map(), // Maps search terms to item indices
         };
     },
     computed: {
@@ -117,16 +184,44 @@ export default {
             return this.status === "Completed";
         },
         filteredItems() {
-            if (!this.filterVariancesOnly) {
-                return this.items;
+            let items = this.items;
+            
+            // Apply search filter first (using indexed search for performance)
+            if (this.searchQueryDebounced.trim()) {
+                items = this.searchWithIndex(this.searchQueryDebounced);
             }
             
-            return this.items.filter(
-                (i) => {
-                    const variance = (i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0);
-                    return variance !== 0;
-                }
-            );
+            // Apply variance filter to search results
+            if (this.filterVariancesOnly) {
+                items = items.filter(
+                    (i) => {
+                        const variance = (i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0);
+                        return variance !== 0;
+                    }
+                );
+            }
+            
+            return items;
+        },
+        filteredItemsCount() {
+            return this.filteredItems.length;
+        },
+        isFiltering() {
+            return this.filterVariancesOnly || this.searchQueryDebounced.trim() !== '';
+        },
+    },
+    watch: {
+        searchQuery: {
+            handler: debounce(function(newQuery) {
+                this.searchQueryDebounced = newQuery;
+            }, 300),
+            immediate: true,
+        },
+        items: {
+            handler() {
+                this.buildSearchIndex();
+            },
+            deep: true,
         },
     },
     async mounted() {
@@ -144,6 +239,9 @@ export default {
 
         this.items = data.items;
 
+        // Build search index after items are loaded
+        this.buildSearchIndex();
+
         const permissions = data.permissions || {};
         this.showQuantityAndVariance = permissions["stock:view"];
         this.completeStockPermission = permissions["stock:complete"];
@@ -157,6 +255,72 @@ export default {
     },
     methods: {
         formatDate,
+        buildSearchIndex() {
+            this.searchIndex.clear();
+            
+            this.items.forEach((item, index) => {
+                // Index product name
+                const productName = item.product_name.toLowerCase();
+                this.indexTerms(productName, index);
+                
+                // Index manufacturer
+                const manufacturer = item.manufacturer.toLowerCase();
+                this.indexTerms(manufacturer, index);
+            });
+        },
+        indexTerms(text, itemIndex) {
+            // Split text into words and index each word and its prefixes
+            const words = text.split(/\s+/);
+            
+            words.forEach(word => {
+                // Index the full word
+                if (!this.searchIndex.has(word)) {
+                    this.searchIndex.set(word, new Set());
+                }
+                this.searchIndex.get(word).add(itemIndex);
+                
+                // Index all prefixes for autocomplete-like functionality
+                for (let i = 1; i <= word.length; i++) {
+                    const prefix = word.substring(0, i);
+                    if (!this.searchIndex.has(prefix)) {
+                        this.searchIndex.set(prefix, new Set());
+                    }
+                    this.searchIndex.get(prefix).add(itemIndex);
+                }
+            });
+        },
+        searchWithIndex(query) {
+            if (!query.trim()) {
+                return this.items;
+            }
+            
+            const searchTerms = query.toLowerCase().trim().split(/\s+/);
+            const resultSets = [];
+            
+            searchTerms.forEach(term => {
+                if (this.searchIndex.has(term)) {
+                    resultSets.push(this.searchIndex.get(term));
+                }
+            });
+            
+            // If no terms found in index, return empty array
+            if (resultSets.length === 0) {
+                return [];
+            }
+            
+            // Find intersection of all result sets (items that match all terms)
+            const intersection = new Set(resultSets[0]);
+            for (let i = 1; i < resultSets.length; i++) {
+                for (const itemIndex of intersection) {
+                    if (!resultSets[i].has(itemIndex)) {
+                        intersection.delete(itemIndex);
+                    }
+                }
+            }
+            
+            // Convert indices back to items
+            return Array.from(intersection).map(index => this.items[index]);
+        },
         updateItem: debounce(async function (updatedItem) {
             try {
                 // Prepare the payload
