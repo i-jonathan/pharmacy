@@ -591,6 +591,9 @@
                                 class="text-sm font-medium text-gray-900 dark:text-gray-100"
                             >
                                 {{ item.name }}
+                                <span class="text-gray-600 dark:text-gray-400">
+                                    - {{ item.manufacturer }}</span
+                                >
                             </div>
                             <div
                                 class="text-xs text-gray-600 dark:text-gray-400"
@@ -603,9 +606,7 @@
                             <div
                                 class="text-sm font-bold text-red-600 dark:text-red-400"
                             >
-                                {{
-                                    item.reorderLevel - item.currentStock
-                                }}
+                                {{ item.reorderLevel - item.currentStock }}
                                 needed
                             </div>
                         </div>
@@ -686,21 +687,21 @@ const allWarningItems = computed(() => {
 
 onMounted(() => {
     fetchDashboardData();
-    
+
     // Add Escape key listener to close modals
     const handleEscape = (e) => {
-        if (e.key === 'Escape') {
+        if (e.key === "Escape") {
             showCriticalModal.value = false;
             showWarningModal.value = false;
             showLowStockModal.value = false;
         }
     };
-    
-    document.addEventListener('keydown', handleEscape);
-    
+
+    document.addEventListener("keydown", handleEscape);
+
     // Cleanup on unmount
     return () => {
-        document.removeEventListener('keydown', handleEscape);
+        document.removeEventListener("keydown", handleEscape);
     };
 });
 
@@ -971,6 +972,7 @@ const fetchDashboardData = async () => {
             lowStockItems.value = data.low_stock_items.map((item) => ({
                 id: item.id,
                 name: item.product_name,
+                manufacturer: item.manufacturer,
                 currentStock: item.current_stock,
                 reorderLevel: item.reorder_level,
             }));
@@ -1040,7 +1042,10 @@ const copyExpiringItems = (items, sectionName) => {
 
 const copyLowStockItems = (items) => {
     const itemsText = items
-        .map((item) => `${item.name}, Current Stock: ${item.currentStock}`)
+        .map(
+            (item) =>
+                `${item.name} - ${item.manufacturer}, Current Stock: ${item.currentStock}`,
+        )
         .join("\n");
 
     const header = `Low Stock Items:\n${"=".repeat(50)}\n`;
