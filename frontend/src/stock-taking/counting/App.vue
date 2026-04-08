@@ -160,6 +160,7 @@ export default {
             searchQuery: "",
             searchQueryDebounced: "",
             searchIndex: new Map(), // Maps search terms to item indices
+            groupByCategory: true,
         };
     },
     computed: {
@@ -199,6 +200,39 @@ export default {
                         return variance !== 0;
                     }
                 );
+            }
+            
+            // Add category headers if grouping is enabled
+            if (this.groupByCategory) {
+                const result = [];
+                const groups = {};
+                
+                items.forEach(item => {
+                    const category = item.category || 'Uncategorized';
+                    if (!groups[category]) {
+                        groups[category] = [];
+                    }
+                    groups[category].push(item);
+                });
+                
+                Object.entries(groups).forEach(([category, categoryItems]) => {
+                    const totalVariance = categoryItems.reduce((sum, i) => 
+                        sum + ((i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0)), 0
+                    );
+                    
+                    // Add category header
+                    result.push({
+                        isCategoryHeader: true,
+                        category,
+                        count: categoryItems.length,
+                        totalVariance
+                    });
+                    
+                    // Add items for this category
+                    result.push(...categoryItems);
+                });
+                
+                return result;
             }
             
             return items;
