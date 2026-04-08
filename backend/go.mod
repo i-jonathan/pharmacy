@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	github.com/gorilla/csrf v1.7.3
 	github.com/gorilla/sessions v1.4.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/jmoiron/sqlx v1.4.0
