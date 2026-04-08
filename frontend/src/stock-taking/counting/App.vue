@@ -17,9 +17,12 @@
                 <button
                     v-if="showQuantityAndVariance"
                     class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    :class="{
+                        'bg-gray-800 text-white border-gray-800 dark:bg-white dark:text-gray-800 dark:border-white': filterVariancesOnly
+                    }"
                     @click="filterVariances"
                 >
-                    Filter Variances
+                    {{ filterVariancesOnly ? 'Show All Items' : 'Filter Variances' }}
                 </button>
 
                 <button
@@ -40,7 +43,7 @@
 
         <!-- Stock Table -->
         <StockTable
-            :items="items"
+            :items="filteredItems"
             :show-quantity-and-variance="showQuantityAndVariance"
             :stock-taking-id="stockTakingID"
             :is-completed="isCompleted"
@@ -89,6 +92,7 @@ export default {
             showQuantityAndVariance: false,
             completeStockPermission: false,
             websocket: null,
+            filterVariancesOnly: false,
         };
     },
     computed: {
@@ -111,6 +115,18 @@ export default {
         },
         isCompleted() {
             return this.status === "Completed";
+        },
+        filteredItems() {
+            if (!this.filterVariancesOnly) {
+                return this.items;
+            }
+            
+            return this.items.filter(
+                (i) => {
+                    const variance = (i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0);
+                    return variance !== 0;
+                }
+            );
         },
     },
     async mounted() {
@@ -180,21 +196,15 @@ export default {
             }
         }, 1000),
         filterVariances() {
-            const itemsWithVariance = this.items.filter(
-                (i) => {
-                    const variance = (i.dispensary_count ?? 0) + (i.store_count ?? 0) - (i.snapshot_quantity ?? 0);
-                    return variance !== 0;
+            this.filterVariancesOnly = !this.filterVariancesOnly;
+            
+            if (this.filterVariancesOnly) {
+                const itemsWithVariance = this.filteredItems;
+                if (itemsWithVariance.length === 0) {
+                    alert("No items with variance found");
+                    this.filterVariancesOnly = false;
                 }
-            );
-            
-            if (itemsWithVariance.length === 0) {
-                alert("No items with variance found");
-                return;
             }
-            
-            // For now, just show the count. In a real implementation, you might want to
-            // filter the displayed table or navigate to a filtered view
-            alert(`Found ${itemsWithVariance.length} items with variance`);
         },
         async completeStockTaking() {
             try {
