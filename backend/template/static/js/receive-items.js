@@ -461,9 +461,9 @@ function collectTableData() {
         const nameInput = div.querySelector(".price-name");
         const valueInput = div.querySelector(".price-value");
         const quantityInput = div.querySelector(".quantity-per-unit");
-        const priceId = nameInput.dataset.priceId;
-
+        
         if (nameInput && valueInput && quantityInput) {
+          const priceId = nameInput.dataset.priceId;
           // Validate price option data
           const name = nameInput.value.trim();
           const price = parseFloat(valueInput.value) || 0;
@@ -622,7 +622,7 @@ supplierInput.addEventListener("input", () => {
     return;
   }
 
-  supplierTimeout = setTimeout(supplierSearch(value), 300);
+  supplierTimeout = setTimeout(() => supplierSearch(value), 300);
 });
 
 async function supplierSearch(value) {
