@@ -212,6 +212,14 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		return httperror.ServerError("Failed to create product batch", err)
 	}
 
+	// Update product current expiry dates after receiving new batches
+	for _, item := range params.Products {
+		if err := s.repo.UpdateProductCurrentExpiryAfterReceiving(ctx, item.ID, item.Expiry); err != nil {
+			log.Printf("Failed to update current expiry for product %d: %v", item.ID, err)
+			// Don't fail the transaction for expiry update errors, just log them
+		}
+	}
+
 	stockMovements := make([]model.StockMovement, len(stockData))
 	for i, value := range stockData {
 		stockMovements[i] = model.StockMovement{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"pharmacy/internal/types"
 	"pharmacy/model"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -188,6 +189,11 @@ func (r *repo) UpdateProductPriceByIDTx(ctx context.Context, tx *sqlx.Tx, priceI
 
 func (r *repo) DeleteProductPriceTx(ctx context.Context, tx *sqlx.Tx, priceID int) error {
 	_, err := tx.ExecContext(ctx, deleteProductPriceQuery, priceID)
+	return err
+}
+
+func (r *repo) UpdateProductCurrentExpiryAfterReceiving(ctx context.Context, productID int, expiryDate time.Time) error {
+	_, err := r.Data.ExecContext(ctx, updateProductCurrentExpiryAfterReceiving, productID, expiryDate)
 	return err
 }
 

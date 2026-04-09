@@ -326,6 +326,13 @@ const updateProductCurrentExpiry = `
 	SET current_expiry = $2::date
 	WHERE id = $1;
 `
+
+const updateProductCurrentExpiryAfterReceiving = `
+	UPDATE product 
+	SET current_expiry = $2::date
+	WHERE id = $1 
+	AND ($2::date < current_expiry OR current_expiry IS NULL);
+`
 const completeStockTakingQuery = `
 	UPDATE stock_taking
 	SET status = $2, completed_at = $3, completed_by_id = $4
