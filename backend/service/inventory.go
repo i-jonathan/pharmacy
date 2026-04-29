@@ -9,6 +9,7 @@ import (
 	"pharmacy/model"
 	"pharmacy/repository"
 	"strings"
+	"time"
 )
 
 type inventoryService struct {
@@ -134,32 +135,45 @@ func (s *inventoryService) SearchForSuppliers(ctx context.Context, query string)
 }
 
 func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error {
+	log.Printf("Starting receive items process for %d products", len(params.Products))
+
+	// Start timing
+	start := time.Now()
+	defer func() {
+		log.Printf("Receive items process completed in %v", time.Since(start))
+	}()
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to start transaction", err)
 	}
+	log.Printf("Transaction started successfully")
 
 	receivingBatch := model.ReceivingBatch{
 		SupplierName: params.Supplier,
 		ReceviedByID: params.UserID,
 	}
+	log.Printf("Created receiving batch: %+v", receivingBatch)
 
 	receivingBatchID, err := s.repo.CreateReceivingBatchTx(ctx, tx, receivingBatch)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to create receiving batch transaction", err)
 	}
+	log.Printf("Receiving batch created with ID: %d", receivingBatchID)
 
 	var updatePriceData []map[string]any
 	productBatch := make([]model.ProductBatch, len(params.Products))
 
 	for i, value := range params.Products {
+		log.Printf("Processing product %d/%d: ID=%d", i+1, len(params.Products), value.ID)
 		priceID, err := s.repo.FetchDefaultPriceID(ctx, value.ID)
 		if err != nil {
-			log.Println(err)
+			log.Printf("Error: %v; priceID", err)
 			return httperror.ServerError("Failed to fetch default price id", err)
 		}
+		log.Printf("Fetched price ID %d for product ID %d", priceID, value.ID)
 
 		productBatch[i] = model.ProductBatch{
 			ProductID:        value.ID,
@@ -206,20 +220,15 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		return httperror.ServerError("Failed to update product prices", err)
 	}
 
+	log.Printf("Creating %d product batches", len(productBatch))
 	stockData, err := s.repo.BulkCreateProductBatchTx(ctx, tx, productBatch)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("Failed to create product batch", err)
 	}
+	log.Printf("Product batches created successfully")
 
-	// Update product current expiry dates after receiving new batches
-	for _, item := range params.Products {
-		if err := s.repo.UpdateProductCurrentExpiryAfterReceiving(ctx, item.ID, item.Expiry); err != nil {
-			log.Printf("Failed to update current expiry for product %d: %v", item.ID, err)
-			// Don't fail the transaction for expiry update errors, just log them
-		}
-	}
-
+	log.Printf("Creating %d stock movements", len(stockData))
 	stockMovements := make([]model.StockMovement, len(stockData))
 	for i, value := range stockData {
 		stockMovements[i] = model.StockMovement{
@@ -230,16 +239,28 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		}
 	}
 
+	log.Printf("Creating stock movements in database")
 	err = s.repo.BulkCreateStockMovementTx(ctx, tx, stockMovements)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("Failed to bulk create stock movement", err)
 	}
+	log.Printf("Stock movements created successfully")
 
+	log.Printf("Committing transaction with %d expiry updates", len(updatePriceData))
 	err = s.repo.CommitTx(tx)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("Failed to commit receiving products transaction", err)
+		return httperror.ServerError("Failed to commit transaction", err)
+	}
+	log.Printf("Transaction committed successfully")
+
+	// Update product current expiry dates AFTER successful transaction commit
+	for _, item := range params.Products {
+		if err := s.repo.UpdateProductCurrentExpiryAfterReceiving(ctx, item.ID, item.Expiry); err != nil {
+			log.Printf("Failed to update current expiry for product %d: %v", item.ID, err)
+			// Don't fail the overall operation, just log the error
+		}
 	}
 
 	return nil
