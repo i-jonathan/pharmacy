@@ -50,7 +50,7 @@ func main() {
 	}
 	defer file.Close()
 
-	// log.SetOutput(file)
+	log.SetOutput(file)
 
 	parseTemplates()
 	loadManifest()
