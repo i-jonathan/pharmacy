@@ -8,12 +8,13 @@ import (
 
 type Sale struct {
 	baseModel
-	ReceiptNumber string `db:"receipt_number"`
-	Status        string `db:"status"`
-	CashierID     int    `db:"cashier_id"`
-	Subtotal      int    `db:"subtotal"`
-	Discount      int    `db:"discount"`
-	Total         int    `db:"total"`
+	ReceiptNumber  string  `db:"receipt_number"`
+	Status         string  `db:"status"`
+	CashierID      int     `db:"cashier_id"`
+	Subtotal       int     `db:"subtotal"`
+	Discount       int     `db:"discount"`
+	Total          int     `db:"total"`
+	IdempotencyKey *string `db:"idempotency_key"`
 
 	SaleItems []SaleItem
 	Payments  []SalePayment

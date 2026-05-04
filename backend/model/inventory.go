@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 )
- 
+
 type MovementType string
 
 const (
@@ -53,10 +53,11 @@ type ProductPrice struct {
 
 type ReceivingBatch struct {
 	baseModel
-	SupplierName string  `db:"supplier_name"`
-	ReceviedByID int     `db:"received_by_id"`
-	Note         *string `db:"note"`
-	ReceivedBy   User    `db:"user"`
+	SupplierName   string  `db:"supplier_name"`
+	ReceviedByID   int     `db:"received_by_id"`
+	Note           *string `db:"note"`
+	IdempotencyKey *string `db:"idempotency_key"`
+	ReceivedBy     User    `db:"user"`
 }
 
 type ProductBatch struct {

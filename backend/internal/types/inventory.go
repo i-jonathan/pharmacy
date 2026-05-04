@@ -70,6 +70,7 @@ type PriceOptionChange struct {
 type ReceiveSupplyRequest struct {
 	Supplier               string        `json:"supplier"`
 	HeldReceivingReference string        `json:"held_receiving_reference"`
+	IdempotencyKey         string        `json:"idempotency_key"`
 	Products               []ReceiveItem `json:"products"`
 	UserID                 int
 }
