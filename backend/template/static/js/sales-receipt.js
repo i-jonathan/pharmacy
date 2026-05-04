@@ -1,6 +1,7 @@
 let cart = [];
 let payments = {};
 let holdReference = "";
+let saleIdempotencyKey = createIdempotencyKey();
 let selectedPaymentMethod = "";
 let searchTimeout;
 
@@ -600,6 +601,7 @@ async function saveSale(printAfterSave = false) {
       cart = [];
       payments = {};
       holdReference = "";
+      saleIdempotencyKey = createIdempotencyKey();
       renderCart();
       validateSale();
       // window.location.reload();
@@ -688,6 +690,7 @@ async function holdSale() {
       payload: {
         cart,
         payments,
+        sale_idempotency_key: saleIdempotencyKey,
       },
     };
 
@@ -712,6 +715,7 @@ async function holdSale() {
     cart = [];
     payments = {};
     holdReference = "";
+    saleIdempotencyKey = createIdempotencyKey();
 
     renderCart();
 
@@ -777,6 +781,7 @@ function buildSalePayload(cart, payments) {
 
   return {
     held_sale_reference: holdReference,
+    idempotency_key: saleIdempotencyKey,
     subtotal: toNaira(subtotal).toNumber(),
     discount: toNaira(discount).toNumber(),
     total: toNaira(total).toNumber(),
@@ -866,6 +871,8 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     const data = JSON.parse(heldData);
     holdReference = data.reference;
+    saleIdempotencyKey =
+      data.payload.sale_idempotency_key || createIdempotencyKey();
 
     if (data.payload.cart && Array.isArray(data.payload.cart)) {
       cart = (data.payload.cart || []).map((i) => ({
