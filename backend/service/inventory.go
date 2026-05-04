@@ -150,11 +150,22 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		log.Println(err)
 		return httperror.ServerError("failed to start transaction", err)
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.repo.RollbackTx(tx)
+		}
+	}()
 	log.Printf("Transaction started successfully")
 
+	idempotencyKey := strings.TrimSpace(params.IdempotencyKey)
 	receivingBatch := model.ReceivingBatch{
-		SupplierName: params.Supplier,
-		ReceviedByID: params.UserID,
+		SupplierName:   params.Supplier,
+		ReceviedByID:   params.UserID,
+		IdempotencyKey: nil,
+	}
+	if idempotencyKey != "" {
+		receivingBatch.IdempotencyKey = &idempotencyKey
 	}
 	log.Printf("Created receiving batch: %+v", receivingBatch)
 
@@ -162,6 +173,10 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to create receiving batch transaction", err)
+	}
+	if receivingBatchID == 0 {
+		log.Printf("duplicate receiving idempotency key ignored: %s", idempotencyKey)
+		return nil
 	}
 	log.Printf("Receiving batch created with ID: %d", receivingBatchID)
 
@@ -263,6 +278,7 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		log.Println(err)
 		return httperror.ServerError("Failed to commit transaction", err)
 	}
+	committed = true
 	log.Printf("Transaction committed successfully")
 
 	// Update product current expiry dates AFTER successful transaction commit

@@ -10,6 +10,7 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/repository"
+	"strings"
 	"time"
 )
 
@@ -27,13 +28,25 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 		log.Println(err)
 		return httperror.ServerError("could not begin transcation", err)
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.repo.RollbackTx(tx)
+		}
+	}()
+
+	idempotencyKey := strings.TrimSpace(saleParams.IdempotencyKey)
 
 	sale := model.Sale{
-		Status:    constant.CompleteSaleStatus,
-		CashierID: saleParams.CashierID,
-		Discount:  int(saleParams.Discount * 100),
-		Subtotal:  int(saleParams.Subtotal * 100),
-		Total:     int(saleParams.Total * 100),
+		Status:         constant.CompleteSaleStatus,
+		CashierID:      saleParams.CashierID,
+		Discount:       int(saleParams.Discount * 100),
+		Subtotal:       int(saleParams.Subtotal * 100),
+		Total:          int(saleParams.Total * 100),
+		IdempotencyKey: nil,
+	}
+	if idempotencyKey != "" {
+		sale.IdempotencyKey = &idempotencyKey
 	}
 	sale.GenerateReceiptNumber()
 
@@ -41,6 +54,10 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to create sale", err)
+	}
+	if saleID == 0 {
+		log.Printf("duplicate sale idempotency key ignored: %s", idempotencyKey)
+		return nil
 	}
 
 	saleItems := make([]model.SaleItem, len(saleParams.Items))
@@ -110,6 +127,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 		log.Println(err)
 		return httperror.ServerError("failed to commit transaction", err)
 	}
+	committed = true
 	return nil
 }
 
