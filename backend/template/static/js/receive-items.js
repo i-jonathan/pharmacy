@@ -15,6 +15,7 @@ const supplierResults = document.getElementById("supplier-results");
 const clearSupplierBtn = document.getElementById("clear-supplier");
 let supplierTimeout = null;
 let holdReference = "";
+let receiveIdempotencyKey = createIdempotencyKey();
 
 const greaterThanZero = (val) => val.trim() !== "" && parseFloat(val) > 0;
 const nonEmpty = (val) => val.trim() !== "";
@@ -564,6 +565,7 @@ function buildHeldReceivePayload() {
 
   return {
     supplier: supplierInput.value.trim(),
+    idempotency_key: receiveIdempotencyKey,
     products,
   };
 }
@@ -591,6 +593,7 @@ async function holdReceiveItems() {
     clearSupplierInput();
     receivingRows.innerHTML = "";
     holdReference = "";
+    receiveIdempotencyKey = createIdempotencyKey();
     updateSubtotal();
     showFeedbackModal("Held!", "Receiving items held successfully.", true);
   } catch (err) {
@@ -677,6 +680,7 @@ async function processReceiveItems() {
   const payload = {
     supplier: supplierInput.value.trim(),
     held_receiving_reference: holdReference,
+    idempotency_key: receiveIdempotencyKey,
     products: collectTableData(),
   };
 
@@ -686,6 +690,7 @@ async function processReceiveItems() {
     clearSupplierInput();
     receivingRows.innerHTML = "";
     holdReference = "";
+    receiveIdempotencyKey = createIdempotencyKey();
     updateSubtotal();
 
     showFeedbackModal("Saved!", `${res.message}`, true);
@@ -832,6 +837,8 @@ function restoreHeldReceiveItems() {
     const data = JSON.parse(heldData);
     const payload = data.payload || {};
     holdReference = data.reference || "";
+    receiveIdempotencyKey =
+      payload.idempotency_key || createIdempotencyKey();
 
     if (payload.supplier) {
       supplierInput.value = payload.supplier;
