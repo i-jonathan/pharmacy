@@ -4,8 +4,8 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
-	"pharmacy/httperror"
 	"pharmacy/adapter/http/middleware"
+	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/service"
 )
@@ -16,6 +16,9 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 
 	inventoryMux.HandleFunc(http.MethodPost+" /add-item", inventoryController.CreateProduct)
 	inventoryMux.HandleFunc(http.MethodGet+" /receive-items", inventoryController.GetReceiveItems)
+	inventoryMux.HandleFunc(http.MethodPost+" /receive-items/hold", inventoryController.HoldReceivingItems)
+	inventoryMux.HandleFunc(http.MethodGet+" /receive-items/held", inventoryController.RenderHeldReceivingItems)
+	inventoryMux.HandleFunc(http.MethodDelete+" /receive-items/held/{reference}", inventoryController.DeleteHeldReceivingItems)
 	inventoryMux.HandleFunc(http.MethodGet+" /search", inventoryController.SearchForProduct)
 	inventoryMux.HandleFunc(http.MethodGet+" /suppliers/search", inventoryController.SearchForSuppliers)
 	inventoryMux.HandleFunc(http.MethodPost+" /receive-items", inventoryController.ReceiveSupply)

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"math/rand"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
@@ -247,6 +249,14 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	}
 	log.Printf("Stock movements created successfully")
 
+	if params.HeldReceivingReference != "" {
+		err = s.repo.DeleteHeldTransactionByReferenceTx(ctx, tx, params.HeldReceivingReference)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("Failed to delete held receiving items", err)
+		}
+	}
+
 	log.Printf("Committing transaction with %d expiry updates", len(updatePriceData))
 	err = s.repo.CommitTx(tx)
 	if err != nil {
@@ -263,6 +273,59 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		}
 	}
 
+	return nil
+}
+
+func (s *inventoryService) HoldReceivingItems(ctx context.Context, holdRequest types.HoldTransactionRequest) error {
+	reference := holdRequest.Reference
+	if reference == "" {
+		reference = fmt.Sprintf("%s-%s-%04d",
+			string(constant.HoldReceivingItemType),
+			time.Now().Format("20060102"),
+			rand.Intn(10000),
+		)
+	}
+
+	holdTransaction := model.HeldTransaction{
+		Type:      string(constant.HoldReceivingItemType),
+		Reference: reference,
+		Payload:   holdRequest.Payload,
+	}
+
+	err := s.repo.SaveHeldTransaction(ctx, holdTransaction)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to hold receiving items", err)
+	}
+	return nil
+}
+
+func (s *inventoryService) FetchHeldReceivingItems(ctx context.Context) ([]types.HeldTransactionResponse, error) {
+	transactions, err := s.repo.FetchHeldTransactionsByType(ctx, constant.HoldReceivingItemType)
+	if err != nil {
+		log.Println(err)
+		return nil, httperror.ServerError("failed to fetch held receiving items", err)
+	}
+
+	response := make([]types.HeldTransactionResponse, 0, len(transactions))
+	for _, transaction := range transactions {
+		response = append(response, types.HeldTransactionResponse{
+			Reference: transaction.Reference,
+			Payload:   transaction.Payload,
+			CreatedAt: transaction.CreatedAt,
+			UpdatedAt: transaction.UpdatedAt,
+		})
+	}
+
+	return response, nil
+}
+
+func (s *inventoryService) DeleteHeldTransaction(ctx context.Context, reference string) error {
+	err := s.repo.DeleteHeldTransactionByReference(ctx, reference)
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to delete held transaction", err)
+	}
 	return nil
 }
 

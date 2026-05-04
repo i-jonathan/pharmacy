@@ -9,10 +9,12 @@ const feedbackMessage = document.getElementById("feedback-message");
 const feedbackClose = document.getElementById("feedback-close");
 const addItemForm = document.getElementById("add-item-form");
 const receiveButton = document.getElementById("receive-button");
+const holdReceiveButton = document.getElementById("hold-receive-btn");
 const supplierInput = document.getElementById("supplier-input");
 const supplierResults = document.getElementById("supplier-results");
 const clearSupplierBtn = document.getElementById("clear-supplier");
 let supplierTimeout = null;
+let holdReference = "";
 
 const greaterThanZero = (val) => val.trim() !== "" && parseFloat(val) > 0;
 const nonEmpty = (val) => val.trim() !== "";
@@ -29,12 +31,24 @@ function updateSubtotal() {
     total += cost * qty;
   });
   subtotalDisplay.textContent = total.toLocaleString();
+  updateHoldButtonState();
+}
+
+function updateHoldButtonState() {
+  if (!holdReceiveButton) return;
+
+  const hasRows = document.querySelectorAll(".receiving-row").length > 0;
+  const hasSupplier = supplierInput.value.trim() !== "";
+  holdReceiveButton.disabled = !hasRows && !hasSupplier;
 }
 
 function addItemToTable(product) {
   const row = document.createElement("tr");
   row.classList.add("receiving-row");
   row.dataset.itemId = product.id;
+  row.dataset.itemName = product.name || "";
+  row.dataset.manufacturer = product.manufacturer || "";
+  row.dataset.defaultPriceId = product.default_price?.id || "";
 
   row.innerHTML = `
       <td class="px-4 py-2">${product.name}
@@ -45,7 +59,7 @@ function addItemToTable(product) {
       </td>
       <td class="px-4 py-2">
         <input type="text" value="${product.barcode || ""}" placeholder="e.g. 0123456789012"
-          class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
+          class="barcode w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" />
       </td>
       <td class="px-4 py-2">
         <input type="number" step="0.01" min="1.00" value="${product.cost_price != null ? product.cost_price.toFixed(2) : "0.00"}" class="cost w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
@@ -68,7 +82,7 @@ function addItemToTable(product) {
         <input type="number" min="1" class="qty w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2">
-        <input type="date" class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
+        <input type="date" class="expiry w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600" required/>
       </td>
       <td class="px-4 py-2 text-center">
         <button onclick="removeProductRow(this)" class="text-red-500 hover:text-red-700">🗑️</button>
@@ -235,6 +249,7 @@ function addItemToTable(product) {
   });
 
   searchResults.classList.add("hidden");
+  updateSubtotal();
 }
 
 // Global function to remove product row and associated price management row
@@ -495,6 +510,99 @@ function collectTableData() {
   return data;
 }
 
+function collectPriceOptionsForHold(productId) {
+  const priceManagementRow = document.querySelector(
+    `.price-management-row[data-product-id="${productId}"]`,
+  );
+  if (!priceManagementRow) return [];
+
+  return Array.from(
+    priceManagementRow.querySelectorAll(".price-options-list > div"),
+  )
+    .map((div) => {
+      const nameInput = div.querySelector(".price-name");
+      const valueInput = div.querySelector(".price-value");
+      const quantityInput = div.querySelector(".quantity-per-unit");
+      if (!nameInput || !valueInput || !quantityInput) return null;
+
+      const id = nameInput.dataset.priceId;
+      return {
+        id: id === "new" ? "new" : parseInt(id, 10),
+        name: nameInput.value.trim(),
+        selling_price: parseFloat(valueInput.value) || 0,
+        quantity: parseInt(quantityInput.value) || 1,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildHeldReceivePayload() {
+  const products = Array.from(document.querySelectorAll(".receiving-row")).map(
+    (row) => {
+      const productId = parseInt(row.dataset.itemId, 10);
+      const defaultPriceId = row.dataset.defaultPriceId
+        ? parseInt(row.dataset.defaultPriceId, 10)
+        : null;
+
+      return {
+        id: productId,
+        name: row.dataset.itemName || "",
+        manufacturer: row.dataset.manufacturer || "",
+        barcode: row.querySelector(".barcode")?.value.trim() || "",
+        cost_price: parseFloat(row.querySelector(".cost")?.value) || 0,
+        default_price: {
+          id: defaultPriceId,
+          selling_price:
+            parseFloat(row.querySelector(".selling-price")?.value) || 0,
+        },
+        price_options: collectPriceOptionsForHold(productId),
+        quantity: parseInt(row.querySelector(".qty")?.value, 10) || 0,
+        expiry: row.querySelector(".expiry")?.value || "",
+      };
+    },
+  );
+
+  return {
+    supplier: supplierInput.value.trim(),
+    products,
+  };
+}
+
+async function holdReceiveItems() {
+  const payload = buildHeldReceivePayload();
+  if (!payload.supplier && payload.products.length === 0) return;
+
+  try {
+    const res = await fetch("/inventory/receive-items/hold", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reference: holdReference,
+        payload,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! Status: ${res.status}`);
+    }
+
+    clearSupplierInput();
+    receivingRows.innerHTML = "";
+    holdReference = "";
+    updateSubtotal();
+    showFeedbackModal("Held!", "Receiving items held successfully.", true);
+  } catch (err) {
+    console.error("Error holding receiving items:", err);
+    showFeedbackModal(
+      "Failed to Hold",
+      "There was an error holding the receiving items.",
+      false,
+    );
+  }
+}
+
 function attachRealtimeValidation(input, checkFn) {
   input.addEventListener(
     "input",
@@ -568,6 +676,7 @@ async function processReceiveItems() {
 
   const payload = {
     supplier: supplierInput.value.trim(),
+    held_receiving_reference: holdReference,
     products: collectTableData(),
   };
 
@@ -576,6 +685,7 @@ async function processReceiveItems() {
     addItemForm.reset();
     clearSupplierInput();
     receivingRows.innerHTML = "";
+    holdReference = "";
     updateSubtotal();
 
     showFeedbackModal("Saved!", `${res.message}`, true);
@@ -590,6 +700,7 @@ async function processReceiveItems() {
 }
 
 receiveButton.addEventListener("click", processReceiveItems);
+holdReceiveButton?.addEventListener("click", holdReceiveItems);
 
 async function postReceiveSupply(payload) {
   try {
@@ -616,6 +727,7 @@ supplierInput.addEventListener("input", () => {
   clearTimeout(supplierTimeout);
   const value = supplierInput.value.trim();
   supplierResults.innerHTML = "";
+  updateHoldButtonState();
 
   if (!value) {
     supplierResults.classList.add("hidden");
@@ -649,6 +761,7 @@ async function supplierSearch(value) {
           // Disable and show clear button
           supplierInput.disabled = true;
           clearSupplierBtn.classList.remove("hidden");
+          updateHoldButtonState();
         });
         supplierResults.appendChild(li);
       });
@@ -669,6 +782,7 @@ function clearSupplierInput() {
   supplierInput.value = "";
   supplierInput.disabled = false;
   clearSupplierBtn.classList.add("hidden");
+  updateHoldButtonState();
 }
 
 // Hide dropdown on outside click
@@ -709,6 +823,56 @@ function setupPriceLogic(row) {
 
   updateSuggestion(); // run once initially
 }
+
+function restoreHeldReceiveItems() {
+  const heldData = localStorage.getItem("heldReceiveItems");
+  if (!heldData) return;
+
+  try {
+    const data = JSON.parse(heldData);
+    const payload = data.payload || {};
+    holdReference = data.reference || "";
+
+    if (payload.supplier) {
+      supplierInput.value = payload.supplier;
+      supplierInput.disabled = true;
+      clearSupplierBtn.classList.remove("hidden");
+    }
+
+    (payload.products || []).forEach((product) => {
+      addItemToTable(product);
+      const row = document.querySelector(
+        `.receiving-row[data-item-id="${product.id}"]`,
+      );
+      if (!row) return;
+
+      row.querySelector(".barcode").value = product.barcode || "";
+      row.querySelector(".cost").value = Number(
+        product.cost_price || 0,
+      ).toFixed(2);
+      row.querySelector(".selling-price").value = Number(
+        product.default_price?.selling_price || 0,
+      ).toFixed(2);
+      row.querySelector(".qty").value = product.quantity || "";
+      row.querySelector(".expiry").value = product.expiry || "";
+    });
+
+    updateSubtotal();
+    localStorage.removeItem("heldReceiveItems");
+    showToast("Held receiving items restored successfully", {
+      type: "success",
+      duration: 3000,
+    });
+  } catch (err) {
+    console.error("Error restoring held receiving items:", err);
+    showToast("Could not restore held receiving items", {
+      type: "error",
+      duration: 3000,
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", restoreHeldReceiveItems);
 
 window.addEventListener("beforeunload", (e) => {
   const hasRows = receivingRows && receivingRows.children.length > 0;
