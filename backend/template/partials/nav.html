@@ -225,21 +225,4 @@ document.getElementById('user-menu-button-desktop').addEventListener('click', fu
     dropdown.classList.toggle('hidden');
 });
 
-// Theme toggle (sync both mobile and desktop buttons)
-function setupThemeToggle() {
-    const mobileToggle = document.getElementById('theme-toggle');
-    const desktopToggle = document.getElementById('theme-toggle-desktop');
-    
-    function toggleTheme() {
-        // Your existing theme toggle logic
-        if (typeof toggleTheme === 'function') {
-            toggleTheme();
-        }
-    }
-    
-    if (mobileToggle) mobileToggle.addEventListener('click', toggleTheme);
-    if (desktopToggle) desktopToggle.addEventListener('click', toggleTheme);
-}
-
-setupThemeToggle();
 </script>

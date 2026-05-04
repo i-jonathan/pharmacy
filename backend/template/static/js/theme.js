@@ -1,27 +1,38 @@
 const html = document.documentElement;
-const themeToggle = document.getElementById("theme-toggle");
+const themeToggles = Array.from(
+  document.querySelectorAll("#theme-toggle, #theme-toggle-desktop"),
+);
 
-if (localStorage.theme === "dark") {
-  html.classList.add("dark");
-  themeToggle.textContent = "☀️";
+function setToggleIcon(button, isDark) {
+  const icon = button.querySelector("span") || button;
+  icon.textContent = isDark ? "☀️" : "🌙";
 }
 
-themeToggle.addEventListener("click", () => {
-  const isDark = html.classList.toggle("dark");
+function applyTheme(isDark) {
+  html.classList.toggle("dark", isDark);
   localStorage.theme = isDark ? "dark" : "light";
-  themeToggle.textContent = isDark ? "☀️" : "🌙";
+  themeToggles.forEach((button) => setToggleIcon(button, isDark));
+}
+
+applyTheme(localStorage.theme === "dark");
+
+themeToggles.forEach((button) => {
+  button.addEventListener("click", () => {
+    applyTheme(!html.classList.contains("dark"));
+  });
 });
 
-document.getElementById("user-menu-button").addEventListener("click", () => {
-  const dropdown = document.getElementById("user-menu-dropdown");
-  dropdown.classList.toggle("hidden");
-});
+const menuButton = document.getElementById("user-menu-button");
+const dropdown = document.getElementById("user-menu-dropdown");
 
-// Optional: close dropdown if clicked outside
-document.addEventListener("click", (e) => {
-  const menuButton = document.getElementById("user-menu-button");
-  const dropdown = document.getElementById("user-menu-dropdown");
-  if (!menuButton.contains(e.target) && !dropdown.contains(e.target)) {
-    dropdown.classList.add("hidden");
-  }
-});
+if (menuButton && dropdown) {
+  menuButton.addEventListener("click", () => {
+    dropdown.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!menuButton.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.add("hidden");
+    }
+  });
+}
