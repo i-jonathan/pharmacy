@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"time"
@@ -72,8 +73,14 @@ func (r *repo) SearchSuppliersName(ctx context.Context, query string) ([]string,
 func (r *repo) CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivingBatch model.ReceivingBatch) (int, error) {
 	var receivingBatchID int
 
-	err := tx.QueryRowContext(ctx, createReceivingBatchQuery, receivingBatch.SupplierName, receivingBatch.ReceviedByID).Scan(&receivingBatchID)
+	err := tx.QueryRowContext(
+		ctx, createReceivingBatchQuery, receivingBatch.SupplierName,
+		receivingBatch.ReceviedByID, receivingBatch.IdempotencyKey,
+	).Scan(&receivingBatchID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
 		return 0, err
 	}
 

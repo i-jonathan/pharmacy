@@ -70,8 +70,9 @@ const searchSupplierQuery = `SELECT
 	DISTINCT supplier_name FROM receiving_batch
 	WHERE supplier_name ILIKE '%' || $1 || '%'`
 const createReceivingBatchQuery = `INSERT INTO receiving_batch
-	(supplier_name, received_by_id)
-	VALUES ($1, $2)
+	(supplier_name, received_by_id, idempotency_key)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 	RETURNING id`
 const createProductBatchQuery = `INSERT INTO product_batch (
 		product_id, price_id, receiving_batch_id, quantity, cost_price, expiry_date
@@ -114,8 +115,9 @@ const updateProductPricesQuery = `
 	WHERE id = (SELECT default_price_id FROM updated_product);
 `
 const createSaleQuery = `
-	INSERT INTO sales (receipt_number, status, cashier_id, subtotal, discount, total)
-	VALUES ($1, $2, $3, $4, $5, $6)
+	INSERT INTO sales (receipt_number, status, cashier_id, subtotal, discount, total, idempotency_key)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 	RETURNING id;
 `
 const createSaleItemQuery = `
