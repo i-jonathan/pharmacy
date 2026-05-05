@@ -150,6 +150,83 @@ func (c *inventoryController) ReceiveSupply(w http.ResponseWriter, r *http.Reque
 	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Items saved successfully"})
 }
 
+func (c *inventoryController) HoldReceivingItems(w http.ResponseWriter, r *http.Request) {
+	var heldTransaction types.HoldTransactionRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&heldTransaction); err != nil {
+		httperror.BadRequest("Invalid JSON", err).JSONRespond(w)
+		return
+	}
+
+	err := c.service.HoldReceivingItems(r.Context(), heldTransaction)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "held receiving items save error", http.StatusInternalServerError)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Held Successfully"})
+}
+
+func (c *inventoryController) RenderHeldReceivingItems(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	heldTransactions, err := c.service.FetchHeldReceivingItems(r.Context())
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "held receiving items fetch error", http.StatusInternalServerError)
+		return
+	}
+
+	transactionJSON, err := json.Marshal(heldTransactions)
+	if err != nil {
+		http.Error(w, "held receiving items json error", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]any{
+		"Title":            "Held Receive Items",
+		"ActivePage":       "inventory",
+		"SubActivePage":    "held-receive-items",
+		"HeldTransactions": template.JS(transactionJSON),
+	}
+
+	err = c.template.ExecuteTemplate(w, "held-receive-items.html", data)
+	if err != nil {
+		http.Error(w, "held receiving items render error", http.StatusInternalServerError)
+	}
+}
+
+func (c *inventoryController) DeleteHeldReceivingItems(w http.ResponseWriter, r *http.Request) {
+	reference := r.PathValue("reference")
+	if reference == "" {
+		http.Error(w, "missing reference", http.StatusBadRequest)
+		return
+	}
+
+	err := c.service.DeleteHeldTransaction(r.Context(), reference)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			http.Error(w, httperr.Message, httperr.Code)
+			return
+		}
+
+		http.Error(w, "held receiving items delete error", http.StatusInternalServerError)
+		return
+	}
+}
+
 func (c *inventoryController) RenderInventoryPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 

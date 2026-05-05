@@ -120,6 +120,9 @@
             <a href="/inventory/receive-items" class="{{if eq .SubActivePage "receive-items"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
                 Receive Items
             </a>
+            <a href="/inventory/receive-items/held" class="{{if eq .SubActivePage "held-receive-items"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Held Receive Items
+            </a>
             <a href="/inventory/report/stock" class="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-sm">
                 Export Stock
             </a>
@@ -225,21 +228,4 @@ document.getElementById('user-menu-button-desktop').addEventListener('click', fu
     dropdown.classList.toggle('hidden');
 });
 
-// Theme toggle (sync both mobile and desktop buttons)
-function setupThemeToggle() {
-    const mobileToggle = document.getElementById('theme-toggle');
-    const desktopToggle = document.getElementById('theme-toggle-desktop');
-    
-    function toggleTheme() {
-        // Your existing theme toggle logic
-        if (typeof toggleTheme === 'function') {
-            toggleTheme();
-        }
-    }
-    
-    if (mobileToggle) mobileToggle.addEventListener('click', toggleTheme);
-    if (desktopToggle) desktopToggle.addEventListener('click', toggleTheme);
-}
-
-setupThemeToggle();
 </script>

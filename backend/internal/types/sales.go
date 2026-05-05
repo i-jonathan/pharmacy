@@ -27,6 +27,7 @@ type SalePayment struct {
 type Sale struct {
 	CashierID         int
 	HeldSaleReference string        `json:"held_sale_reference"`
+	IdempotencyKey    string        `json:"idempotency_key"`
 	Subtotal          float64       `json:"subtotal"`
 	Discount          float64       `json:"discount"`
 	Total             float64       `json:"total"`

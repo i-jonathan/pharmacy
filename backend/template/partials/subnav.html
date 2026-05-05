@@ -4,6 +4,7 @@
     <div class="flex flex-col md:flex-row md:space-x-6 space-y-2 md:space-y-0">
         <a href="/inventory/items" class="{{if eq .SubActivePage "item-list"}}text-primary font-semibold border-b-2 border-primary pb-1{{else}}text-gray-600 dark:text-gray-300 hover:text-primary{{end}}">Item List</a>
         <a href="/inventory/receive-items" class="{{if eq .SubActivePage "receive-items"}}text-primary font-semibold border-b-2 border-primary pb-1{{else}}text-gray-600 dark:text-gray-300 hover:text-primary{{end}}">Receive Items</a>
+        <a href="/inventory/receive-items/held" class="{{if eq .SubActivePage "held-receive-items"}}text-primary font-semibold border-b-2 border-primary pb-1{{else}}text-gray-600 dark:text-gray-300 hover:text-primary{{end}}">Held Receive Items</a>
         <a href="/inventory/report/stock" class="text-gray-600 dark:text-gray-300 hover:text-primary">Export Stock</a>
     </div>
 </nav>

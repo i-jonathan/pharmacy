@@ -1,6 +1,7 @@
 let cart = [];
 let payments = {};
 let holdReference = "";
+let saleIdempotencyKey = createIdempotencyKey();
 let selectedPaymentMethod = "";
 let searchTimeout;
 
@@ -79,13 +80,13 @@ function renderCart() {
   receiptItems.innerHTML = "";
 
   cart.forEach((item, i) => {
-    const selectedOption = item.price_options?.find(
-      (opt) => opt.id == item.selected_price_id,
-    );
+    const selectedOption = getSelectedPriceOption(item);
+    const selectedSellingPrice = selectedOption
+      ? new Decimal(selectedOption.selling_price)
+      : null;
 
     const isDiscounted =
-      selectedOption?.selling_price &&
-      item.price.lt(new Decimal(selectedOption.selling_price));
+      selectedSellingPrice && item.price.lt(selectedSellingPrice);
 
     // Calculate row total with Decimal
     let rowTotal = item.price.times(item.qty);
@@ -157,7 +158,7 @@ function renderCart() {
         ${
           isDiscounted
             ? `<div class="text-xs text-red-500 mt-1">
-                -₦${new Decimal(item.default_price.selling_price).minus(item.price).times(item.qty).toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN).toString()} discount
+                -₦${selectedSellingPrice.minus(item.price).times(item.qty).toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN).toString()} discount
               </div>`
             : ""
         }
@@ -224,7 +225,6 @@ function commitUnitPriceChange(input) {
 
   const newPrice = new Decimal(input.value || 0);
   cart[index].price = newPrice;
-  cart[index].selected_price_id = null;
 
   span.textContent = `₦${newPrice.toDecimalPlaces(2).toNumber().toLocaleString()}`;
   span.classList.remove("hidden");
@@ -406,7 +406,6 @@ receiptItems.addEventListener("click", (e) => {
     const v = new Decimal(input.value || 0);
     if (!v.isNaN()) {
       cart[idx].price = v;
-      cart[idx].selected_price_id = null;
       renderCart();
     }
   }
@@ -602,6 +601,7 @@ async function saveSale(printAfterSave = false) {
       cart = [];
       payments = {};
       holdReference = "";
+      saleIdempotencyKey = createIdempotencyKey();
       renderCart();
       validateSale();
       // window.location.reload();
@@ -690,6 +690,7 @@ async function holdSale() {
       payload: {
         cart,
         payments,
+        sale_idempotency_key: saleIdempotencyKey,
       },
     };
 
@@ -714,6 +715,7 @@ async function holdSale() {
     cart = [];
     payments = {};
     holdReference = "";
+    saleIdempotencyKey = createIdempotencyKey();
 
     renderCart();
 
@@ -733,15 +735,17 @@ const D = (v) => (v instanceof Decimal ? v : new Decimal(v ?? 0));
 const toNaira = (d) => D(d).toDecimalPlaces(0, Decimal.ROUND_HALF_UP); // whole ₦
 const nearest50 = (d) =>
   D(d).div(50).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).times(50);
+const getSelectedPriceOption = (item) =>
+  item.price_options?.find(
+    (p) => String(p.id) === String(item.selected_price_id),
+  );
 
 function buildSalePayload(cart, payments) {
   const items = cart.map((item) => {
     const qty = D(item.qty);
     const unitPrice = D(item.price);
 
-    const selected = item.price_options?.find(
-      (p) => p.id === item.selected_price_id,
-    )?.selling_price;
+    const selected = getSelectedPriceOption(item)?.selling_price;
     const listUnit = D(selected ?? unitPrice);
 
     const lineSubtotal = listUnit.times(qty);
@@ -777,6 +781,7 @@ function buildSalePayload(cart, payments) {
 
   return {
     held_sale_reference: holdReference,
+    idempotency_key: saleIdempotencyKey,
     subtotal: toNaira(subtotal).toNumber(),
     discount: toNaira(discount).toNumber(),
     total: toNaira(total).toNumber(),
@@ -866,6 +871,8 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     const data = JSON.parse(heldData);
     holdReference = data.reference;
+    saleIdempotencyKey =
+      data.payload.sale_idempotency_key || createIdempotencyKey();
 
     if (data.payload.cart && Array.isArray(data.payload.cart)) {
       cart = (data.payload.cart || []).map((i) => ({

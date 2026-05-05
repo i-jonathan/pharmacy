@@ -18,6 +18,9 @@ type InventoryService interface {
 	SearchProducts(ctx context.Context, query string) ([]types.ProductResult, error)
 	SearchForSuppliers(ctx context.Context, query string) ([]string, error)
 	ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error
+	HoldReceivingItems(ctx context.Context, holdRequest types.HoldTransactionRequest) error
+	FetchHeldReceivingItems(ctx context.Context) ([]types.HeldTransactionResponse, error)
+	DeleteHeldTransaction(ctx context.Context, reference string) error
 	FetchInventory(ctx context.Context) (*model.Inventory, error)
 	FetchProductByID(ctx context.Context, id int) (types.ProductResult, error)
 }

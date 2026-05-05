@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/model"
@@ -16,9 +17,13 @@ func (r *repo) CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (
 	err := tx.QueryRowContext(
 		ctx, createSaleQuery, sale.ReceiptNumber, sale.Status,
 		sale.CashierID, sale.Subtotal, sale.Discount, sale.Total,
+		sale.IdempotencyKey,
 	).Scan(&id)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
 		return 0, err
 	}
 	return id, nil
