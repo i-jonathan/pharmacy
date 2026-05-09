@@ -92,6 +92,22 @@ type DashboardRepository interface {
 	GetExpiringItems(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiringItem, error)
 }
 
+type AdminRepository interface {
+	GetAllPermissions(ctx context.Context) ([]model.Permission, error)
+	CreatePermission(ctx context.Context, resource, action string) (int, error)
+	DeletePermission(ctx context.Context, id int) error
+	GetRolePermissions(ctx context.Context, roleID int) ([]model.Permission, error)
+	AssignPermissionToRole(ctx context.Context, roleID, permissionID int) error
+	RemovePermissionFromRole(ctx context.Context, roleID, permissionID int) error
+	GetAllRolesWithPermissions(ctx context.Context) ([]types.RoleWithPermissions, error)
+	ListUsers(ctx context.Context) ([]types.UserListItem, error)
+	UpdateUserRole(ctx context.Context, userID, roleID int) error
+	UpdateUserPassword(ctx context.Context, userID int, hashedPassword string) error
+	CreateCategory(ctx context.Context, name string) (int, error)
+	UpdateCategory(ctx context.Context, id int, name string) error
+	DeleteCategory(ctx context.Context, id int) error
+}
+
 type PharmacyRepository interface {
 	BeginTx(ctx context.Context) (*sqlx.Tx, error)
 	CommitTx(tx *sqlx.Tx) error
@@ -102,4 +118,5 @@ type PharmacyRepository interface {
 	SaleRepository
 	StockTakingRepository
 	DashboardRepository
+	AdminRepository
 }

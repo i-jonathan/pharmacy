@@ -14,6 +14,7 @@ import (
 	"pharmacy/adapter/websocket"
 	"pharmacy/config"
 	"pharmacy/httperror"
+	"pharmacy/internal/constant"
 	"pharmacy/repository"
 	"pharmacy/service"
 	"strings"
@@ -92,6 +93,14 @@ func main() {
 	stockTakingService := service.NewStockTakingService(store)
 	stockTakingRouter := router.InitStockTakingRouter(stockTakingService, tmpl, wsHub)
 	r.Handle("/stock-taking/", middleware.AuthMiddleware(stockTakingRouter))
+
+	adminService := service.NewAdminService(store)
+	adminRouter := router.InitAdminRouter(adminService, tmpl)
+	r.Handle("/admin/", middleware.AuthMiddleware(
+		middleware.RequirePermissions(constant.RequireAllPermissions, constant.AdminAccessPermissionKey)(
+			middleware.AddPermissionsToContext(adminRouter),
+		),
+	))
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

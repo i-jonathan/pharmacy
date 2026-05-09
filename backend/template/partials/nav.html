@@ -3,6 +3,7 @@
 {{$activeInventory := eq .ActivePage "inventory"}}
 {{$activeSales := eq .ActivePage "sales"}}
 {{$activeStockTaking := eq .ActivePage "stock-taking"}}
+{{$activeAdmin := eq .ActivePage "admin"}}
 
 <!-- Top Nav -->
 <nav class="bg-white dark:bg-gray-800 shadow px-4 md:px-6 py-4 flex items-center justify-between">
@@ -28,6 +29,17 @@
             <a href="/stock-taking/" class="text-gray-700 dark:text-gray-200 hover:text-primary">
                 Stock Taking
             </a>
+            {{end}}
+            {{if hasPerm .Permissions "admin:access"}}
+            {{if $activeAdmin}}
+            <a href="/admin/" class="text-primary font-semibold border-b-2 border-primary pb-1">
+                Admin
+            </a>
+            {{else}}
+            <a href="/admin/" class="text-gray-700 dark:text-gray-200 hover:text-primary">
+                Admin
+            </a>
+            {{end}}
             {{end}}
         </div>
     </div>
@@ -107,6 +119,11 @@
         <a href="/stock-taking/" class="{{if $activeStockTaking}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md">
             Stock Taking
         </a>
+        {{if hasPerm .Permissions "admin:access"}}
+        <a href="/admin/" class="{{if $activeAdmin}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md">
+            Admin
+        </a>
+        {{end}}
     </div>
 
     <!-- Sub Navigation (if applicable) -->
