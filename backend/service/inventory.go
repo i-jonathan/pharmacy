@@ -517,6 +517,25 @@ func (s *inventoryService) FetchProductByID(ctx context.Context, id int) (types.
 	}, nil
 }
 
+func (s *inventoryService) FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error) {
+	batches, err := s.repo.FetchReceivingBatches(ctx, filter.StartDate, filter.EndDate)
+	if err != nil {
+		log.Println("error fetching receiving batches from repo:", err)
+		return nil, httperror.ServerError("failed to fetch receiving batches", err)
+	}
+
+	for i := range batches {
+		items, err := s.repo.FetchBatchItemsByReceivingBatchID(ctx, batches[i].ID)
+		if err != nil {
+			log.Println("error fetching items for batch", batches[i].ID, ":", err)
+			return nil, httperror.ServerError("failed to fetch batch items", err)
+		}
+		batches[i].Items = items
+	}
+
+	return batches, nil
+}
+
 func containsPrice(prices []types.ProductPriceUpdate, id int) bool {
 	for _, p := range prices {
 		if p.ID != nil && *p.ID == id {

@@ -2,6 +2,25 @@ package types
 
 import "time"
 
+type ReceivedBatchItem struct {
+	ProductID    int        `db:"product_id" json:"product_id"`
+	ProductName  string     `db:"product_name" json:"product_name"`
+	Manufacturer string     `db:"manufacturer" json:"manufacturer"`
+	Quantity     int        `db:"quantity" json:"quantity"`
+	CostPrice    float64    `db:"cost_price" json:"cost_price"`
+	BatchNo      *string    `db:"batch_no" json:"batch_no"`
+	ExpiryDate   *time.Time `db:"expiry_date" json:"expiry_date"`
+}
+
+type ReceivedBatch struct {
+	ID           int                 `db:"id" json:"id"`
+	SupplierName string              `db:"supplier_name" json:"supplier_name"`
+	ReceivedBy   string              `db:"received_by" json:"received_by"`
+	Note         *string             `db:"note" json:"note"`
+	CreatedAt    time.Time           `db:"created_at" json:"created_at"`
+	Items        []ReceivedBatchItem `json:"items"`
+}
+
 type CreateProductRequest struct {
 	Name         string  `json:"name"`
 	Barcode      string  `json:"barcode"`

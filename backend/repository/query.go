@@ -1,5 +1,35 @@
 package repository
 
+const fetchReceivingBatchesQuery = `
+SELECT
+    rb.id,
+    rb.supplier_name,
+    u.username AS received_by,
+    rb.note,
+    rb.created_at
+FROM receiving_batch rb
+JOIN users u ON u.id = rb.received_by_id
+WHERE
+    ($1::date IS NULL OR rb.created_at::date >= $1::date)
+    AND ($2::date IS NULL OR rb.created_at::date <= $2::date)
+ORDER BY rb.created_at DESC
+`
+
+const fetchBatchItemsByReceivingBatchIDQuery = `
+SELECT
+    pb.product_id,
+    p.name AS product_name,
+    COALESCE(p.manufacturer, '') AS manufacturer,
+    pb.quantity,
+    pb.cost_price,
+    pb.batch_no,
+    pb.expiry_date
+FROM product_batch pb
+JOIN product p ON p.id = pb.product_id
+WHERE pb.receiving_batch_id = $1
+ORDER BY p.name ASC
+`
+
 const createUserQuery = `INSERT INTO users (username, password) VALUES ($1, $2)`
 const usernameExistsQuery = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
 const fetchUserByNameQuery = `
@@ -330,9 +360,9 @@ const updateProductCurrentExpiry = `
 `
 
 const updateProductCurrentExpiryAfterReceiving = `
-	UPDATE product 
+	UPDATE product
 	SET current_expiry = $2::date
-	WHERE id = $1 
+	WHERE id = $1
 	AND ($2::date < current_expiry OR current_expiry IS NULL);
 `
 const completeStockTakingQuery = `
@@ -399,6 +429,6 @@ const fetchProductByIDWithPricesQuery = `
 	LEFT JOIN product_price pp ON p.default_price_id = pp.id
 	LEFT JOIN product_price ppo ON p.id = ppo.product_id
 	WHERE p.id = $1
-	GROUP BY p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level, 
+	GROUP BY p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level,
 	p.default_price_id, pp.id, pp.selling_price, pp.name, pp.quantity_per_unit;
 `
