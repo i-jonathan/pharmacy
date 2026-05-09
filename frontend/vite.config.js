@@ -14,6 +14,7 @@ export default defineConfig({
         dashboard: "./src/main.js",
         stockCounting: "./src/stock-taking/counting/main.js",
         stockDashboard: "./src/stock-taking/dashboard/main.js",
+        receivedItemsHistory: "./src/inventory/received-items-history/main.js",
       },
     },
   },
