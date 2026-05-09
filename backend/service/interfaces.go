@@ -46,3 +46,21 @@ type StockTakingService interface {
 type DashboardService interface {
 	GetDashboardData(ctx context.Context) (*types.DashboardResponse, error)
 }
+
+type AdminService interface {
+	GetModules(ctx context.Context) []types.AdminModuleInfo
+	GetPermissions(ctx context.Context) ([]types.PermissionInfo, error)
+	CreatePermission(ctx context.Context, resource, action string) error
+	DeletePermission(ctx context.Context, id int) error
+	GetRolePermissions(ctx context.Context, roleID int) ([]types.PermissionInfo, error)
+	AssignPermissionToRole(ctx context.Context, roleID, permissionID int) error
+	RemovePermissionFromRole(ctx context.Context, roleID, permissionID int) error
+	GetRoles(ctx context.Context) ([]types.RoleWithPermissions, error)
+	GetUsers(ctx context.Context) ([]types.UserListItem, error)
+	UpdateUserRole(ctx context.Context, userID, roleID int) error
+	ResetUserPassword(ctx context.Context, userID int, newPassword string) error
+	GetCategories(ctx context.Context) ([]types.CategoryListItem, error)
+	CreateCategory(ctx context.Context, name string) error
+	UpdateCategory(ctx context.Context, id int, name string) error
+	DeleteCategory(ctx context.Context, id int) error
+}
