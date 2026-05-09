@@ -399,6 +399,68 @@ const fetchProductByIDWithPricesQuery = `
 	LEFT JOIN product_price pp ON p.default_price_id = pp.id
 	LEFT JOIN product_price ppo ON p.id = ppo.product_id
 	WHERE p.id = $1
-	GROUP BY p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level, 
+	GROUP BY p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level,
 	p.default_price_id, pp.id, pp.selling_price, pp.name, pp.quantity_per_unit;
 `
+
+const getAllPermissionsQuery = `SELECT id, resource, action, created_at FROM permissions ORDER BY resource, action`
+
+const createPermissionQuery = `INSERT INTO permissions (resource, action) VALUES ($1, $2) RETURNING id`
+
+const deletePermissionQuery = `DELETE FROM permissions WHERE id = $1`
+
+const getRolePermissionsQuery = `
+		SELECT p.id, p.resource, p.action, p.created_at
+		FROM permissions p
+		JOIN role_permissions rp ON rp.permission_id = p.id
+		WHERE rp.role_id = $1
+		ORDER BY p.resource, p.action
+	`
+
+const assignPermissionToRoleQuery = `
+		INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`
+
+const removePermissionFromRoleQuery = `
+		DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2
+	`
+
+const getAllRolesWithPermissionsQuery = `
+		SELECT
+			r.id,
+			r.name,
+			r.created_at,
+			COALESCE(
+				json_agg(
+					json_build_object(
+						'id', p.id,
+						'resource', p.resource,
+						'action', p.action
+					)
+				) FILTER (WHERE p.id IS NOT NULL),
+				'[]'
+			) AS permissions
+		FROM roles r
+		LEFT JOIN role_permissions rp ON rp.role_id = r.id
+		LEFT JOIN permissions p ON p.id = rp.permission_id
+		GROUP BY r.id, r.name, r.created_at
+		ORDER BY r.name
+	`
+
+const listUsersQuery = `
+		SELECT u.id, u.username, u.role_id, u.created_at, COALESCE(r.name, 'Cashier') as role_name
+		FROM users u
+		LEFT JOIN roles r ON r.id = u.role_id
+		ORDER BY u.created_at DESC
+	`
+
+const updateUserRoleQuery = `UPDATE users SET role_id = $1 WHERE id = $2`
+
+const updateUserPasswordQuery = `UPDATE users SET password = $1 WHERE id = $2`
+
+const createCategoryQuery = `INSERT INTO category (name) VALUES ($1) RETURNING id`
+
+const updateCategoryQuery = `UPDATE category SET name = $1 WHERE id = $2`
+
+const deleteCategoryQuery = `DELETE FROM category WHERE id = $1`
