@@ -26,6 +26,8 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 	inventoryMux.HandleFunc(http.MethodGet+" /report/stock", inventoryController.DownloadInventoryReport)
 	inventoryMux.HandleFunc(http.MethodGet+" /item-list", inventoryController.FetchInventory)
 	inventoryMux.HandleFunc(http.MethodGet+" /product/{id}", inventoryController.GetProductDetails)
+	inventoryMux.HandleFunc(http.MethodGet+" /received-items-history", inventoryController.RenderReceivedItemsHistory)
+	inventoryMux.HandleFunc(http.MethodGet+" /received-items-history/api", inventoryController.FetchReceivedItemsHistory)
 	inventoryMux.Handle(http.MethodPut+" /product/{id}",
 		middleware.RequirePermissions(constant.RequireAllPermissions, constant.EditInventoryPermissionKey)(
 			http.HandlerFunc(inventoryController.UpdateProduct),

@@ -41,6 +41,8 @@ type InventoryRepository interface {
 	FetchInventoryItems(ctx context.Context) ([]model.InventoryItem, error)
 	FetchPriceByID(ctx context.Context, priceID int) (model.ProductPrice, error)
 	FetchProductByIDWithPrices(ctx context.Context, id int) (model.Product, error)
+	FetchReceivingBatches(ctx context.Context, startDate, endDate *time.Time) ([]types.ReceivedBatch, error)
+	FetchBatchItemsByReceivingBatchID(ctx context.Context, batchID int) ([]types.ReceivedBatchItem, error)
 }
 
 type SaleRepository interface {

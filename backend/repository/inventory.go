@@ -212,3 +212,21 @@ func (r *repo) FetchProductByIDWithPrices(ctx context.Context, id int) (model.Pr
 	}
 	return product, nil
 }
+
+func (r *repo) FetchReceivingBatches(ctx context.Context, startDate, endDate *time.Time) ([]types.ReceivedBatch, error) {
+	var batches []types.ReceivedBatch
+	err := r.Data.SelectContext(ctx, &batches, fetchReceivingBatchesQuery, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	return batches, nil
+}
+
+func (r *repo) FetchBatchItemsByReceivingBatchID(ctx context.Context, batchID int) ([]types.ReceivedBatchItem, error) {
+	var items []types.ReceivedBatchItem
+	err := r.Data.SelectContext(ctx, &items, fetchBatchItemsByReceivingBatchIDQuery, batchID)
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}

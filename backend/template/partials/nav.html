@@ -9,7 +9,7 @@
 <nav class="bg-white dark:bg-gray-800 shadow px-4 md:px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-6">
         <div class="text-xl font-bold text-primary">Primocrest Pharmacy</div>
-        
+
         <!-- Desktop Navigation -->
         <div class="hidden md:flex space-x-6">
             <a href="/app/dashboard" class="{{if $activeDashboard}}text-primary font-semibold border-b-2 border-primary pb-1{{else}}text-gray-700 dark:text-gray-200 hover:text-primary{{end}}">
@@ -55,7 +55,7 @@
                 class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
         </div>
-        
+
         <!-- Desktop Theme Toggle -->
         <button
             id="theme-toggle-desktop"
@@ -93,7 +93,7 @@
                 </a>
             </div>
         </div>
-        
+
         <!-- Mobile Menu Button -->
         <button id="mobile-menu-button" class="md:hidden text-gray-600 dark:text-gray-300 hover:text-primary">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,7 +125,7 @@
         </a>
         {{end}}
     </div>
-    
+
     <!-- Sub Navigation (if applicable) -->
     {{if eq .ActivePage "inventory"}}
     <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
@@ -139,6 +139,9 @@
             </a>
             <a href="/inventory/receive-items/held" class="{{if eq .SubActivePage "held-receive-items"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
                 Held Receive Items
+            </a>
+            <a href="/inventory/received-items-history" class="{{if eq .SubActivePage "received-items-history"}}text-primary font-semibold bg-gray-100 dark:bg-gray-700{{else}}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{{end}} block px-3 py-2 rounded-md text-sm">
+                Received Items History
             </a>
             <a href="/inventory/report/stock" class="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-sm">
                 Export Stock
@@ -170,7 +173,7 @@
         </div>
     </div>
     {{end}}
-    
+
     <!-- Mobile Search -->
     <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
         <div class="relative">
@@ -182,7 +185,7 @@
             />
         </div>
     </div>
-    
+
     <!-- Mobile Theme Toggle -->
     <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
         <button
@@ -193,7 +196,7 @@
             Toggle Theme
         </button>
     </div>
-    
+
     <!-- Mobile User Menu -->
     <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
         <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Account</div>
@@ -227,12 +230,12 @@ document.addEventListener('click', function(event) {
     const menuButton = document.getElementById('mobile-menu-button');
     const userDropdown = document.getElementById('user-menu-dropdown-desktop');
     const userButton = document.getElementById('user-menu-button-desktop');
-    
+
     // Only close mobile menu if clicking outside of it
     if (!menu.contains(event.target) && !menuButton.contains(event.target)) {
         menu.classList.add('hidden');
     }
-    
+
     // Only close user dropdown if clicking outside of it
     if (!userDropdown.contains(event.target) && !userButton.contains(event.target)) {
         userDropdown.classList.add('hidden');

@@ -23,6 +23,7 @@ type InventoryService interface {
 	DeleteHeldTransaction(ctx context.Context, reference string) error
 	FetchInventory(ctx context.Context) (*model.Inventory, error)
 	FetchProductByID(ctx context.Context, id int) (types.ProductResult, error)
+	FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error)
 }
 
 type SaleService interface {
