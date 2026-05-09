@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"pharmacy/adapter/http/helper"
 	"pharmacy/httperror"
@@ -16,6 +17,52 @@ import (
 	"strconv"
 	"time"
 )
+
+func (c *inventoryController) RenderReceivedItemsHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := map[string]any{
+		"Title":         "Received Items History",
+		"ActivePage":    "inventory",
+		"SubActivePage": "received-items-history",
+	}
+	err := c.template.ExecuteTemplate(w, "received-items-history.html", data)
+	if err != nil {
+		http.Error(w, "received items history render error", http.StatusInternalServerError)
+	}
+}
+
+func (c *inventoryController) FetchReceivedItemsHistory(w http.ResponseWriter, r *http.Request) {
+	startStr := r.URL.Query().Get("start")
+	endStr := r.URL.Query().Get("end")
+	var filter types.SaleFilter
+
+	if startStr != "" {
+		if start, err := time.Parse("2006-01-02", startStr); err == nil {
+			filter.StartDate = &start
+		}
+	}
+	if endStr != "" {
+		if end, err := time.Parse("2006-01-02", endStr); err == nil {
+			filter.EndDate = &end
+		}
+	}
+
+	batches, err := c.service.FetchReceivingBatches(r.Context(), filter)
+	if err != nil {
+		log.Printf("FetchReceivedItemsHistory: %v", err)
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to fetch received items history", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"batches": batches,
+	})
+}
 
 type inventoryController struct {
 	service  service.InventoryService
