@@ -5,6 +5,7 @@
       :is-dark="isDark"
       @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
       @toggle-theme="toggleTheme"
+      @open-admin="openAdminPanel"
     />
 
     <!-- Main Content -->
@@ -15,9 +16,13 @@
       <DashboardView />
     </div>
 
-    <!-- Admin Panel (rendered outside main flow, shown on sidebar admin click) -->
+    <!-- Admin Panel -->
     <PermissionGate permission="admin:access">
-      <AdminPanel :open="adminOpen" @close="adminOpen = false" />
+      <AdminPanel
+        :open="adminOpen"
+        :initial-module="adminModule"
+        @close="adminOpen = false"
+      />
     </PermissionGate>
   </div>
 </template>
@@ -33,6 +38,7 @@ import AdminPanel from "./components/AdminPanel.vue";
 const sidebarCollapsed = ref(false);
 const isDark = ref(false);
 const adminOpen = ref(false);
+const adminModule = ref(null);
 
 const permissions = ref(window.__PERMISSIONS__ ?? {});
 const user = ref(window.__USER__ ?? { id: 0 });
@@ -46,17 +52,13 @@ function toggleTheme() {
   localStorage.setItem("theme", isDark.value ? "dark" : "light");
 }
 
+function openAdminPanel(payload = {}) {
+  adminModule.value = payload?.module ?? null;
+  adminOpen.value = true;
+}
+
 onMounted(() => {
   isDark.value = localStorage.getItem("theme") === "dark";
   document.documentElement.classList.toggle("dark", isDark.value);
-
-  // Intercept clicks on sidebar admin link to open the slide-over
-  document.addEventListener("click", (e) => {
-    const link = e.target.closest('a[href="#"]');
-    if (link && link.textContent?.trim() === "Admin") {
-      e.preventDefault();
-      adminOpen.value = true;
-    }
-  });
 });
 </script>

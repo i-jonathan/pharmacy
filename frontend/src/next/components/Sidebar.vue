@@ -4,38 +4,79 @@
     :class="collapsed ? 'w-16' : 'w-60'"
   >
     <!-- Logo -->
-    <div class="flex items-center h-14 px-4 border-b">
-      <Pill :size="22" class="text-primary shrink-0" />
-      <span
-        v-if="!collapsed"
-        class="ml-3 font-bold text-sm tracking-tight truncate"
-      >
+    <div class="flex items-center h-14 px-4 border-b border-border">
+      <Pill :size="22" class="text-foreground shrink-0" />
+      <span v-if="!collapsed" class="ml-3 font-bold text-sm tracking-tight truncate">
         Primocrest
       </span>
     </div>
 
-    <!-- Nav Links -->
-    <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+    <!-- Nav -->
+    <nav class="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
+      <!-- Dashboard -->
       <a
-        v-for="link in visibleLinks"
-        :key="link.label"
-        :href="link.href"
-        :class="[
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-          link.active
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-        ]"
-        :title="collapsed ? link.label : ''"
-        @click="link.onClick ? link.onClick($event) : null"
+        href="/app/dashboard?ui=v2"
+        :class="linkClasses(true)"
+        :title="collapsed ? 'Dashboard' : ''"
       >
-        <component :is="link.icon" :size="18" class="shrink-0" />
-        <span v-if="!collapsed">{{ link.label }}</span>
+        <LayoutDashboard :size="18" class="shrink-0" />
+        <span v-if="!collapsed">Dashboard</span>
       </a>
+
+      <!-- Sales Section -->
+      <div>
+        <button
+          v-if="!collapsed"
+          class="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+          @click="toggleSection('sales')"
+        >
+          <span>Sales</span>
+          <ChevronDown :size="14" :class="sectionOpen.sales ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
+        </button>
+        <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
+        <div v-show="collapsed || sectionOpen.sales" class="space-y-0.5">
+          <a href="/sales/receipt" :class="linkClasses(false)"><ShoppingCart :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
+          <a href="/sales/history" :class="linkClasses(false)"><History :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
+          <a href="/sales/held" :class="linkClasses(false)"><PauseCircle :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
+        </div>
+      </div>
+
+      <!-- Inventory Section -->
+      <div>
+        <button
+          v-if="!collapsed"
+          class="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+          @click="toggleSection('inventory')"
+        >
+          <span>Inventory</span>
+          <ChevronDown :size="14" :class="sectionOpen.inventory ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
+        </button>
+        <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
+        <div v-show="collapsed || sectionOpen.inventory" class="space-y-0.5">
+          <a href="/inventory/items" :class="linkClasses(false)"><Package :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
+          <a href="/inventory/receive-items" :class="linkClasses(false)"><Truck :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
+          <a href="/stock-taking/" :class="linkClasses(false)"><ClipboardCheck :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
+          <PermissionGate permission="admin:access">
+            <button class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors" @click="$emit('open-admin', { module: 'categories' })">
+              <Tags :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
+            </button>
+          </PermissionGate>
+        </div>
+      </div>
     </nav>
 
     <!-- Bottom Actions -->
-    <div class="border-t px-2 py-3 space-y-1">
+    <div class="border-t border-border px-2 py-3 space-y-1">
+      <PermissionGate permission="admin:access">
+        <button
+          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+          @click="$emit('open-admin', {})"
+        >
+          <Shield :size="18" class="shrink-0" />
+          <span v-if="!collapsed">Administration</span>
+        </button>
+      </PermissionGate>
+
       <button
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
         @click="$emit('toggle-collapse')"
@@ -65,40 +106,37 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { reactive } from "vue";
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  ClipboardCheck,
-  Shield,
-  Pill,
-  PanelLeftClose,
-  PanelRightOpen,
-  Moon,
-  Sun,
-  ArrowLeftRight,
+  LayoutDashboard, ShoppingCart, History, PauseCircle,
+  Package, Truck, ClipboardCheck, Tags, Shield,
+  Pill, PanelLeftClose, PanelRightOpen, Moon, Sun, ArrowLeftRight,
+  ChevronDown,
 } from "lucide-vue-next";
-import { usePermissions } from "../composables/usePermissions.js";
+import PermissionGate from "./PermissionGate.vue";
 
-const props = defineProps({
+defineProps({
   collapsed: { type: Boolean, default: false },
   isDark: { type: Boolean, default: false },
 });
 
 defineEmits(["toggle-collapse", "toggle-theme", "open-admin"]);
 
-const { hasPermission } = usePermissions();
+const sectionOpen = reactive({
+  sales: true,
+  inventory: true,
+});
 
-const allLinks = [
-  { label: "Dashboard", href: "/app/dashboard?ui=v2", icon: LayoutDashboard, permission: null, active: true },
-  { label: "Inventory", href: "/inventory/items", icon: Package, permission: null, active: false },
-  { label: "Sales", href: "/sales/receipt", icon: ShoppingCart, permission: null, active: false },
-  { label: "Stock Taking", href: "/stock-taking/", icon: ClipboardCheck, permission: null, active: false },
-  { label: "Admin", href: "#", icon: Shield, permission: "admin:access", active: false, onClick: (e) => { e.preventDefault(); /* handled by parent */ } },
-];
+function toggleSection(key) {
+  sectionOpen[key] = !sectionOpen[key];
+}
 
-const visibleLinks = computed(() =>
-  allLinks.filter((l) => !l.permission || hasPermission(l.permission))
-);
+function linkClasses(active) {
+  return [
+    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+    active
+      ? "bg-foreground/5 text-foreground"
+      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+  ];
+}
 </script>

@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { X, ArrowLeft, Shield, Users, UserCog, Tags } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,13 +65,22 @@ import RolesViewer from "../../admin/views/RolesViewer.vue";
 import UsersManager from "../../admin/views/UsersManager.vue";
 import CategoriesManager from "../../admin/views/CategoriesManager.vue";
 
-defineProps({
+const props = defineProps({
   open: { type: Boolean, default: false },
+  initialModule: { type: String, default: null },
 });
 
 defineEmits(["close"]);
 
 const currentModule = ref(null);
+
+watch(() => props.open, (isOpen) => {
+  if (isOpen && props.initialModule) {
+    currentModule.value = props.initialModule;
+  } else if (!isOpen) {
+    currentModule.value = null;
+  }
+});
 
 const modules = [
   { name: "Permissions", description: "Manage access permissions and assign them to roles", icon: Shield, path: "permissions" },
