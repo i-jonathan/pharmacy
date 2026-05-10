@@ -3,11 +3,12 @@ package types
 import "time"
 
 type DashboardResponse struct {
-	KPI           KPIResponse         `json:"kpi"`
-	SalesTrend    []SalesTrendData    `json:"sales_trend"`
-	CategorySales []CategorySalesData `json:"category_sales"`
-	ExpiringItems []ExpiringItemData  `json:"expiring_items"`
-	LowStockItems []LowStockItemData  `json:"low_stock_items"`
+	KPI              KPIResponse            `json:"kpi"`
+	SalesTrend       []SalesTrendData       `json:"sales_trend"`
+	CategorySales    []CategorySalesData    `json:"category_sales"`
+	ExpiringItems    []ExpiringItemData     `json:"expiring_items"`
+	ExpiryByCategory []ExpiryByCategoryData `json:"expiry_by_category"`
+	LowStockItems    []LowStockItemData     `json:"low_stock_items"`
 }
 
 type KPIResponse struct {
@@ -49,6 +50,12 @@ type LowStockItemData struct {
 	ID           int    `json:"id"`
 	CurrentStock int    `json:"current_stock"`
 	ReorderLevel int    `json:"reorder_level"`
+}
+
+type ExpiryByCategoryData struct {
+	Category      string `json:"category"`
+	Count         int    `json:"count"`
+	TotalCostKobo int    `json:"total_cost_kobo"`
 }
 
 type DashboardFilter struct {

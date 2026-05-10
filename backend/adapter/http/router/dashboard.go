@@ -17,6 +17,7 @@ func InitDashboardRouter(dashboardService service.DashboardService) http.Handler
 	})
 
 	dashboardMux.HandleFunc(http.MethodGet+" /dashboard", dashboardController.GetDashboardData)
+	dashboardMux.HandleFunc(http.MethodGet+" /permissions/me", dashboardController.GetMyPermissions)
 
 	return http.StripPrefix("/api", dashboardMux)
 }

@@ -148,6 +148,32 @@ func (r *repo) GetExpiringItems(ctx context.Context, startDate, endDate time.Tim
 	return expiringItems, nil
 }
 
+func (r *repo) GetExpiringItemsByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiryByCategory, error) {
+	query := `
+		SELECT
+			c.name as category,
+			COUNT(DISTINCT p.id) as count,
+			COALESCE(SUM(p.cost_price * COALESCE(iv.stock, 0)), 0) as total_cost_kobo
+		FROM product p
+		JOIN category c ON p.category_id = c.id
+		LEFT JOIN inventory_view iv ON p.id = iv.id
+		WHERE p.current_expiry IS NOT NULL
+		  AND p.current_expiry >= $1
+		  AND p.current_expiry <= $2
+		  AND COALESCE(iv.stock, 0) > 0
+		GROUP BY c.name
+		ORDER BY total_cost_kobo DESC
+	`
+
+	var items []model.ExpiryByCategory
+	err := r.Data.SelectContext(ctx, &items, query, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
 func (r *repo) GetSalesByTime(ctx context.Context, startTime, endTime time.Time) ([]model.Sale, error) {
 	query := `
 		SELECT id, receipt_number, cashier_id, subtotal, discount, total, status, created_at

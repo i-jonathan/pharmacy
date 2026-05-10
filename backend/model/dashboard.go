@@ -23,3 +23,9 @@ type LowStockItem struct {
 	CurrentStock int    `json:"current_stock" db:"current_stock"`
 	ReorderLevel int    `json:"reorder_level" db:"reorder_level"`
 }
+
+type ExpiryByCategory struct {
+	Category      string `db:"category"`
+	Count         int    `db:"count"`
+	TotalCostKobo int    `db:"total_cost_kobo"`
+}

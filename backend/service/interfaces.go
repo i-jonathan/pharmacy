@@ -4,6 +4,7 @@ import (
 	"context"
 	"pharmacy/internal/types"
 	"pharmacy/model"
+	"time"
 )
 
 type UserService interface {
@@ -45,7 +46,7 @@ type StockTakingService interface {
 }
 
 type DashboardService interface {
-	GetDashboardData(ctx context.Context) (*types.DashboardResponse, error)
+	GetDashboardData(ctx context.Context, startDate, endDate *time.Time) (*types.DashboardResponse, error)
 }
 
 type AdminService interface {

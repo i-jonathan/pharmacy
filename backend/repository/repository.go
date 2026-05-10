@@ -90,6 +90,7 @@ type DashboardRepository interface {
 	GetLowStockItems(ctx context.Context) ([]model.LowStockItem, error)
 	GetSalesByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.SalesByCategory, error)
 	GetExpiringItems(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiringItem, error)
+	GetExpiringItemsByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiryByCategory, error)
 }
 
 type AdminRepository interface {
