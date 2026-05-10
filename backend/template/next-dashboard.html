@@ -1,0 +1,30 @@
+{{define "next-dashboard.html"}}
+<!doctype html>
+<html lang="en" class="">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Title}} | Primocrest Pharmacy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="/static/css/tailwind.css" rel="stylesheet" />
+    <style>
+        html {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen">
+    <div id="next-app"></div>
+
+    <script>
+        window.__PERMISSIONS__ = {{ toJSON .Permissions }};
+        window.__USER__ = {{ toJSON .User }};
+    </script>
+    <script src="/static/js/theme.js"></script>
+    <script type="module" src="{{ ViteAsset "src/next/main.js" }}"></script>
+</body>
+</html>
+{{end}}
