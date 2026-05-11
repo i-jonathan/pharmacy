@@ -17,6 +17,7 @@ type KPIResponse struct {
 	TodayTransactions int     `json:"today_transactions"`
 	TotalInventory    int     `json:"total_inventory"`
 	LowStockCount     int     `json:"low_stock_count"`
+	ExpiringCount     int     `json:"expiring_count"`
 	SalesTrend        float64 `json:"sales_trend"`       // percentage change
 	TransactionTrend  float64 `json:"transaction_trend"` // percentage change
 }

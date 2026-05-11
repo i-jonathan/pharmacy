@@ -60,6 +60,26 @@ func (r *repo) GetTotalInventoryItems(ctx context.Context) (int, error) {
 	return totalItems, nil
 }
 
+func (r *repo) GetExpiringCount(ctx context.Context) (int, error) {
+	query := `
+		SELECT COUNT(*) as expiring_count
+		FROM product p
+		LEFT JOIN inventory_view iv ON p.id = iv.id
+		WHERE p.current_expiry IS NOT NULL
+		  AND p.current_expiry >= CURRENT_DATE
+		  AND p.current_expiry <= CURRENT_DATE + INTERVAL '90 days'
+		  AND COALESCE(iv.stock, 0) > 0
+	`
+
+	var count int
+	err := r.Data.GetContext(ctx, &count, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (r *repo) GetLowStockCount(ctx context.Context) (int, error) {
 	query := `
 		SELECT COUNT(*) as low_stock_count

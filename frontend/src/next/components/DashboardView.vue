@@ -25,7 +25,7 @@
     <!-- Dashboard Content -->
     <template v-else>
       <!-- KPI Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
           title="Total Sales"
           :formatted-value="formatNaira(getKPIValue('today_sales', 0))"
@@ -52,6 +52,13 @@
           :formatted-value="getKPIValue('low_stock_count', 0).toLocaleString()"
           subtitle="Need reordering"
           :icon="AlertTriangle"
+          accent="amber"
+        />
+        <MetricCard
+          title="Expiring Soon"
+          :formatted-value="getKPIValue('expiring_count', 0).toLocaleString()"
+          subtitle="Within 90 days"
+          :icon="Calendar"
           accent="rose"
         />
       </div>
@@ -73,7 +80,7 @@
 
 <script setup>
 import { watch, onMounted } from "vue";
-import { DollarSign, ShoppingCart, Package, AlertTriangle } from "lucide-vue-next";
+import { DollarSign, ShoppingCart, Package, AlertTriangle, Calendar } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "../composables/useDashboard.js";
 import MetricCard from "./MetricCard.vue";

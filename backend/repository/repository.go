@@ -87,6 +87,7 @@ type DashboardRepository interface {
 	GetTransactionCount(ctx context.Context, startDate, endDate time.Time) (int, error)
 	GetTotalInventoryItems(ctx context.Context) (int, error)
 	GetLowStockCount(ctx context.Context) (int, error)
+	GetExpiringCount(ctx context.Context) (int, error)
 	GetLowStockItems(ctx context.Context) ([]model.LowStockItem, error)
 	GetSalesByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.SalesByCategory, error)
 	GetExpiringItems(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiringItem, error)

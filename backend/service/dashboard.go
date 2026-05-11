@@ -119,6 +119,12 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 		return nil, httperror.ServerError("failed to get low stock count", err)
 	}
 
+	expiringCount, err := s.repo.GetExpiringCount(ctx)
+	if err != nil {
+		log.Printf("failed to get expiring count: %v", err)
+		return nil, httperror.ServerError("failed to get expiring count", err)
+	}
+
 	// Get category sales
 	categorySales, err := s.repo.GetSalesByCategory(ctx, sd, ed)
 	if err != nil {
@@ -178,6 +184,7 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 			TodayTransactions: todayTransactions,
 			TotalInventory:    totalInventory,
 			LowStockCount:     lowStockCount,
+			ExpiringCount:     expiringCount,
 			SalesTrend:        calculatePercentageChange(float64(yesterdaySales), float64(todaySales)),
 			TransactionTrend:  calculatePercentageChange(float64(yesterdayTransactions), float64(todayTransactions)),
 		},
