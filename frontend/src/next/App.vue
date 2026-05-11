@@ -13,7 +13,7 @@
       class="transition-all duration-300"
       :class="sidebarCollapsed ? 'ml-16' : 'ml-60'"
     >
-      <DashboardView />
+      <RouterView />
     </div>
 
     <!-- Admin Panel -->
@@ -31,7 +31,6 @@
 import { ref, provide, onMounted } from "vue";
 import { PermissionsKey, UserKey } from "./composables/usePermissions.js";
 import Sidebar from "./components/Sidebar.vue";
-import DashboardView from "./components/DashboardView.vue";
 import PermissionGate from "./components/PermissionGate.vue";
 import AdminPanel from "./components/AdminPanel.vue";
 

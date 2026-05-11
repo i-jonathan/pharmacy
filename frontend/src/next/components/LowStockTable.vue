@@ -5,9 +5,18 @@
         <CardTitle class="text-sm font-semibold uppercase tracking-wider">
           Low Stock Items
         </CardTitle>
-        <Badge variant="destructive" class="text-xs">
-          {{ items.length }} items
-        </Badge>
+        <div class="flex items-center gap-3">
+          <Badge variant="destructive" class="text-xs">
+            {{ items.length }} items
+          </Badge>
+          <button
+            v-if="limit && items.length > limit"
+            class="text-xs font-medium text-primary hover:underline"
+            @click="$emit('view-all')"
+          >
+            View All
+          </button>
+        </div>
       </div>
     </CardHeader>
     <CardContent>
@@ -25,7 +34,7 @@
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-for="item in items" :key="item.id">
+          <TableRow v-for="item in displayedItems" :key="item.id">
             <TableCell>
               <div class="text-sm font-medium">{{ item.product_name }}</div>
               <div v-if="item.manufacturer" class="text-xs text-muted-foreground">{{ item.manufacturer }}</div>
@@ -43,6 +52,7 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,7 +64,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-defineProps({
+const props = defineProps({
   items: { type: Array, default: () => [] },
+  limit: { type: Number, default: null },
+});
+
+defineEmits(["view-all"]);
+
+const displayedItems = computed(() => {
+  if (props.limit && props.items.length > props.limit) {
+    return props.items.slice(0, props.limit);
+  }
+  return props.items;
 });
 </script>

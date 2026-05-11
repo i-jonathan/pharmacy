@@ -72,17 +72,19 @@
       <!-- Expiry + Low Stock Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ExpiryAlerts :data="dashboardData?.expiry_by_category ?? []" />
-        <LowStockTable :items="dashboardData?.low_stock_items ?? []" />
+        <LowStockTable :items="dashboardData?.low_stock_items ?? []" :limit="5" @view-all="goToLowStock" />
       </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { watch, onMounted } from "vue";
+import { onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { DollarSign, ShoppingCart, Package, AlertTriangle, Calendar } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "../composables/useDashboard.js";
+import { shared } from "../store.js";
 import MetricCard from "./MetricCard.vue";
 import SalesTrendChart from "./SalesTrendChart.vue";
 import TopSellingProducts from "./TopSellingProducts.vue";
@@ -90,6 +92,7 @@ import ExpiryAlerts from "./ExpiryAlerts.vue";
 import LowStockTable from "./LowStockTable.vue";
 import DateFilterBar from "./DateFilterBar.vue";
 
+const router = useRouter();
 const { loading, error, dashboardData, dateFilter, fetchDashboard, getKPIValue } = useDashboard();
 
 function formatNaira(kobo) {
@@ -99,6 +102,11 @@ function formatNaira(kobo) {
 
 function onFilterChange(filter) {
   fetchDashboard(filter);
+}
+
+function goToLowStock() {
+  shared.lowStockItems = dashboardData.value?.low_stock_items ?? [];
+  router.push({ name: "low-stock" });
 }
 
 onMounted(() => {
