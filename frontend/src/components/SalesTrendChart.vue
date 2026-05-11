@@ -81,7 +81,7 @@ const chartOptions = {
 
 const updateChartData = () => {
     chartData.value = {
-        labels: props.data.map((item) => item.day),
+        labels: props.data.map((item) => item.date),
         datasets: [
             {
                 label: "Sales",

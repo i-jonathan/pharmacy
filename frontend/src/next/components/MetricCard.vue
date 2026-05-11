@@ -28,7 +28,7 @@
         <span :class="trend >= 0 ? 'text-emerald-600' : 'text-destructive'" class="font-medium">
           {{ Math.abs(trend).toFixed(1) }}%
         </span>
-        <span class="text-muted-foreground text-xs">vs previous</span>
+        <span class="text-muted-foreground text-xs">vs yesterday</span>
       </div>
       <div v-if="subtitle" class="text-xs text-muted-foreground mt-1">
         {{ subtitle }}

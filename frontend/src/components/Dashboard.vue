@@ -252,7 +252,7 @@
                                 <div
                                     class="text-sm font-bold text-red-600 dark:text-red-400"
                                 >
-                                    {{ item.daysUntilExpiry }} days
+                                    {{ item.datesUntilExpiry }} days
                                 </div>
                             </div>
                         </div>
@@ -348,7 +348,7 @@
                                 <div
                                     class="text-sm font-bold text-amber-600 dark:text-amber-400"
                                 >
-                                    {{ item.daysUntilExpiry }} days
+                                    {{ item.datesUntilExpiry }} days
                                 </div>
                             </div>
                         </div>
@@ -452,7 +452,7 @@
                             <div
                                 class="text-sm font-bold text-red-600 dark:text-red-400"
                             >
-                                {{ item.daysUntilExpiry }} days
+                                {{ item.datesUntilExpiry }} days
                             </div>
                         </div>
                     </div>
@@ -528,7 +528,7 @@
                             <div
                                 class="text-sm font-bold text-amber-600 dark:text-amber-400"
                             >
-                                {{ item.daysUntilExpiry }} days
+                                {{ item.datesUntilExpiry }} days
                             </div>
                         </div>
                     </div>
@@ -832,7 +832,7 @@ watch(
                 salesTrendChart.value.chart = new Chart(ctx, {
                     type: "line",
                     data: {
-                        labels: salesTrendData.value.map((item) => item.day),
+                        labels: salesTrendData.value.map((item) => item.date),
                         datasets: [
                             {
                                 label: "Sales Trend",
@@ -942,7 +942,7 @@ const fetchDashboardData = async () => {
             data.sales_trend.length > 0
         ) {
             salesTrendData.value = data.sales_trend.map((item) => ({
-                day: item.day,
+                day: item.date,
                 sales: item.sales / 100, // Convert from kobo to naira
             }));
         }
@@ -964,7 +964,7 @@ const fetchDashboardData = async () => {
                 name: item.product_name,
                 quantity: item.quantity,
                 expiryDate: new Date(item.expiry_date).toLocaleDateString(),
-                daysUntilExpiry: item.days_until_expiry,
+                daysUntilExpiry: item.dates_until_expiry,
             }));
         }
 
@@ -1019,7 +1019,7 @@ const copyExpiringItems = (items, sectionName) => {
     const itemsText = items
         .map(
             (item) =>
-                `${item.name} - Qty: ${item.quantity}, Expires: ${item.expiryDate} (${item.daysUntilExpiry} days)`,
+                `${item.name} - Qty: ${item.quantity}, Expires: ${item.expiryDate} (${item.datesUntilExpiry} days)`,
         )
         .join("\n");
 

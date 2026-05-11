@@ -58,8 +58,8 @@
 
       <!-- Charts Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SalesTrendChart :data="dashboardData?.sales_trend ?? []" />
-        <CategoryDonutChart :data="(dashboardData?.category_sales ?? []).map(c => ({ name: c.category, value: c.sales }))" />
+        <SalesTrendChart />
+        <TopSellingProducts :data="dashboardData?.top_selling_products ?? []" />
       </div>
 
       <!-- Expiry + Low Stock Row -->
@@ -78,7 +78,7 @@ import { Button } from "@/components/ui/button";
 import { useDashboard } from "../composables/useDashboard.js";
 import MetricCard from "./MetricCard.vue";
 import SalesTrendChart from "./SalesTrendChart.vue";
-import CategoryDonutChart from "./CategoryDonutChart.vue";
+import TopSellingProducts from "./TopSellingProducts.vue";
 import ExpiryAlerts from "./ExpiryAlerts.vue";
 import LowStockTable from "./LowStockTable.vue";
 import DateFilterBar from "./DateFilterBar.vue";
