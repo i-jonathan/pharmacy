@@ -8,7 +8,9 @@ type contextKey string
 
 const UserIDKey contextKey = "userID"
 const UserSessionKey string = "user_id"
+const UserNameSessionKey string = "user_name"
 const RoleSessionKey string = "role_id"
+const RoleNameSessionKey string = "role_name"
 const PermissionsSessionKey string = "permissions"
 
 const DefaultPriceName string = "Base"

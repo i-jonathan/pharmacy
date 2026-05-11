@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/http"
+	"pharmacy/config"
 	"pharmacy/internal/constant"
 )
 
@@ -21,12 +22,19 @@ func (c *appController) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	perms := getPermissionsFromContext(r)
 	userID := getUserIDFromContext(r)
 
+	store := config.NewSessionStore()
+	session, _ := store.Get(r, "session")
+	userName, _ := session.Values[constant.UserNameSessionKey].(string)
+	roleName, _ := session.Values[constant.RoleNameSessionKey].(string)
+
 	data := map[string]any{
 		"Title":       "Dashboard",
 		"ActivePage":  "dashboard",
 		"Permissions": perms,
 		"User": map[string]any{
-			"id": userID,
+			"id":       userID,
+			"username": userName,
+			"role":     roleName,
 		},
 	}
 

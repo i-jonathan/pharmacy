@@ -38,6 +38,7 @@ const fetchUserByNameQuery = `
 	    u.username,
 	    u.password,
 	    u.role_id,
+		r.name as role_name,
 	    COALESCE(
 	        json_agg(
 	            json_build_object(
@@ -53,7 +54,7 @@ const fetchUserByNameQuery = `
 	LEFT JOIN role_permissions rp ON rp.role_id = r.id
 	LEFT JOIN permissions p ON p.id = rp.permission_id
 	WHERE u.username = $1
-	GROUP BY u.id, u.username, u.password, u.role_id;
+	GROUP BY u.id, u.username, u.password, u.role_id, r.name;
 `
 const bulkFetchUserByIDQuery = `SELECT id, username FROM users WHERE id = ANY($1)`
 const createProductQuery = `INSERT INTO product
@@ -480,6 +481,7 @@ const getAllRolesWithPermissionsQuery = `
 
 const listUsersQuery = `
 		SELECT u.id, u.username, u.role_id, u.created_at, COALESCE(r.name, 'Cashier') as role_name
+tttr.name as role_name,
 		FROM users u
 		LEFT JOIN roles r ON r.id = u.role_id
 		ORDER BY u.created_at DESC

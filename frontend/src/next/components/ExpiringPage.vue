@@ -6,12 +6,9 @@
         <Button variant="outline" size="icon" @click="router.back()">
           <ArrowLeft :size="18" />
         </Button>
-        <div>
-          <h1 class="text-2xl font-bold tracking-tight">Expiring Items</h1>
-          <p class="text-sm text-muted-foreground mt-1">
-            {{ items.length }} items expiring within 90 days
-          </p>
-        </div>
+        <span class="text-sm text-muted-foreground">
+          {{ items.length }} items expiring within 90 days
+        </span>
       </div>
       <Button @click="exportPDF" :disabled="items.length === 0">
         <Download :size="16" class="mr-2" />

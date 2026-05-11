@@ -103,7 +103,9 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Values[constant.UserSessionKey] = u.ID
+	session.Values[constant.UserNameSessionKey] = u.UserName
 	session.Values[constant.RoleSessionKey] = u.RoleID
+	session.Values[constant.RoleNameSessionKey] = u.RoleName
 
 	permJSON, _ := json.Marshal(permMap)
 	session.Values[constant.PermissionsSessionKey] = string(permJSON)

@@ -13,6 +13,7 @@
       class="transition-all duration-300"
       :class="sidebarCollapsed ? 'ml-16' : 'ml-60'"
     >
+      <TopNav />
       <RouterView />
     </div>
 
@@ -31,6 +32,7 @@
 import { ref, provide, onMounted } from "vue";
 import { PermissionsKey, UserKey } from "./composables/usePermissions.js";
 import Sidebar from "./components/Sidebar.vue";
+import TopNav from "./components/TopNav.vue";
 import PermissionGate from "./components/PermissionGate.vue";
 import AdminPanel from "./components/AdminPanel.vue";
 

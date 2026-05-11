@@ -18,6 +18,7 @@ type User struct {
 	UserName    string      `json:"username"`
 	Password    string      `json:"password"`
 	RoleID      int         `json:"role_id" db:"role_id"`
+	RoleName    string      `json:"role_name" db:"role_name"`
 	Permissions Permissions `json:"permissions" db:"permissions" `
 }
 

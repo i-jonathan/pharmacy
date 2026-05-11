@@ -1,16 +1,5 @@
 <template>
   <div class="p-6 lg:p-8 space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p class="text-sm text-muted-foreground mt-1">
-          Overview of your pharmacy operations
-        </p>
-      </div>
-      <DateFilterBar v-model="dateFilter" @update:model-value="onFilterChange" />
-    </div>
-
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-24">
       <div class="text-muted-foreground">Loading dashboard data...</div>
@@ -24,6 +13,10 @@
 
     <!-- Dashboard Content -->
     <template v-else>
+      <div class="flex justify-end">
+        <DateFilterBar v-model="dateFilter" @update:model-value="onFilterChange" />
+      </div>
+
       <!-- KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
