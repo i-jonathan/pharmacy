@@ -16,6 +16,12 @@ type ExpiringItem struct {
 	DaysUntilExpiry int       `json:"days_until_expiry" db:"days_until_expiry"`
 }
 
+type TopSellingProduct struct {
+	ProductName string `db:"product_name"`
+	Quantity    int    `db:"quantity"`
+	RevenueKobo int    `db:"revenue_kobo"`
+}
+
 type LowStockItem struct {
 	ProductName  string `json:"product_name" db:"product_name"`
 	Manufacturer string `json:"manufacturer" db:"manufacturer"`

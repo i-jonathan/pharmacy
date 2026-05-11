@@ -67,10 +67,16 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 			return nil, httperror.ServerError("failed to get yesterday's sales", err)
 		}
 
-		// Get sales trend (last 7 days)
-		days := []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+		// Get sales trend over the requested period
+		days := int(ed.Sub(sd).Hours() / 24)
+		if days < 1 {
+			days = 1
+		}
+		if days > 31 {
+			days = 31
+		}
 
-		for i := 6; i >= 0; i-- {
+		for i := days; i >= 0; i-- {
 			date := time.Now().AddDate(0, 0, -i)
 			dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 			dayEnd := dayStart.Add(24 * time.Hour)
@@ -81,15 +87,8 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 				return nil, err
 			}
 
-			dayIndex := int(date.Weekday())
-			if dayIndex == 0 {
-				dayIndex = 6
-			} else {
-				dayIndex--
-			}
-
 			salesTrend = append(salesTrend, types.SalesTrendData{
-				Day:   days[dayIndex],
+				Date:  date.Format("Jan 2"),
 				Sales: sales,
 			})
 		}
@@ -158,6 +157,14 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 		return nil, httperror.ServerError("failed to get expiring items by category", err)
 	}
 
+	// Get top selling products for the past 7 days
+	weekStart := now.AddDate(0, 0, -7)
+	topSelling, err := s.repo.GetTopSellingProducts(ctx, weekStart, now, 5)
+	if err != nil {
+		log.Printf("failed to get top selling products: %v", err)
+		return nil, httperror.ServerError("failed to get top selling products", err)
+	}
+
 	// Get low stock items
 	lowStockItems, err := s.repo.GetLowStockItems(ctx)
 	if err != nil {
@@ -174,11 +181,12 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 			SalesTrend:        calculatePercentageChange(float64(yesterdaySales), float64(todaySales)),
 			TransactionTrend:  calculatePercentageChange(float64(yesterdayTransactions), float64(todayTransactions)),
 		},
-		SalesTrend:       salesTrend,
-		CategorySales:    categorySalesData,
-		ExpiringItems:    convertExpiringItems(expiringItems),
-		ExpiryByCategory: convertExpiryByCategory(expiryByCategory),
-		LowStockItems:    convertLowStockItems(lowStockItems),
+		SalesTrend:         salesTrend,
+		CategorySales:      categorySalesData,
+		TopSellingProducts: convertTopSellingProducts(topSelling),
+		ExpiringItems:      convertExpiringItems(expiringItems),
+		ExpiryByCategory:   convertExpiryByCategory(expiryByCategory),
+		LowStockItems:      convertLowStockItems(lowStockItems),
 	}, nil
 }
 
@@ -214,6 +222,18 @@ func convertExpiryByCategory(items []model.ExpiryByCategory) []types.ExpiryByCat
 			Category:      item.Category,
 			Count:         item.Count,
 			TotalCostKobo: item.TotalCostKobo,
+		})
+	}
+	return result
+}
+
+func convertTopSellingProducts(items []model.TopSellingProduct) []types.TopSellingProductData {
+	var result []types.TopSellingProductData
+	for _, item := range items {
+		result = append(result, types.TopSellingProductData{
+			ProductName: item.ProductName,
+			Quantity:    item.Quantity,
+			RevenueKobo: item.RevenueKobo,
 		})
 	}
 	return result

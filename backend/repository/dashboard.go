@@ -174,6 +174,31 @@ func (r *repo) GetExpiringItemsByCategory(ctx context.Context, startDate, endDat
 	return items, nil
 }
 
+func (r *repo) GetTopSellingProducts(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.TopSellingProduct, error) {
+	query := `
+		SELECT
+			p.name as product_name,
+			SUM(si.quantity) as quantity,
+			SUM(si.total_price) as revenue_kobo
+		FROM sales s
+		JOIN sales_item si ON s.id = si.sale_id
+		JOIN product p ON si.product_id = p.id
+		WHERE s.created_at >= $1 AND s.created_at < $2
+		  AND s.status = 'COMPLETED'
+		GROUP BY p.id, p.name
+		ORDER BY quantity DESC
+		LIMIT $3
+	`
+
+	var products []model.TopSellingProduct
+	err := r.Data.SelectContext(ctx, &products, query, startDate, endDate, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
 func (r *repo) GetSalesByTime(ctx context.Context, startTime, endTime time.Time) ([]model.Sale, error) {
 	query := `
 		SELECT id, receipt_number, cashier_id, subtotal, discount, total, status, created_at

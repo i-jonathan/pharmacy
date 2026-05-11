@@ -3,12 +3,13 @@ package types
 import "time"
 
 type DashboardResponse struct {
-	KPI              KPIResponse            `json:"kpi"`
-	SalesTrend       []SalesTrendData       `json:"sales_trend"`
-	CategorySales    []CategorySalesData    `json:"category_sales"`
-	ExpiringItems    []ExpiringItemData     `json:"expiring_items"`
-	ExpiryByCategory []ExpiryByCategoryData `json:"expiry_by_category"`
-	LowStockItems    []LowStockItemData     `json:"low_stock_items"`
+	KPI               KPIResponse            `json:"kpi"`
+	SalesTrend        []SalesTrendData       `json:"sales_trend"`
+	CategorySales     []CategorySalesData    `json:"category_sales"`
+	TopSellingProducts []TopSellingProductData `json:"top_selling_products"`
+	ExpiringItems     []ExpiringItemData     `json:"expiring_items"`
+	ExpiryByCategory  []ExpiryByCategoryData `json:"expiry_by_category"`
+	LowStockItems     []LowStockItemData     `json:"low_stock_items"`
 }
 
 type KPIResponse struct {
@@ -21,7 +22,7 @@ type KPIResponse struct {
 }
 
 type SalesTrendData struct {
-	Day   string `json:"day"`
+	Date  string `json:"date"`
 	Sales int    `json:"sales"`
 }
 
@@ -56,6 +57,12 @@ type ExpiryByCategoryData struct {
 	Category      string `json:"category"`
 	Count         int    `json:"count"`
 	TotalCostKobo int    `json:"total_cost_kobo"`
+}
+
+type TopSellingProductData struct {
+	ProductName string `json:"product_name"`
+	Quantity    int    `json:"quantity"`
+	RevenueKobo int    `json:"revenue_kobo"`
 }
 
 type DashboardFilter struct {
