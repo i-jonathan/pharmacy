@@ -1,43 +1,51 @@
 <template>
   <Card>
     <CardHeader>
-      <CardTitle class="text-sm font-semibold uppercase tracking-wider">
-        Top Selling Products
-      </CardTitle>
-      <CardDescription>Past 7 days</CardDescription>
+      <div class="flex items-center justify-between">
+        <CardTitle class="text-sm font-semibold uppercase tracking-wider">
+          Top Selling Products
+        </CardTitle>
+        <span class="text-xs text-muted-foreground">Past 7 days</span>
+      </div>
     </CardHeader>
     <CardContent>
-      <div v-if="products.length === 0" class="text-center py-8 text-muted-foreground text-sm">
-        No sales data for this week
+      <div v-if="products.length === 0" class="text-center py-12 text-muted-foreground text-sm">
+        No sales data for this period
       </div>
-      <template v-else>
-        <div class="flex items-center gap-3 mb-2 px-1">
-          <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Product</span>
-          <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14 text-center">Sold</span>
-          <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 text-right">Revenue</span>
-        </div>
-        <div class="space-y-1">
-          <div
-            v-for="(item, index) in products"
-            :key="item.product_name"
-            class="flex items-center gap-3 py-2"
-          >
-            <span class="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
-              {{ index + 1 }}
-            </span>
-            <span class="text-sm font-medium truncate flex-1">{{ item.product_name }}</span>
-            <span class="text-sm text-muted-foreground w-14 text-center">{{ item.quantity }}</span>
-            <span class="text-sm font-semibold w-24 text-right">{{ formatNaira(item.revenue_kobo) }}</span>
-          </div>
-        </div>
-      </template>
+
+      <Table v-else>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="w-10">#</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead class="text-center">Sold</TableHead>
+            <TableHead class="text-right">Revenue</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="(item, index) in products" :key="item.product_name">
+            <TableCell class="text-muted-foreground text-sm">{{ index + 1 }}</TableCell>
+            <TableCell class="font-medium">{{ item.product_name }}</TableCell>
+            <TableCell class="text-center text-muted-foreground">{{ item.quantity }}</TableCell>
+            <TableCell class="text-right font-semibold">{{ formatNaira(item.revenue_kobo) }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </CardContent>
   </Card>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
