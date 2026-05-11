@@ -235,3 +235,23 @@ func (r *repo) GetSalesByTime(ctx context.Context, startTime, endTime time.Time)
 
 	return sales, nil
 }
+
+func (r *repo) GetRecentSales(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.RecentTransaction, error) {
+	query := `
+		SELECT s.id, s.receipt_number, s.total, COUNT(si.id) as item_count, s.status, s.created_at
+		FROM sales s
+		LEFT JOIN sales_item si ON s.id = si.sale_id
+		WHERE s.created_at >= $1 AND s.created_at < $2
+		GROUP BY s.id, s.receipt_number, s.total, s.status, s.created_at
+		ORDER BY s.created_at DESC
+		LIMIT $3
+	`
+
+	var transactions []model.RecentTransaction
+	err := r.Data.SelectContext(ctx, &transactions, query, startDate, endDate, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return transactions, nil
+}

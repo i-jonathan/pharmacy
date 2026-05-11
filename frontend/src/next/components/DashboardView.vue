@@ -50,16 +50,20 @@
         <MetricCard
           title="Low Stock Items"
           :formatted-value="getKPIValue('low_stock_count', 0).toLocaleString()"
-          subtitle="Need reordering"
+          subtitle="View and Restock"
           :icon="AlertTriangle"
           accent="amber"
+          clickable
+          @click="goToLowStock"
         />
         <MetricCard
           title="Expiring Soon"
           :formatted-value="getKPIValue('expiring_count', 0).toLocaleString()"
-          subtitle="Within 90 days"
+          subtitle="View All"
           :icon="Calendar"
           accent="rose"
+          clickable
+          @click="goToExpiring"
         />
       </div>
 
@@ -69,9 +73,9 @@
         <TopSellingProducts :data="dashboardData?.top_selling_products ?? []" />
       </div>
 
-      <!-- Expiry + Low Stock Row -->
+      <!-- Recent Transactions + Low Stock Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ExpiryAlerts :data="dashboardData?.expiry_by_category ?? []" />
+        <RecentTransactions :transactions="dashboardData?.recent_transactions ?? []" />
         <LowStockTable :items="dashboardData?.low_stock_items ?? []" :limit="5" @view-all="goToLowStock" />
       </div>
     </template>
@@ -88,7 +92,7 @@ import { shared } from "../store.js";
 import MetricCard from "./MetricCard.vue";
 import SalesTrendChart from "./SalesTrendChart.vue";
 import TopSellingProducts from "./TopSellingProducts.vue";
-import ExpiryAlerts from "./ExpiryAlerts.vue";
+import RecentTransactions from "./RecentTransactions.vue";
 import LowStockTable from "./LowStockTable.vue";
 import DateFilterBar from "./DateFilterBar.vue";
 
@@ -107,6 +111,11 @@ function onFilterChange(filter) {
 function goToLowStock() {
   shared.lowStockItems = dashboardData.value?.low_stock_items ?? [];
   router.push({ name: "low-stock" });
+}
+
+function goToExpiring() {
+  shared.expiringItems = dashboardData.value?.expiring_items ?? [];
+  router.push({ name: "expiring" });
 }
 
 onMounted(() => {

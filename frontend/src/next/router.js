@@ -11,6 +11,11 @@ const routes = [
     name: "low-stock",
     component: () => import("./components/LowStockPage.vue"),
   },
+  {
+    path: "/expiring",
+    name: "expiring",
+    component: () => import("./components/ExpiringPage.vue"),
+  },
 ];
 
 const router = createRouter({

@@ -7,9 +7,10 @@ type DashboardResponse struct {
 	SalesTrend        []SalesTrendData       `json:"sales_trend"`
 	CategorySales     []CategorySalesData    `json:"category_sales"`
 	TopSellingProducts []TopSellingProductData `json:"top_selling_products"`
-	ExpiringItems     []ExpiringItemData     `json:"expiring_items"`
-	ExpiryByCategory  []ExpiryByCategoryData `json:"expiry_by_category"`
-	LowStockItems     []LowStockItemData     `json:"low_stock_items"`
+	ExpiringItems      []ExpiringItemData      `json:"expiring_items"`
+	ExpiryByCategory   []ExpiryByCategoryData  `json:"expiry_by_category"`
+	LowStockItems      []LowStockItemData      `json:"low_stock_items"`
+	RecentTransactions []RecentTransactionData `json:"recent_transactions"`
 }
 
 type KPIResponse struct {
@@ -64,6 +65,15 @@ type TopSellingProductData struct {
 	ProductName string `json:"product_name"`
 	Quantity    int    `json:"quantity"`
 	RevenueKobo int    `json:"revenue_kobo"`
+}
+
+type RecentTransactionData struct {
+	ID            int       `json:"id"`
+	ReceiptNumber string    `json:"receipt_number"`
+	Total         int       `json:"total"`
+	ItemCount     int       `json:"item_count"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type DashboardFilter struct {

@@ -30,6 +30,15 @@ type LowStockItem struct {
 	ReorderLevel int    `json:"reorder_level" db:"reorder_level"`
 }
 
+type RecentTransaction struct {
+	ID            int       `db:"id"`
+	ReceiptNumber string    `db:"receipt_number"`
+	Total         int       `db:"total"`
+	ItemCount     int       `db:"item_count"`
+	Status        string    `db:"status"`
+	CreatedAt     time.Time `db:"created_at"`
+}
+
 type ExpiryByCategory struct {
 	Category      string `db:"category"`
 	Count         int    `db:"count"`

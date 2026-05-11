@@ -178,6 +178,13 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 		return nil, httperror.ServerError("failed to get low stock items", err)
 	}
 
+	// Get recent transactions
+	recentTransactions, err := s.repo.GetRecentSales(ctx, sd, ed, 5)
+	if err != nil {
+		log.Printf("failed to get recent transactions: %v", err)
+		return nil, httperror.ServerError("failed to get recent transactions", err)
+	}
+
 	return &types.DashboardResponse{
 		KPI: types.KPIResponse{
 			TodaySales:        todaySales,
@@ -194,7 +201,23 @@ func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endD
 		ExpiringItems:      convertExpiringItems(expiringItems),
 		ExpiryByCategory:   convertExpiryByCategory(expiryByCategory),
 		LowStockItems:      convertLowStockItems(lowStockItems),
+		RecentTransactions: convertRecentTransactions(recentTransactions),
 	}, nil
+}
+
+func convertRecentTransactions(transactions []model.RecentTransaction) []types.RecentTransactionData {
+	var result []types.RecentTransactionData
+	for _, t := range transactions {
+		result = append(result, types.RecentTransactionData{
+			ID:            t.ID,
+			ReceiptNumber: t.ReceiptNumber,
+			Total:         t.Total,
+			ItemCount:     t.ItemCount,
+			Status:        t.Status,
+			CreatedAt:     t.CreatedAt,
+		})
+	}
+	return result
 }
 
 func calculatePercentageChange(oldValue, newValue float64) float64 {

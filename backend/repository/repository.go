@@ -93,6 +93,7 @@ type DashboardRepository interface {
 	GetExpiringItems(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiringItem, error)
 	GetExpiringItemsByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiryByCategory, error)
 	GetTopSellingProducts(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.TopSellingProduct, error)
+	GetRecentSales(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.RecentTransaction, error)
 }
 
 type AdminRepository interface {
