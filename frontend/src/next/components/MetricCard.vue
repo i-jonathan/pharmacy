@@ -10,9 +10,7 @@
         <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {{ title }}
         </span>
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center" :class="iconBgClass">
-          <component :is="icon" :class="iconColorClass" :size="18" />
-        </div>
+        <component :is="icon" :class="iconColorClass" :size="20" :stroke-width="1.5" />
       </div>
     </CardHeader>
     <CardContent>
@@ -23,6 +21,7 @@
         <component
           :is="trend >= 0 ? TrendingUp : TrendingDown"
           :size="14"
+          :stroke-width="1.5"
           :class="trend >= 0 ? 'text-emerald-500' : 'text-destructive'"
         />
         <span :class="trend >= 0 ? 'text-emerald-600' : 'text-destructive'" class="font-medium">
@@ -56,14 +55,13 @@ const props = defineProps({
 defineEmits(["click"]);
 
 const accentMap = {
-  blue: { icon: "bg-blue-100 dark:bg-blue-900/30", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500" },
-  indigo: { icon: "bg-indigo-100 dark:bg-indigo-900/30", color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500" },
-  emerald: { icon: "bg-emerald-100 dark:bg-emerald-900/30", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500" },
-  amber: { icon: "bg-amber-100 dark:bg-amber-900/30", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500" },
-  rose: { icon: "bg-rose-100 dark:bg-rose-900/30", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500" },
+  blue: { color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500" },
+  indigo: { color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500" },
+  emerald: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500" },
+  amber: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500" },
+  rose: { color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500" },
 };
 
-const iconBgClass = computed(() => accentMap[props.accent]?.icon ?? accentMap.indigo.icon);
 const iconColorClass = computed(() => accentMap[props.accent]?.color ?? accentMap.indigo.color);
 const accentBgClass = computed(() => accentMap[props.accent]?.bg ?? accentMap.indigo.bg);
 </script>

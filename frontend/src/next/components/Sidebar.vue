@@ -5,8 +5,8 @@
   >
     <!-- Logo -->
     <div class="flex items-center h-14 px-4 border-b border-border">
-      <Pill :size="22" class="text-foreground shrink-0" />
-      <span v-if="!collapsed" class="ml-3 font-bold text-sm tracking-tight truncate">
+      <Pill :stroke-width="1.5" :size="22" class="text-foreground shrink-0" />
+      <span v-if="!collapsed" class="ml-3 font-bold text-lg tracking-tight truncate">
         Primocrest
       </span>
     </div>
@@ -19,7 +19,7 @@
         :class="linkClasses(true)"
         :title="collapsed ? 'Dashboard' : ''"
       >
-        <LayoutDashboard :size="18" class="shrink-0" />
+        <LayoutDashboard :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">Dashboard</span>
       </a>
 
@@ -31,13 +31,13 @@
           @click="toggleSection('sales')"
         >
           <span>Sales</span>
-          <ChevronDown :size="14" :class="sectionOpen.sales ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
+          <ChevronDown :stroke-width="1.5" :size="14" :class="sectionOpen.sales ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.sales" class="space-y-0.5">
-          <a href="/sales/receipt" :class="linkClasses(false)"><ShoppingCart :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
-          <a href="/sales/history" :class="linkClasses(false)"><History :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
-          <a href="/sales/held" :class="linkClasses(false)"><PauseCircle :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
+          <a href="/sales/receipt" :class="linkClasses(false)"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
+          <a href="/sales/history" :class="linkClasses(false)"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
+          <a href="/sales/held" :class="linkClasses(false)"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
         </div>
       </div>
 
@@ -49,16 +49,16 @@
           @click="toggleSection('inventory')"
         >
           <span>Inventory</span>
-          <ChevronDown :size="14" :class="sectionOpen.inventory ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
+          <ChevronDown :stroke-width="1.5" :size="14" :class="sectionOpen.inventory ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.inventory" class="space-y-0.5">
-          <a href="/inventory/items" :class="linkClasses(false)"><Package :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
-          <a href="/inventory/receive-items" :class="linkClasses(false)"><Truck :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
-          <a href="/stock-taking/" :class="linkClasses(false)"><ClipboardCheck :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
+          <a href="/inventory/items" :class="linkClasses(false)"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
+          <a href="/inventory/receive-items" :class="linkClasses(false)"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
+          <a href="/stock-taking/" :class="linkClasses(false)"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
           <PermissionGate permission="admin:access">
             <button class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors" @click="$emit('open-admin', { module: 'categories' })">
-              <Tags :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
+              <Tags :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
             </button>
           </PermissionGate>
         </div>
@@ -72,7 +72,7 @@
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
           @click="$emit('open-admin', {})"
         >
-          <Shield :size="18" class="shrink-0" />
+          <Shield :stroke-width="1.5" :size="18" class="shrink-0" />
           <span v-if="!collapsed">Administration</span>
         </button>
       </PermissionGate>
@@ -81,7 +81,7 @@
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
         @click="$emit('toggle-collapse')"
       >
-        <component :is="collapsed ? PanelRightOpen : PanelLeftClose" :size="18" class="shrink-0" />
+        <component :is="collapsed ? PanelRightOpen : PanelLeftClose" :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">Collapse</span>
       </button>
 
@@ -89,7 +89,7 @@
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
         @click="$emit('toggle-theme')"
       >
-        <component :is="isDark ? Sun : Moon" :size="18" class="shrink-0" />
+        <component :is="isDark ? Sun : Moon" :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">{{ isDark ? 'Light mode' : 'Dark mode' }}</span>
       </button>
 
@@ -98,7 +98,7 @@
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         :title="collapsed ? 'Switch to old UI' : ''"
       >
-        <ArrowLeftRight :size="18" class="shrink-0" />
+        <ArrowLeftRight :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">Old UI</span>
       </a>
     </div>

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center justify-between px-6 py-3 border-b border-border bg-background">
+  <div class="flex items-center justify-between px-6 h-14 border-b border-border bg-background">
     <!-- Left: Breadcrumbs + Title -->
     <div>
       <h1 class="text-lg font-semibold leading-tight">{{ route.meta.title }}</h1>
@@ -16,7 +16,7 @@
             {{ crumb.label }}
           </router-link>
           <span v-else class="text-foreground font-medium">{{ crumb.label }}</span>
-          <ChevronRight v-if="i < breadcrumbs.length - 1" :size="12" />
+          <ChevronRight :stroke-width="1.5" v-if="i < breadcrumbs.length - 1" :size="12" />
         </template>
       </nav>
     </div>
@@ -25,7 +25,7 @@
     <div class="flex items-center gap-3">
       <!-- Notification Bell -->
       <Button variant="ghost" size="icon" class="relative">
-        <Bell :size="18" />
+        <Bell :size="18" :stroke-width="1.5" />
       </Button>
 
       <!-- User Dropdown -->
@@ -36,13 +36,13 @@
           @click="open = !open"
         >
           <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <UserIcon :size="16" class="text-primary" />
+            <UserIcon :size="16" class="text-primary" :stroke-width="1.5" />
           </div>
           <div class="text-left hidden sm:block">
             <div class="text-sm font-medium leading-none">{{ user.username }}</div>
             <div class="text-xs text-muted-foreground">{{ user.role }}</div>
           </div>
-          <ChevronDown :size="14" class="text-muted-foreground hidden sm:block" />
+          <ChevronDown :stroke-width="1.5" :size="14" class="text-muted-foreground hidden sm:block" />
         </Button>
 
         <!-- Dropdown -->
@@ -58,7 +58,7 @@
             href="/user/logout"
             class="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           >
-            <LogOut :size="14" />
+            <LogOut :size="14" :stroke-width="1.5" />
             Logout
           </a>
         </div>
