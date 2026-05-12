@@ -5,7 +5,7 @@
   >
     <!-- Logo -->
     <div class="flex items-center h-14 px-4 border-b border-border">
-      <Pill :stroke-width="1.5" :size="22" class="text-foreground shrink-0" />
+      <PillBottle :stroke-width="1.5" :size="22" class="text-foreground shrink-0" />
       <span v-if="!collapsed" class="ml-3 font-bold text-lg tracking-tight truncate">
         Primocrest
       </span>
@@ -110,7 +110,7 @@ import { reactive } from "vue";
 import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
   Package, Truck, ClipboardCheck, Tags, Shield,
-  Pill, PanelLeftClose, PanelRightOpen, Moon, Sun, ArrowLeftRight,
+  PillBottle, PanelLeftClose, PanelRightOpen, Moon, Sun, ArrowLeftRight,
   ChevronDown,
 } from "lucide-vue-next";
 import PermissionGate from "./PermissionGate.vue";
