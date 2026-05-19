@@ -25,6 +25,7 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 	saleMux.HandleFunc(http.MethodGet+" /held", saleController.RenderHeldSaleReceipts)
 	saleMux.HandleFunc(http.MethodDelete+" /held/{reference}", saleController.DeleteHeldSale)
 	saleMux.HandleFunc(http.MethodPost+" /returns", saleController.ReturnItems)
+	saleMux.HandleFunc(http.MethodGet+" /api/held", saleController.FetchHeldTransactionsJSON)
 
 	saleMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		httperror.NotFound("Sales Page Not Found", nil).Render(w, tmpl)

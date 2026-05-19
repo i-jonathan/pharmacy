@@ -199,6 +199,16 @@ func (c *saleController) RenderHeldSaleReceipts(w http.ResponseWriter, r *http.R
 	}
 }
 
+func (c *saleController) FetchHeldTransactionsJSON(w http.ResponseWriter, r *http.Request) {
+	heldTransactions, err := c.service.FetchHeldSaleTransactions(r.Context())
+	if err != nil {
+		httperror.ServerError("failed to fetch held transactions", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, heldTransactions)
+}
+
 func (c *saleController) DeleteHeldSale(w http.ResponseWriter, r *http.Request) {
 	reference := r.PathValue("reference")
 	if reference == "" {

@@ -19,6 +19,12 @@ const routes = [
     component: () => import("./components/ExpiringPage.vue"),
     meta: { title: "Expiring Items", parent: "Dashboard" },
   },
+  {
+    path: "/pos",
+    name: "pos",
+    component: () => import("./components/PosView.vue"),
+    meta: { title: "Point of Sale", parent: "Dashboard" },
+  },
 ];
 
 const router = createRouter({

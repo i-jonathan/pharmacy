@@ -35,7 +35,7 @@
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.sales" class="space-y-0.5">
-          <a href="/sales/receipt" :class="linkClasses(false)"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
+          <a href="#/pos" :class="linkClasses(false)"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
           <a href="/sales/history" :class="linkClasses(false)"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
           <a href="/sales/held" :class="linkClasses(false)"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
         </div>
