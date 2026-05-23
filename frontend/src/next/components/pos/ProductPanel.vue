@@ -8,7 +8,7 @@
         v-model="searchQuery"
         type="text"
         placeholder="Search medicine by name, brand or generic..."
-        class="w-full pl-9 pr-14 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+        class="w-full pl-9 pr-14 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
       />
       <kbd class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground border border-border">
         F3
