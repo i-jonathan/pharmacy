@@ -7,7 +7,7 @@
     <div class="text-xs text-muted-foreground truncate mt-0.5">
       {{ product.manufacturer || product.category }}
     </div>
-    <div class="mt-2 flex items-center justify-between">
+    <div class="mt-5 flex items-center justify-between">
       <span class="text-sm font-bold">&#8358;{{ (product.price || 0).toLocaleString() }}</span>
       <span class="text-xs text-emerald-600">Stock: {{ product.stock }}</span>
     </div>

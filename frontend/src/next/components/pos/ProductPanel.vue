@@ -15,41 +15,15 @@
       </kbd>
     </div>
 
-    <!-- Category Tabs -->
-    <div class="mt-3">
-      <div class="flex items-center gap-1.5 flex-wrap" :class="{ 'max-h-7 overflow-hidden': !showAllCategories }">
-        <button
-          v-for="cat in visibleCategories"
-          :key="cat"
-          class="px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors"
-          :class="selectedCategory === cat
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'"
-          @click="selectedCategory = cat"
-        >
-          {{ cat }}
-        </button>
-        <button
-          v-if="!showAllCategories && categories.length > 6"
-          class="px-3 py-1 text-xs font-medium rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          @click="showAllCategories = true"
-        >
-          ...
-        </button>
-      </div>
-    </div>
-
     <!-- Frequently Sold -->
     <div class="mt-5">
       <h2 class="text-sm font-semibold mb-2">Frequently Sold</h2>
-      <div v-if="frequentlySold.length" class="grid grid-cols-4 gap-2">
-        <ProductCard
-          v-for="product in frequentlySold"
-          :key="product.id"
-          :product="product"
-          @add="$emit('add-item', product)"
-        />
-      </div>
+      <ProductCarousel
+        v-if="frequentlySold.length"
+        :items="frequentlySold"
+        :slides-per-view="4"
+        @add-item="$emit('add-item', $event)"
+      />
       <div v-else class="text-sm text-muted-foreground text-center py-4">
         No products available
       </div>
@@ -118,26 +92,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import ProductCard from "./ProductCard.vue";
+import ProductCarousel from "./ProductCarousel.vue";
 
 const emit = defineEmits(["add-item", "search-ref"]);
 
 const searchQuery = ref("");
-const selectedCategory = ref("All");
-const categories = ref([]);
 const allProducts = ref([]);
 const topSelling = ref([]);
-const showAllCategories = ref(false);
 const searchInput = ref(null);
 
 onMounted(async () => {
   emit("search-ref", searchInput.value);
 
   try {
-    const [prodResp, catResp, dashResp] = await Promise.all([
+    const [prodResp, topResp] = await Promise.all([
       fetch("/inventory/item-list"),
-      fetch("/api/categories"),
-      fetch("/api/dashboard?start_date=" + new Date().toISOString().slice(0, 10) + "&end_date=" + new Date().toISOString().slice(0, 10)),
+      fetch("/inventory/top-selling?limit=10"),
     ]);
 
     if (prodResp.ok) {
@@ -148,40 +118,23 @@ onMounted(async () => {
         priceId: p.default_price_id,
       }));
     }
-    if (catResp.ok) {
-      const data = await catResp.json();
-      categories.value = (data.categories || data || []).map((c) => c.name || c);
-    }
-    if (dashResp.ok) {
-      const data = await dashResp.json();
-      topSelling.value = data.top_selling_products || [];
+    if (topResp.ok) {
+      topSelling.value = await topResp.json();
     }
   } catch (e) {
     console.error("Failed to load POS data:", e);
   }
 });
 
-const visibleCategories = computed(() => {
-  if (showAllCategories.value) return ["All", ...categories.value];
-  return ["All", ...categories.value.slice(0, 5)];
-});
-
 const frequentlySold = computed(() => {
-  if (topSelling.value.length) {
-    return topSelling.value
-      .map((ts) => allProducts.value.find((p) => p.name === ts.product_name))
-      .filter(Boolean)
-      .slice(0, 8);
-  }
-  return allProducts.value.filter((p) => p.stock > 0).slice(0, 8);
+  return topSelling.value
+    .map((ts) => allProducts.value.find((p) => p.name === ts.product_name))
+    .filter(Boolean)
+    .slice(0, 10);
 });
 
 const filteredProducts = computed(() => {
   let items = allProducts.value;
-
-  if (selectedCategory.value !== "All") {
-    items = items.filter((p) => p.category === selectedCategory.value);
-  }
 
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();

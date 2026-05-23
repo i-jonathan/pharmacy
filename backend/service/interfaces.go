@@ -25,6 +25,7 @@ type InventoryService interface {
 	FetchInventory(ctx context.Context) (*model.Inventory, error)
 	FetchProductByID(ctx context.Context, id int) (types.ProductResult, error)
 	FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error)
+	GetTopSellingProducts(ctx context.Context, limit int) ([]types.TopSellingProductData, error)
 }
 
 type SaleService interface {

@@ -517,6 +517,24 @@ func (s *inventoryService) FetchProductByID(ctx context.Context, id int) (types.
 	}, nil
 }
 
+func (s *inventoryService) GetTopSellingProducts(ctx context.Context, limit int) ([]types.TopSellingProductData, error) {
+	products, err := s.repo.GetTopSellingProductsAllTime(ctx, limit)
+	if err != nil {
+		log.Println("error fetching top selling products:", err)
+		return nil, httperror.ServerError("failed to fetch top selling products", err)
+	}
+
+	result := make([]types.TopSellingProductData, len(products))
+	for i, p := range products {
+		result[i] = types.TopSellingProductData{
+			ProductName: p.ProductName,
+			Quantity:    p.Quantity,
+			RevenueKobo: p.RevenueKobo,
+		}
+	}
+	return result, nil
+}
+
 func (s *inventoryService) FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error) {
 	batches, err := s.repo.FetchReceivingBatches(ctx, filter.StartDate, filter.EndDate)
 	if err != nil {

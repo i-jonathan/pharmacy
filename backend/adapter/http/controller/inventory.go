@@ -363,6 +363,28 @@ func (c *inventoryController) FetchInventory(w http.ResponseWriter, r *http.Requ
 
 	helper.JSONResponse(w, http.StatusOK, resp)
 }
+
+func (c *inventoryController) GetTopSellingProducts(w http.ResponseWriter, r *http.Request) {
+	limit := 4
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	products, err := c.service.GetTopSellingProducts(r.Context(), limit)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to fetch top selling products", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, products)
+}
+
 func (c *inventoryController) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
