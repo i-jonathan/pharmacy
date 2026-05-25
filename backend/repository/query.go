@@ -200,7 +200,22 @@ const bulkFetchProductByIDQuery = `
 	FROM product WHERE id = ANY($1)
 `
 const fetchInventoryViewQuery = `
-	SELECT * from inventory_view ORDER BY name ASC;
+	SELECT iv.*, COALESCE(ppo.price_options, '[]') AS price_options
+	FROM inventory_view iv
+	LEFT JOIN (
+		SELECT product_id,
+			json_agg(
+				json_build_object(
+					'id', pp.id,
+					'selling_price', pp.selling_price,
+					'name', pp.name,
+					'quantity_per_unit', pp.quantity_per_unit
+				)
+			) AS price_options
+		FROM product_price pp
+		GROUP BY product_id
+	) ppo ON iv.id = ppo.product_id
+	ORDER BY iv.name ASC;
 `
 const fetchPriceByIDQuery = `SELECT * from product_price where id = $1`
 const insertIntoHeldTransactionQuery = `

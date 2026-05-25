@@ -50,10 +50,21 @@
         <TableBody>
           <TableRow v-for="(item, index) in cart" :key="index">
             <TableCell>
-              <div class="text-sm font-medium truncate max-w-[140px]">{{ item.name }}</div>
+              <div class="text-sm font-medium">{{ item.name }}</div>
+              <div v-if="item.manufacturer" class="text-xs text-muted-foreground">{{ item.manufacturer }}</div>
             </TableCell>
-            <TableCell class="text-sm text-muted-foreground">
-              &#8358;{{ item.price.toLocaleString() }}
+            <TableCell
+              class="text-sm text-muted-foreground"
+              :class="{ 'cursor-pointer hover:text-foreground': hasPriceOptions(item) }"
+              @click="hasPriceOptions(item) && togglePricePopover($event, index)"
+            >
+              <div>
+                <div class="flex items-center gap-1">
+                  <span>&#8358;{{ item.price.toLocaleString() }}</span>
+                  <ChevronDown v-if="hasPriceOptions(item)" :size="10" class="text-muted-foreground" />
+                </div>
+                <div class="text-[10px] text-muted-foreground">{{ currentPriceName(item) }}</div>
+              </div>
             </TableCell>
             <TableCell>
               <div class="inline-flex items-center border border-border rounded-sm">
@@ -132,16 +143,18 @@
         <div v-for="method in paymentMethods" :key="method.key" class="flex items-center gap-3 px-3 py-2">
           <component :is="method.icon" :size="16" :class="method.color" class="shrink-0" />
           <span class="text-sm text-muted-foreground w-16">{{ method.label }}</span>
-          <div class="flex-1 flex items-center border border-border rounded-sm overflow-hidden">
+          <div class="flex-1 flex justify-center">
+            <div class="w-80 flex items-center border border-border rounded-sm overflow-hidden">
             <span class="pl-2 pr-1 text-sm text-muted-foreground">&#8358;</span>
             <input
               :value="payments[method.key] || ''"
               @input="$emit('update-payment', method.key, Number($event.target.value) || 0)"
               type="text"
               inputmode="decimal"
-              class="flex-1 py-1.5 pr-2 text-sm bg-transparent outline-none"
+              class="w-full py-1.5 pr-2 text-sm bg-transparent outline-none"
               placeholder="0.00"
             />
+          </div>
           </div>
           <button
             class="shrink-0 w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-sm transition-colors"
@@ -192,11 +205,37 @@
         <Printer :size="18" />
       </Button>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="pricePopover.index !== null"
+        class="fixed inset-0 z-59"
+        @click="pricePopover.index = null"
+      />
+      <div
+        v-if="pricePopover.index !== null"
+        class="price-dropdown fixed z-60 w-44 rounded-sm border border-border bg-popover shadow-lg p-1"
+        :style="{ top: pricePopover.y + 'px', left: pricePopover.x + 'px' }"
+      >
+        <div class="text-xs text-muted-foreground px-2 py-1.5 border-b border-border">Change price</div>
+        <button
+          v-for="opt in pricePopoverOptions"
+          :key="opt.id"
+          class="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-sm hover:bg-primary/15 transition-colors"
+          :class="{ 'bg-primary/20 font-medium': opt.id === pricePopover.currentId }"
+          @click="selectPriceOption(opt)"
+        >
+          <span>{{ opt.name || 'Base' }}</span>
+          <span class="font-medium">&#8358;{{ opt.price.toLocaleString() }}</span>
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { Pause, Trash2, User, Minus, Plus, X, Pencil, CircleCheck, Printer, Banknote, CreditCard, PiggyBank } from "lucide-vue-next";
+import { reactive, computed } from "vue";
+import { Pause, Trash2, User, Minus, Plus, X, Pencil, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -207,7 +246,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-defineProps({
+const props = defineProps({
   cart: { type: Array, required: true },
   payments: { type: Object, default: () => ({ Cash: 0, Card: 0, Transfer: 0 }) },
   customer: { type: String, default: "Walk-in Customer" },
@@ -226,10 +265,45 @@ const paymentMethods = [
   { key: "Transfer", label: "Transfer", icon: PiggyBank, color: "text-amber-500" },
 ];
 
-defineEmits([
+const pricePopover = reactive({ index: null, x: 0, y: 0, currentId: 0 });
+
+const pricePopoverOptions = computed(() => {
+  if (pricePopover.index === null) return [];
+  const item = props.cart[pricePopover.index];
+  return item?.priceOptions || [];
+});
+
+function currentPriceName(item) {
+  const opt = item.priceOptions?.find((o) => o.id === item.priceId);
+  return opt?.name || "Base";
+}
+
+function hasPriceOptions(item) {
+  return item.priceOptions && item.priceOptions.length > 1;
+}
+
+function togglePricePopover(event, index) {
+  if (pricePopover.index === index) {
+    pricePopover.index = null;
+    return;
+  }
+  const rect = event.currentTarget.getBoundingClientRect();
+  pricePopover.index = index;
+  pricePopover.currentId = props.cart[index].priceId;
+  pricePopover.x = rect.right - 190;
+  pricePopover.y = Math.min(rect.bottom + 4, window.innerHeight - 250);
+}
+
+function selectPriceOption(opt) {
+  emit("update-price", pricePopover.index, opt.id, opt.price);
+  pricePopover.index = null;
+}
+
+const emit = defineEmits([
   "remove",
   "update-qty",
   "update-discount",
+  "update-price",
   "update-payment",
   "hold",
   "clear",

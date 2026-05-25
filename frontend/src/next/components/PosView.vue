@@ -24,6 +24,7 @@
         @remove="pos.removeItem"
         @update-qty="pos.updateQty"
         @update-discount="pos.updateDiscount"
+        @update-price="pos.updatePrice"
         @update-payment="pos.updatePayment"
         @hold="handleHold"
         @clear="pos.clearCart"

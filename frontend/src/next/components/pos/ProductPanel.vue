@@ -16,13 +16,13 @@
     </div>
 
     <!-- Frequently Sold -->
-    <div class="mt-5">
+    <div v-if="!debouncedQuery" class="mt-5">
       <h2 class="text-sm font-semibold mb-2">Frequently Sold</h2>
       <ProductCarousel
         v-if="frequentlySold.length"
         :items="frequentlySold"
         :slides-per-view="4"
-        @add-item="$emit('add-item', $event)"
+        @add-item="onAddItem($event, null, null)"
       />
       <div v-else class="text-sm text-muted-foreground text-center py-4">
         No products available
@@ -31,7 +31,16 @@
 
     <!-- All Products -->
     <div class="mt-5 flex-1 overflow-auto">
-      <h2 class="text-sm font-semibold mb-2">All Products</h2>
+      <div class="flex items-center gap-2 mb-2">
+        <h2 class="text-sm font-semibold">All Products</h2>
+        <button
+          class="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          :class="{ 'animate-spin': refreshing }"
+          @click="refreshProducts"
+        >
+          <RotateCw :size="13" />
+        </button>
+      </div>
       <div v-if="filteredProducts.length">
         <Table>
           <TableHeader>
@@ -49,7 +58,7 @@
               :key="product.id"
               class="cursor-pointer hover:bg-accent/50"
               :class="{ 'opacity-60': product.stock <= 0 }"
-              @click="product.stock > 0 && $emit('add-item', product)"
+              @click="product.stock > 0 && onAddItem(product, null, null)"
             >
               <TableCell>
                 <div class="text-sm font-medium">{{ product.name }}</div>
@@ -58,13 +67,13 @@
               <TableCell class="text-sm text-muted-foreground">{{ product.category }}</TableCell>
               <TableCell class="text-sm font-medium">&#8358;{{ product.price.toLocaleString() }}</TableCell>
               <TableCell class="text-sm" :class="product.stock > 0 ? 'text-emerald-600' : 'text-destructive'">{{ product.stock }}</TableCell>
-              <TableCell>
+              <TableCell class="relative">
                 <Button
                   variant="outline"
                   size="icon"
                   class="h-7 w-7"
                   :disabled="product.stock <= 0"
-                  @click.stop="product.stock > 0 && $emit('add-item', product)"
+                  @click.stop="product.stock > 0 && onPlusClick($event, product)"
                 >
                   <Plus :size="14" />
                 </Button>
@@ -74,15 +83,38 @@
         </Table>
       </div>
       <div v-else class="text-sm text-muted-foreground text-center py-6">
-        {{ searchQuery ? 'No products match your search' : 'No products available' }}
+        {{ debouncedQuery ? 'No products match your search' : 'No products available' }}
       </div>
     </div>
+
+    <!-- Price Options Popover -->
+    <Teleport to="body">
+      <div
+        v-if="popover.product"
+        class="fixed z-60 w-48 rounded-sm border border-border bg-popover shadow-lg p-1"
+        :style="{ top: popover.y + 'px', left: popover.x + 'px' }"
+        @click.stop
+      >
+        <div class="text-xs text-muted-foreground px-2 py-1.5 border-b border-border">
+          Select price option
+        </div>
+        <button
+          v-for="opt in priceOptionsForCurrent"
+          :key="opt.id"
+          class="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-sm hover:bg-primary/15 transition-colors"
+          @click="selectPriceOption(opt)"
+        >
+          <span>{{ opt.name || 'Base' }}</span>
+          <span class="font-medium">&#8358;{{ (opt.selling_price / 100).toLocaleString() }}</span>
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { Search, Plus } from "lucide-vue-next";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { Search, Plus, RotateCw } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -97,13 +129,23 @@ import ProductCarousel from "./ProductCarousel.vue";
 const emit = defineEmits(["add-item", "search-ref"]);
 
 const searchQuery = ref("");
+const debouncedQuery = ref("");
 const allProducts = ref([]);
 const topSelling = ref([]);
 const searchInput = ref(null);
 
-onMounted(async () => {
-  emit("search-ref", searchInput.value);
+let debounceTimer = null;
+watch(searchQuery, (val) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debouncedQuery.value = val;
+  }, 300);
+});
 
+const popover = ref({ product: null, x: 0, y: 0 });
+const refreshing = ref(false);
+
+async function loadProducts() {
   try {
     const [prodResp, topResp] = await Promise.all([
       fetch("/inventory/item-list"),
@@ -124,7 +166,70 @@ onMounted(async () => {
   } catch (e) {
     console.error("Failed to load POS data:", e);
   }
+}
+
+async function refreshProducts() {
+  refreshing.value = true;
+  await loadProducts();
+  refreshing.value = false;
+}
+
+onMounted(async () => {
+  emit("search-ref", searchInput.value);
+  searchInput.value?.focus();
+  await loadProducts();
 });
+
+const priceOptionsForCurrent = computed(() => {
+  const p = popover.value.product;
+  if (!p || !p.price_options) return [];
+  return p.price_options.filter((opt) => opt.id !== p.priceId);
+});
+
+function hasMultiplePriceOptions(product) {
+  return product.price_options && product.price_options.length > 1;
+}
+
+function onAddItem(product, priceId, price) {
+  emit("add-item", product, priceId, price);
+  searchQuery.value = "";
+  debouncedQuery.value = "";
+}
+
+function onPlusClick(event, product) {
+  if (hasMultiplePriceOptions(product)) {
+    const rect = event.target.getBoundingClientRect();
+    popover.value = {
+      product,
+      x: Math.min(rect.left, window.innerWidth - 200),
+      y: Math.min(rect.bottom + 4, window.innerHeight - 200),
+    };
+  } else {
+    onAddItem(product, null, null);
+  }
+}
+
+function selectPriceOption(opt) {
+  const product = popover.value.product;
+  onAddItem(product, opt.id, opt.selling_price / 100);
+  closePopover();
+}
+
+function closePopover() {
+  popover.value = { product: null, x: 0, y: 0 };
+}
+
+function onDocumentClick(e) {
+  if (!popover.value.product) return;
+  if (e.target.closest("button")) return;
+  const el = document.querySelector(".fixed.z-\\[60\\]");
+  if (el && !el.contains(e.target)) {
+    closePopover();
+  }
+}
+
+onMounted(() => document.addEventListener("click", onDocumentClick));
+onUnmounted(() => document.removeEventListener("click", onDocumentClick));
 
 const frequentlySold = computed(() => {
   return topSelling.value
@@ -136,8 +241,8 @@ const frequentlySold = computed(() => {
 const filteredProducts = computed(() => {
   let items = allProducts.value;
 
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase();
+  if (debouncedQuery.value.trim()) {
+    const q = debouncedQuery.value.toLowerCase();
     items = items.filter(
       (p) =>
         p.name?.toLowerCase().includes(q) ||

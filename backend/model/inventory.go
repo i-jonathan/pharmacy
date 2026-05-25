@@ -92,6 +92,7 @@ type InventoryItem struct {
 	Manufacturer   string     `db:"manufacturer" json:"manufacturer"`
 	Name           string     `db:"name" json:"name"`
 	EarliestExpiry *time.Time `db:"earliest_expiry" json:"earliest_expiry,omitempty"`
+	PriceOptions   ProductPrices `db:"price_options" json:"price_options"`
 }
 
 type Inventory struct {

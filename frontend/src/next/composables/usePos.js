@@ -54,6 +54,25 @@ export function usePos() {
     return cart.reduce((sum, item) => sum + item.qty, 0);
   });
 
+  function buildPriceOptions(product, price, priceId) {
+    const options = [];
+    const seen = new Set();
+    // Always include the selected/default price as an option
+    options.push({ id: priceId, name: "Base", price: price, selling_price: price * 100 });
+    seen.add(priceId);
+    // Add API-provided price options if any
+    if (product.price_options && Array.isArray(product.price_options)) {
+      for (const o of product.price_options) {
+        const optPrice = o.selling_price / 100;
+        if (!seen.has(o.id)) {
+          options.push({ id: o.id, name: o.name || "Variant", price: optPrice, selling_price: o.selling_price });
+          seen.add(o.id);
+        }
+      }
+    }
+    return options;
+  }
+
   // --- Cart Methods ---
   function addItem(product, priceId, price) {
     const pid = priceId || product.priceId || 0;
@@ -70,6 +89,7 @@ export function usePos() {
         manufacturer: product.manufacturer || "",
         price: pprice,
         priceId: pid,
+        priceOptions: buildPriceOptions(product, pprice, pid),
         qty: 1,
         discount: 0,
       });
@@ -90,6 +110,11 @@ export function usePos() {
 
   function updateDiscount(index, discount) {
     cart[index].discount = Number(discount) || 0;
+  }
+
+  function updatePrice(index, priceId, price) {
+    cart[index].priceId = priceId;
+    cart[index].price = price;
   }
 
   function updatePayment(method, amount) {
@@ -345,6 +370,7 @@ export function usePos() {
     removeItem,
     updateQty,
     updateDiscount,
+    updatePrice,
     updatePayment,
     clearCart,
     holdCart,
