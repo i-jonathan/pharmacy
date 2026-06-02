@@ -306,8 +306,13 @@ const getStockTakingItemsQuery = `
 	    ) AS snapshot_quantity,
 	    sti.dispensary_count,
 	    sti.store_count,
-	    MIN(pb.expiry_date) AS earliest_expiry,
-	    ARRAY_AGG(DISTINCT pb.expiry_date ORDER BY pb.expiry_date) FILTER (WHERE pb.expiry_date IS NOT NULL) AS expiry_options,
+	    COALESCE(p.current_expiry, MIN(pb.expiry_date)) AS earliest_expiry,
+	    CASE
+	        WHEN p.current_expiry IS NOT NULL THEN
+	            ARRAY[p.current_expiry] || ARRAY_AGG(DISTINCT pb.expiry_date ORDER BY pb.expiry_date) FILTER (WHERE pb.expiry_date IS NOT NULL)
+	        ELSE
+	            ARRAY_AGG(DISTINCT pb.expiry_date ORDER BY pb.expiry_date) FILTER (WHERE pb.expiry_date IS NOT NULL)
+	    END AS expiry_options,
 	    sti.notes,
 	    u.username AS last_updated_by,
 	    sti.last_updated_at AS last_updated_at
@@ -326,6 +331,7 @@ const getStockTakingItemsQuery = `
 	    p.name,
 	    p.manufacturer,
 	    c.name,
+	    p.current_expiry,
 	    sti.snapshot_quantity,
 	    sti.dispensary_count,
 	    sti.store_count,
