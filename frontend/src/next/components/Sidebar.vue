@@ -15,8 +15,8 @@
     <nav class="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
       <!-- Dashboard -->
       <a
-        href="/app/dashboard?ui=v2"
-        :class="linkClasses(true)"
+        href="#/"
+        :class="linkClasses('/')"
         :title="collapsed ? 'Dashboard' : ''"
       >
         <LayoutDashboard :stroke-width="1.5" :size="18" class="shrink-0" />
@@ -34,10 +34,10 @@
           <ChevronDown :stroke-width="1.5" :size="14" :class="sectionOpen.sales ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
-        <div v-show="collapsed || sectionOpen.sales" class="space-y-0.5">
-          <a href="#/pos" :class="linkClasses(false)"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
-          <a href="#/sales-history" :class="linkClasses(false)"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
-          <a href="#/held-sales" :class="linkClasses(false)"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
+        <div v-show="collapsed || sectionOpen.sales || isInSection(salesPaths)" class="space-y-0.5">
+          <a href="#/pos" :class="linkClasses('/pos')"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
+          <a href="#/sales-history" :class="linkClasses('/sales-history')"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
+          <a href="#/held-sales" :class="linkClasses('/held-sales')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
         </div>
       </div>
 
@@ -52,12 +52,12 @@
           <ChevronDown :stroke-width="1.5" :size="14" :class="sectionOpen.inventory ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
-        <div v-show="collapsed || sectionOpen.inventory" class="space-y-0.5">
-          <a href="#/products" :class="linkClasses(false)"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
-          <a href="#/receive-items" :class="linkClasses(false)"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
-          <a href="#/stock-taking" :class="linkClasses(false)"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
+        <div v-show="collapsed || sectionOpen.inventory || isInSection(inventoryPaths)" class="space-y-0.5">
+          <a href="#/products" :class="linkClasses('/products')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
+          <a href="#/receive-items" :class="linkClasses('/receive-items')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
+          <a href="#/stock-taking" :class="linkClasses('/stock-taking')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
           <PermissionGate permission="admin:access">
-            <a href="#/categories" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+            <a href="#/categories" :class="linkClasses('/categories')">
               <Tags :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
             </a>
           </PermissionGate>
@@ -97,6 +97,7 @@
         href="/app/dashboard"
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         :title="collapsed ? 'Switch to old UI' : ''"
+        @click="localStorage.setItem('ui', 'old')"
       >
         <ArrowLeftRight :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">Old UI</span>
@@ -106,7 +107,8 @@
 </template>
 
 <script setup>
-import { reactive } from "vue";
+import { ref } from "vue";
+import { useRoute } from "vue-router";
 import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
   Package, Truck, ClipboardCheck, Tags, Shield,
@@ -122,19 +124,26 @@ defineProps({
 
 defineEmits(["toggle-collapse", "toggle-theme", "open-admin"]);
 
-const sectionOpen = reactive({
-  sales: true,
-  inventory: true,
-});
+const route = useRoute();
 
-function toggleSection(key) {
-  sectionOpen[key] = !sectionOpen[key];
+const salesPaths = ["/pos", "/sales-history", "/held-sales"];
+const inventoryPaths = ["/products", "/receive-items", "/stock-taking", "/categories"];
+
+const sectionOpen = ref({ sales: false, inventory: false });
+
+function isInSection(paths) {
+  return paths.includes(route.path);
 }
 
-function linkClasses(active) {
+function toggleSection(key) {
+  sectionOpen.value[key] = !sectionOpen.value[key];
+}
+
+function linkClasses(targetPath) {
+  const isActive = route.path === targetPath;
   return [
     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-    active
+    isActive
       ? "bg-foreground/5 text-foreground"
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
   ];

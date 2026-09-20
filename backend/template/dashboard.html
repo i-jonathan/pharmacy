@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{.Title}} | Primocrest Pharmacy</title>
     <link href="/static/css/tailwind.css" rel="stylesheet" />
+    <script>
+        // Check stored UI preference on initial load
+        if (localStorage.getItem("ui") === "v2" && !window.location.search.includes("ui=v2")) {
+            window.location.replace("/app/dashboard?ui=v2");
+        }
+    </script>
     <style>
         html {
             transition: background-color 0.3s, color 0.3s;
