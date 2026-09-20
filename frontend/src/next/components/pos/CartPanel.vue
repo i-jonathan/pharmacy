@@ -54,7 +54,7 @@
               <div v-if="item.manufacturer" class="text-xs text-muted-foreground">{{ item.manufacturer }}</div>
             </TableCell>
             <TableCell
-              class="text-sm text-muted-foreground"
+              class="text-sm text-muted-foreground price-trigger"
               :class="{ 'cursor-pointer hover:text-foreground': hasPriceOptions(item) }"
               @click="hasPriceOptions(item) && togglePricePopover($event, index)"
             >
@@ -296,6 +296,8 @@ function selectPriceOption(opt) {
 
 function onDocumentClick(e) {
   if (pricePopover.index === null) return;
+  // Don't close if clicking the trigger cell (it toggles the popover itself)
+  if (e.target.closest(".price-trigger")) return;
   const el = document.querySelector(".price-dropdown");
   if (el && !el.contains(e.target)) {
     pricePopover.index = null;
