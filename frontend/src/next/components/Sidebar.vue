@@ -57,9 +57,9 @@
           <a href="#/receive-items" :class="linkClasses(false)"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
           <a href="#/stock-taking" :class="linkClasses(false)"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
           <PermissionGate permission="admin:access">
-            <button class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors" @click="$emit('open-admin', { module: 'categories' })">
+            <a href="#/categories" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
               <Tags :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
-            </button>
+            </a>
           </PermissionGate>
         </div>
       </div>
