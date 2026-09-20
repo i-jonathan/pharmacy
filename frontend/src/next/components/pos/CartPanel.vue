@@ -216,7 +216,7 @@
         v-if="pricePopover.index !== null"
         class="price-dropdown fixed z-60 w-44 rounded-sm border border-border bg-popover shadow-lg p-1"
         :style="{ top: pricePopover.y + 'px', left: pricePopover.x + 'px' }"
-      >
+        @click.stop
         <div class="text-xs text-muted-foreground px-2 py-1.5 border-b border-border">Change price</div>
         <button
           v-for="opt in pricePopoverOptions"

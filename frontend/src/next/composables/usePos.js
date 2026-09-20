@@ -57,8 +57,14 @@ export function usePos() {
   function buildPriceOptions(product, price, priceId) {
     const options = [];
     const seen = new Set();
+    // Look up the actual name for this price option
+    let name = "Base";
+    if (product.price_options && Array.isArray(product.price_options)) {
+      const matching = product.price_options.find((o) => o.id === priceId);
+      if (matching && matching.name) name = matching.name;
+    }
     // Always include the selected/default price as an option
-    options.push({ id: priceId, name: "Base", price: price, selling_price: price * 100 });
+    options.push({ id: priceId, name, price: price, selling_price: price * 100 });
     seen.add(priceId);
     // Add API-provided price options if any
     if (product.price_options && Array.isArray(product.price_options)) {
