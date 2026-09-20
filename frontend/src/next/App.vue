@@ -61,5 +61,9 @@ function openAdminPanel(payload = {}) {
 onMounted(() => {
   isDark.value = localStorage.getItem("theme") === "dark";
   document.documentElement.classList.toggle("dark", isDark.value);
+  // Strip ?ui=v2 from URL after app has loaded server-side
+  if (window.location.search.includes("ui=v2")) {
+    history.replaceState(null, "", window.location.pathname + window.location.hash);
+  }
 });
 </script>

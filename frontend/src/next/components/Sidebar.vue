@@ -97,7 +97,7 @@
         href="/app/dashboard"
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         :title="collapsed ? 'Switch to old UI' : ''"
-        @click="localStorage.setItem('ui', 'old')"
+        @click.prevent="switchToOldUI"
       >
         <ArrowLeftRight :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">Old UI</span>
@@ -137,6 +137,11 @@ function isInSection(paths) {
 
 function toggleSection(key) {
   sectionOpen.value[key] = !sectionOpen.value[key];
+}
+
+function switchToOldUI() {
+  localStorage.setItem("ui", "old");
+  window.location.href = "/app/dashboard";
 }
 
 function linkClasses(targetPath) {
