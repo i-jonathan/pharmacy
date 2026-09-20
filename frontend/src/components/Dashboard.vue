@@ -2,7 +2,7 @@
     <div class="p-4 md:p-6">
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
-            <div class="text-lg text-gray-600 dark:text-gray-400">
+            <div class="text-lg text-neutral-600 dark:text-neutral-400">
                 Loading dashboard data...
             </div>
         </div>
@@ -27,27 +27,27 @@
                 class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6"
             >
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 cursor-pointer hover:shadow-md transition-shadow"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6 cursor-pointer hover:shadow-md transition-shadow"
                     @click="navigateToInventory()"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2"
                     >
                         Total Products
                     </h3>
                     <p class="text-2xl md:text-3xl font-bold text-primary">
                         {{ getKPIValue("total_inventory", 0).toLocaleString() }}
                     </p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400">
                         Products in inventory
                     </p>
                 </div>
 
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2"
                     >
                         Today's Sales
                     </h3>
@@ -60,7 +60,7 @@
                                 : "🔒 Restricted"
                         }}
                     </p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400">
                         {{
                             getKPIValue("today_sales", 0)
                                 ? "Total sales today"
@@ -93,11 +93,11 @@
                 </div>
 
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 cursor-pointer hover:shadow-md transition-shadow"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6 cursor-pointer hover:shadow-md transition-shadow"
                     @click="navigateToSalesHistory()"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2"
                     >
                         Today's Orders
                     </h3>
@@ -132,17 +132,17 @@
                             }}%
                         </span>
                     </div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400">
                         Orders processed today
                     </p>
                 </div>
 
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 cursor-pointer hover:shadow-md transition-shadow"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6 cursor-pointer hover:shadow-md transition-shadow"
                     @click="openLowStockModal()"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2"
                     >
                         Low Stock Items
                     </h3>
@@ -151,7 +151,7 @@
                     >
                         {{ getKPIValue("low_stock_count", 0).toLocaleString() }}
                     </p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                    <p class="text-sm text-neutral-600 dark:text-neutral-400">
                         Need reordering
                     </p>
                 </div>
@@ -162,10 +162,10 @@
                 <!-- Sales Trend Chart - Only show if user has sales data -->
                 <div
                     v-if="getKPIValue('today_sales', 0) !== null"
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4"
                     >
                         Sales Trend (7 days)
                     </h3>
@@ -179,10 +179,10 @@
 
                 <!-- Category Sales Pie Chart -->
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4"
                     >
                         Sales by Category
                     </h3>
@@ -199,10 +199,10 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
                 <!-- Critical Expiry (≤ 30 days) -->
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center justify-between"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center justify-between"
                     >
                         <div class="flex items-center">
                             <span
@@ -237,12 +237,12 @@
                         >
                             <div class="flex-1">
                                 <div
-                                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                                    class="text-sm font-medium text-neutral-900 dark:text-neutral-100"
                                 >
                                     {{ item.name }}
                                 </div>
                                 <div
-                                    class="text-xs text-gray-600 dark:text-gray-400"
+                                    class="text-xs text-neutral-600 dark:text-neutral-400"
                                 >
                                     Qty: {{ item.quantity }} | Expires:
                                     {{ item.expiryDate }}
@@ -262,7 +262,7 @@
                                     (i) => i.daysUntilExpiry <= 30,
                                 ).length === 0
                             "
-                            class="text-center py-4 text-gray-500 dark:text-gray-400"
+                            class="text-center py-4 text-neutral-500 dark:text-neutral-400"
                         >
                             No items expiring within 30 days
                         </div>
@@ -291,10 +291,10 @@
 
                 <!-- Warning Expiry (31-90 days) -->
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6"
+                    class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4 md:p-6"
                 >
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center justify-between"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center justify-between"
                     >
                         <div class="flex items-center">
                             <span
@@ -333,12 +333,12 @@
                         >
                             <div class="flex-1">
                                 <div
-                                    class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                                    class="text-sm font-medium text-neutral-900 dark:text-neutral-100"
                                 >
                                     {{ item.name }}
                                 </div>
                                 <div
-                                    class="text-xs text-gray-600 dark:text-gray-400"
+                                    class="text-xs text-neutral-600 dark:text-neutral-400"
                                 >
                                     Qty: {{ item.quantity }} | Expires:
                                     {{ item.expiryDate }}
@@ -360,7 +360,7 @@
                                         i.daysUntilExpiry <= 90,
                                 ).length === 0
                             "
-                            class="text-center py-4 text-gray-500 dark:text-gray-400"
+                            class="text-center py-4 text-neutral-500 dark:text-neutral-400"
                         >
                             No items expiring within 31-90 days
                         </div>
@@ -408,12 +408,12 @@
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     >
         <div
-            class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+            class="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
         >
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
                 <div class="flex items-center justify-between">
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 flex items-center"
                     >
                         <span
                             class="w-3 h-3 bg-red-500 rounded-full mr-2"
@@ -422,7 +422,7 @@
                     </h3>
                     <button
                         @click="showCriticalModal = false"
-                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
                     >
                         ✕
                     </button>
@@ -437,12 +437,12 @@
                     >
                         <div class="flex-1">
                             <div
-                                class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                                class="text-sm font-medium text-neutral-900 dark:text-neutral-100"
                             >
                                 {{ item.name }}
                             </div>
                             <div
-                                class="text-xs text-gray-600 dark:text-gray-400"
+                                class="text-xs text-neutral-600 dark:text-neutral-400"
                             >
                                 Qty: {{ item.quantity }} | Expires:
                                 {{ item.expiryDate }}
@@ -459,12 +459,12 @@
                 </div>
                 <div
                     v-if="allCriticalItems.length === 0"
-                    class="text-center py-8 text-gray-500 dark:text-gray-400"
+                    class="text-center py-8 text-neutral-500 dark:text-neutral-400"
                 >
                     No items expiring within 30 days
                 </div>
             </div>
-            <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-t border-neutral-200 dark:border-neutral-700">
                 <button
                     @click="
                         copyExpiringItems(allCriticalItems, 'Critical');
@@ -484,12 +484,12 @@
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     >
         <div
-            class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+            class="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
         >
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
                 <div class="flex items-center justify-between">
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 flex items-center"
                     >
                         <span
                             class="w-3 h-3 bg-amber-500 rounded-full mr-2"
@@ -498,7 +498,7 @@
                     </h3>
                     <button
                         @click="showWarningModal = false"
-                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
                     >
                         ✕
                     </button>
@@ -513,12 +513,12 @@
                     >
                         <div class="flex-1">
                             <div
-                                class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                                class="text-sm font-medium text-neutral-900 dark:text-neutral-100"
                             >
                                 {{ item.name }}
                             </div>
                             <div
-                                class="text-xs text-gray-600 dark:text-gray-400"
+                                class="text-xs text-neutral-600 dark:text-neutral-400"
                             >
                                 Qty: {{ item.quantity }} | Expires:
                                 {{ item.expiryDate }}
@@ -535,12 +535,12 @@
                 </div>
                 <div
                     v-if="allWarningItems.length === 0"
-                    class="text-center py-8 text-gray-500 dark:text-gray-400"
+                    class="text-center py-8 text-neutral-500 dark:text-neutral-400"
                 >
                     No items expiring within 31-90 days
                 </div>
             </div>
-            <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-t border-neutral-200 dark:border-neutral-700">
                 <button
                     @click="
                         copyExpiringItems(allWarningItems, 'Warning');
@@ -559,12 +559,12 @@
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     >
         <div
-            class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+            class="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
         >
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-neutral-200 dark:border-neutral-700">
                 <div class="flex items-center justify-between">
                     <h3
-                        class="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center"
+                        class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 flex items-center"
                     >
                         <span
                             class="w-3 h-3 bg-red-500 rounded-full mr-2"
@@ -573,7 +573,7 @@
                     </h3>
                     <button
                         @click="showLowStockModal = false"
-                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
                     >
                         ✕
                     </button>
@@ -588,15 +588,15 @@
                     >
                         <div class="flex-1">
                             <div
-                                class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                                class="text-sm font-medium text-neutral-900 dark:text-neutral-100"
                             >
                                 {{ item.name }}
-                                <span class="text-gray-600 dark:text-gray-400">
+                                <span class="text-neutral-600 dark:text-neutral-400">
                                     - {{ item.manufacturer }}</span
                                 >
                             </div>
                             <div
-                                class="text-xs text-gray-600 dark:text-gray-400"
+                                class="text-xs text-neutral-600 dark:text-neutral-400"
                             >
                                 Current: {{ item.currentStock }} | Reorder at:
                                 {{ item.reorderLevel }}
@@ -614,12 +614,12 @@
                 </div>
                 <div
                     v-if="lowStockItems.length === 0"
-                    class="text-center py-8 text-gray-500 dark:text-gray-400"
+                    class="text-center py-8 text-neutral-500 dark:text-neutral-400"
                 >
                     No items are currently low on stock
                 </div>
             </div>
-            <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-t border-neutral-200 dark:border-neutral-700">
                 <button
                     @click="
                         copyLowStockItems(lowStockItems);
@@ -1074,6 +1074,6 @@ const getTrendIcon = (trend) => {
 const getTrendColor = (trend) => {
     if (trend > 5) return "text-green-600";
     if (trend < -5) return "text-red-600";
-    return "text-gray-600";
+    return "text-neutral-600";
 };
 </script>

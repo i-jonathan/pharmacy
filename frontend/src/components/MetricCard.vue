@@ -4,10 +4,10 @@
             <div class="flex items-center">
                 <component :is="icon" :class="iconClasses" />
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">
+                    <h3 class="text-lg font-semibold text-neutral-900">
                         {{ title }}
                     </h3>
-                    <p class="text-sm text-gray-500">{{ subtitle }}</p>
+                    <p class="text-sm text-neutral-500">{{ subtitle }}</p>
                 </div>
             </div>
             <div class="text-right">

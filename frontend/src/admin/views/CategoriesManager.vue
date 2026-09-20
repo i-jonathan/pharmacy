@@ -1,7 +1,7 @@
 <template>
     <div>
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Categories</h2>
+            <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100">Categories</h2>
             <button
                 @click="showCreateModal = true"
                 class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg shadow transition"
@@ -10,44 +10,44 @@
             </button>
         </div>
 
-        <div v-if="loading" class="text-center py-12 text-gray-500 dark:text-gray-400">Loading...</div>
+        <div v-if="loading" class="text-center py-12 text-neutral-500 dark:text-neutral-400">Loading...</div>
 
         <div v-else-if="error" class="text-center py-12 text-red-500 dark:text-red-400">
             <p class="mb-4">{{ error }}</p>
             <button @click="fetchCategories" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg">Retry</button>
         </div>
 
-        <div v-else-if="categories.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div v-else-if="categories.length === 0" class="text-center py-12 text-neutral-500 dark:text-neutral-400">
             <p class="text-lg mb-2">No categories.</p>
             <p class="text-sm">Add one to organize your products.</p>
         </div>
 
-        <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div v-else class="bg-white dark:bg-neutral-800 rounded-xl shadow overflow-hidden border border-neutral-200 dark:border-neutral-700">
             <table class="w-full text-sm text-left">
-                <thead class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50">
+                <thead class="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-700/50">
                     <tr>
                         <th class="px-6 py-3">Name</th>
                         <th class="px-6 py-3">Created</th>
                         <th class="px-6 py-3 w-32">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    <tr v-for="cat in categories" :key="cat.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                <tbody class="divide-y divide-neutral-100 dark:divide-neutral-700">
+                    <tr v-for="cat in categories" :key="cat.id" class="hover:bg-neutral-50 dark:hover:bg-neutral-700/40">
                         <td class="px-6 py-4">
                             <div v-if="editingId === cat.id" class="flex gap-2">
                                 <input
                                     v-model="editName"
                                     type="text"
-                                    class="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-gray-100 flex-1"
+                                    class="px-2 py-1 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100 flex-1"
                                     @keyup.enter="saveEdit(cat.id)"
                                     @keyup.escape="editingId = null"
                                 />
                                 <button @click="saveEdit(cat.id)" class="text-emerald-600 hover:text-emerald-700 text-sm font-medium">Save</button>
-                                <button @click="editingId = null" class="text-gray-400 hover:text-gray-600 text-sm">Cancel</button>
+                                <button @click="editingId = null" class="text-neutral-400 hover:text-neutral-600 text-sm">Cancel</button>
                             </div>
-                            <span v-else class="font-medium text-gray-900 dark:text-gray-100">{{ cat.name }}</span>
+                            <span v-else class="font-medium text-neutral-900 dark:text-neutral-100">{{ cat.name }}</span>
                         </td>
-                        <td class="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                        <td class="px-6 py-4 text-neutral-500 dark:text-neutral-400 text-xs">
                             {{ formatDate(cat.created_at) }}
                         </td>
                         <td class="px-6 py-4">
@@ -70,17 +70,17 @@
         <!-- Create Modal -->
         <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center">
             <div class="absolute inset-0 bg-black/40" @click="showCreateModal = false"></div>
-            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Add Category</h3>
+            <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">Add Category</h3>
                 <form @submit.prevent="createCategory">
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                        <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Name</label>
                         <input
                             v-model="newName"
                             type="text"
                             required
                             placeholder="Category name"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-gray-100"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
                         />
                     </div>
                     <div v-if="createError" class="mb-4 text-sm text-red-500">{{ createError }}</div>
@@ -88,7 +88,7 @@
                         <button
                             type="button"
                             @click="showCreateModal = false"
-                            class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 transition-colors"
+                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
                         >Cancel</button>
                         <button
                             type="submit"
@@ -103,9 +103,9 @@
         <!-- Delete Confirmation Modal -->
         <div v-if="deletingCat" class="fixed inset-0 z-50 flex items-center justify-center">
             <div class="absolute inset-0 bg-black/40" @click="deletingCat = null"></div>
-            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Delete Category</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-2">Delete Category</h3>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
                     Are you sure you want to delete "{{ deletingCat.name }}"?
                     Categories used by products cannot be deleted.
                 </p>
@@ -113,7 +113,7 @@
                 <div class="flex justify-end gap-3">
                     <button
                         @click="deletingCat = null"
-                        class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 transition-colors"
+                        class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
                     >Cancel</button>
                     <button
                         @click="deleteCategory(deletingCat.id)"

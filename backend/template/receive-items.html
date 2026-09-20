@@ -12,7 +12,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+<body class="bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 min-h-screen flex flex-col">
     {{template "nav.html" .}}
     {{template "subnav.html" .}}
     
@@ -28,11 +28,11 @@
                         type="text"
                         id="supplier-input"
                         placeholder="Enter supplier name"
-                        class="w-full px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        class="w-full px-4 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                     />
                     <ul
                         id="supplier-results"
-                        class="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded mt-1 shadow-lg hidden"
+                        class="absolute z-10 w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded mt-1 shadow-lg hidden"
                     ></ul>
                 </div>
                 <!-- Hidden by default -->
@@ -51,11 +51,11 @@
                         id="item-search"
                         type="text"
                         placeholder="Search item..."
-                        class="w-full px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        class="w-full px-4 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                     />
                     <ul
                         id="search-results"
-                        class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow rounded hidden"
+                        class="absolute z-10 mt-1 w-full bg-white dark:bg-neutral-800 shadow rounded hidden"
                     ></ul>
                 </div>
                 <button
@@ -66,14 +66,14 @@
                 </button>
                 <button
                     id="hold-receive-btn"
-                    class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="bg-neutral-700 text-white px-4 py-2 rounded hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled
                 >
                     Hold
                 </button>
                 <a
                     href="/inventory/receive-items/held"
-                    class="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 px-4 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+                    class="bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-600 px-4 py-2 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700"
                 >
                     View Held
                 </a>
@@ -83,10 +83,10 @@
             <div class="overflow-x-auto rounded-lg shadow mt-6">
                 <table
                     id="receiving-table"
-                    class="min-w-full w-full bg-white dark:bg-gray-800 text-sm"
+                    class="min-w-full w-full bg-white dark:bg-neutral-800 text-sm"
                 >
                     <thead
-                        class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                        class="bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
                     >
                         <tr>
                             <th class="px-4 py-2 text-left">Item</th>
@@ -100,13 +100,13 @@
                     </thead>
                     <tbody
                         id="receiving-rows"
-                        class="divide-y divide-gray-200 dark:divide-gray-700"
+                        class="divide-y divide-neutral-200 dark:divide-neutral-700"
                     ></tbody>
-                    <tfoot class="bg-gray-50 dark:bg-gray-700">
+                    <tfoot class="bg-neutral-50 dark:bg-neutral-700">
                         <tr>
                             <td
                                 colspan="8"
-                                class="px-4 py-3 text-right font-semibold text-lg text-gray-800 dark:text-gray-100"
+                                class="px-4 py-3 text-right font-semibold text-lg text-neutral-800 dark:text-neutral-100"
                             >
                                 Total Cost: ₦<span id="subtotal">0</span>
                             </td>
@@ -132,7 +132,7 @@
             class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center"
         >
             <div
-                class="bg-white dark:bg-gray-800 p-6 rounded shadow-lg max-w-2xl w-full space-y-4"
+                class="bg-white dark:bg-neutral-800 p-6 rounded shadow-lg max-w-2xl w-full space-y-4"
             >
                 <h2 class="text-lg font-semibold">Add New Product</h2>
 
@@ -147,7 +147,7 @@
                             id="name"
                             type="text"
                             placeholder="Product Name"
-                            class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            class="w-full px-3 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                             required
                         />
                         <p class="mt-1 text-sm text-red-500 hidden">
@@ -161,7 +161,7 @@
                             id="manufacturer"
                             type="text"
                             placeholder="Manufacturer"
-                            class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            class="w-full px-3 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                             required
                         />
                         <p class="mt-1 text-sm text-red-500 hidden">
@@ -175,7 +175,7 @@
                             id="reorder-level"
                             type="number"
                             placeholder="Reorder Level"
-                            class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            class="w-full px-3 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                             required
                         />
                         <p class="mt-1 text-sm text-red-500 hidden">
@@ -188,7 +188,7 @@
                         <select
                             id="category-id"
                             required
-                            class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            class="w-full px-3 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                         >
                             <option value="" disabled selected>
                                 Select Category
@@ -208,7 +208,7 @@
                             id="barcode"
                             type="text"
                             placeholder="Barcode"
-                            class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            class="w-full px-3 py-2 border rounded dark:bg-neutral-700 dark:border-neutral-600"
                         />
                     </div>
 
@@ -217,7 +217,7 @@
                         <button
                             id="cancel-modal"
                             type="button"
-                            class="text-gray-500 hover:text-red-600"
+                            class="text-neutral-500 hover:text-red-600"
                         >
                             Cancel
                         </button>
@@ -239,12 +239,12 @@
             class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center"
         >
             <div
-                class="bg-white dark:bg-gray-800 p-8 rounded shadow-lg max-w-md w-full space-y-6 text-center"
+                class="bg-white dark:bg-neutral-800 p-8 rounded shadow-lg max-w-md w-full space-y-6 text-center"
             >
                 <h2 id="feedback-title" class="text-xl font-semibold">Title</h2>
                 <p
                     id="feedback-message"
-                    class="text-gray-700 dark:text-gray-300"
+                    class="text-neutral-700 dark:text-neutral-300"
                 >
                     Details.
                 </p>

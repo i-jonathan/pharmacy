@@ -1,15 +1,15 @@
 <template>
     <div>
-        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">Roles</h2>
+        <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">Roles</h2>
 
-        <div v-if="loading" class="text-center py-12 text-gray-500 dark:text-gray-400">Loading...</div>
+        <div v-if="loading" class="text-center py-12 text-neutral-500 dark:text-neutral-400">Loading...</div>
 
         <div v-else-if="error" class="text-center py-12 text-red-500 dark:text-red-400">
             <p class="mb-4">{{ error }}</p>
             <button @click="fetchRoles" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg">Retry</button>
         </div>
 
-        <div v-else-if="roles.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div v-else-if="roles.length === 0" class="text-center py-12 text-neutral-500 dark:text-neutral-400">
             No roles defined.
         </div>
 
@@ -17,21 +17,21 @@
             <div
                 v-for="role in roles"
                 :key="role.id"
-                class="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden"
+                class="bg-white dark:bg-neutral-800 rounded-xl shadow border border-neutral-200 dark:border-neutral-700 overflow-hidden"
             >
-                <div class="px-6 py-4 flex items-center justify-between bg-gray-50 dark:bg-gray-700/50">
+                <div class="px-6 py-4 flex items-center justify-between bg-neutral-50 dark:bg-neutral-700/50">
                     <div>
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ role.name }}</h3>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">{{ role.name }}</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                             Created {{ formatDate(role.created_at) }}
                         </p>
                     </div>
-                    <span class="text-sm text-gray-500 dark:text-gray-400">
+                    <span class="text-sm text-neutral-500 dark:text-neutral-400">
                         {{ (role.permissions || []).length }} permission{{ (role.permissions || []).length !== 1 ? "s" : "" }}
                     </span>
                 </div>
                 <div class="px-6 py-4">
-                    <div v-if="!role.permissions || role.permissions.length === 0" class="text-sm text-gray-400 dark:text-gray-500">
+                    <div v-if="!role.permissions || role.permissions.length === 0" class="text-sm text-neutral-400 dark:text-neutral-500">
                         No permissions assigned.
                     </div>
                     <div v-else class="flex flex-wrap gap-2">

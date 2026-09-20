@@ -1,13 +1,13 @@
 <template>
-    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+    <tr class="hover:bg-neutral-50 dark:hover:bg-neutral-700">
         <td
-            class="px-4 py-3 font-medium sticky left-0 bg-white dark:bg-gray-800 z-10"
+            class="px-4 py-3 font-medium sticky left-0 bg-white dark:bg-neutral-800 z-10"
         >
             {{ item.product_name }}
-            <div class="text-sm text-gray-600 dark:text-gray-400">
+            <div class="text-sm text-neutral-600 dark:text-neutral-400">
                 {{ item.manufacturer }}
             </div>
-            <div class="text-xs text-gray-500">
+            <div class="text-xs text-neutral-500">
                 Last edited by {{ item.last_updated_by }} ·
                 {{ timeAgo(item.last_updated_at) }}
             </div>
@@ -32,7 +32,7 @@
                         $event.target.valueAsNumber || 0,
                     )
                 "
-                class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600"
+                class="w-20 px-2 py-2 border rounded text-center dark:bg-neutral-700 dark:border-neutral-600"
             />
 
             <span v-else>
@@ -59,7 +59,7 @@
                 :title="
                     !dispensaryEntered ? 'Enter dispensary count first' : ''
                 "
-                class="w-20 px-2 py-2 border rounded text-center dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-20 px-2 py-2 border rounded text-center dark:bg-neutral-700 dark:border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
 
             <span v-else>
@@ -89,7 +89,7 @@
                 :title="
                     !dispensaryEntered ? 'Enter dispensary count first' : ''
                 "
-                class="w-40 px-2 py-2 border rounded text-center disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="w-40 px-2 py-2 border rounded text-center disabled:opacity-50 disabled:cursor-not-allowed dark:bg-neutral-700 dark:border-neutral-600 dark:text-white"
             >
                 <option value="" disabled>Select date</option>
                 <option v-for="d in expiryOptions" :key="d" :value="d">
@@ -115,7 +115,7 @@
                 :title="
                     !dispensaryEntered ? 'Enter dispensary count first' : ''
                 "
-                class="w-full px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-2 py-1 border rounded dark:bg-neutral-700 dark:border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
 
             <span v-else>

@@ -6,7 +6,7 @@
         >
             <div>
                 <h1 class="text-2xl font-semibold">Stock Taking: {{ name }}</h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">
                     Started: {{ formatDate(startDate) }} · Created by
                     {{ createdBy }} ·
                     <span class="text-primary font-medium">{{ status }}</span>
@@ -16,9 +16,9 @@
             <div class="flex gap-3 flex-col sm:flex-row">
                 <button
                     v-if="showQuantityAndVariance"
-                    class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700"
                     :class="{
-                        'bg-gray-800 text-white border-gray-800 dark:bg-white dark:text-gray-800 dark:border-white': filterVariancesOnly
+                        'bg-neutral-800 text-white border-neutral-800 dark:bg-white dark:text-neutral-800 dark:border-white': filterVariancesOnly
                     }"
                     @click="filterVariances"
                 >
@@ -31,7 +31,7 @@
                     class="px-4 py-2 rounded-lg text-white"
                     :class="
                         isCompleted
-                            ? 'bg-gray-400 cursor-not-allowed'
+                            ? 'bg-neutral-400 cursor-not-allowed'
                             : 'bg-primary hover:bg-emerald-700'
                     "
                     @click="completeStockTaking"
@@ -48,10 +48,10 @@
                     type="text"
                     v-model="searchQuery"
                     placeholder="Search items..."
-                    class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
+                    class="w-full pl-10 pr-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-neutral-700 dark:text-white"
                 />
                 <svg
-                    class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                    class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -73,10 +73,10 @@
                     type="text"
                     v-model="searchQuery"
                     placeholder="Search items..."
-                    class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
+                    class="w-full pl-10 pr-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-neutral-700 dark:text-white"
                 />
                 <svg
-                    class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                    class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -94,7 +94,7 @@
         <!-- Filter Results Indicator -->
         <div
             v-if="isFiltering"
-            class="text-sm text-gray-600 dark:text-gray-400 mb-4"
+            class="text-sm text-neutral-600 dark:text-neutral-400 mb-4"
         >
             Showing {{ filteredItemsCount }} of {{ items.length }} items
             <span v-if="searchQueryDebounced.trim()">
@@ -117,7 +117,7 @@
         <!-- Summary -->
         <div
             v-if="showQuantityAndVariance"
-            class="flex justify-between text-sm text-gray-600 dark:text-gray-400"
+            class="flex justify-between text-sm text-neutral-600 dark:text-neutral-400"
         >
             <div>
                 Total Variance:

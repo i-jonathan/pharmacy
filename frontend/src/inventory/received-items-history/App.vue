@@ -5,19 +5,19 @@
             <h1 class="text-2xl font-semibold">
                 Received Items History
             </h1>
-            <div class="text-sm text-gray-500 dark:text-gray-400">
+            <div class="text-sm text-neutral-500 dark:text-neutral-400">
                 Use ↑/↓ to browse batches; Enter to open/close details
             </div>
         </div>
 
         <!-- Filters -->
         <div
-            class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow flex flex-wrap items-center justify-between gap-3"
+            class="bg-white dark:bg-neutral-800 p-3 rounded-lg shadow flex flex-wrap items-center justify-between gap-3"
         >
             <div class="flex flex-wrap items-center gap-3">
                 <div class="flex flex-col">
                     <label
-                        class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                        class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1"
                     >
                         Start Date
                     </label>
@@ -25,12 +25,12 @@
                         type="date"
                         v-model="startDate"
                         @change="handleDateChange"
-                        class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        class="border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1.5 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
                 <div class="flex flex-col">
                     <label
-                        class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                        class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1"
                     >
                         End Date
                     </label>
@@ -38,19 +38,19 @@
                         type="date"
                         v-model="endDate"
                         @change="handleDateChange"
-                        class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        class="border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1.5 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
                 <div class="flex flex-col">
                     <label
-                        class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                        class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1"
                     >
                         Quick Range
                     </label>
                     <select
                         v-model="quickRange"
                         @change="handleQuickRange"
-                        class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        class="border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1.5 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
                         <option value="today">Today</option>
                         <option value="yesterday">Yesterday</option>
@@ -68,7 +68,7 @@
         <!-- Loading State -->
         <div
             v-if="loading"
-            class="text-center py-16 text-gray-500 dark:text-gray-400"
+            class="text-center py-16 text-neutral-500 dark:text-neutral-400"
         >
             Loading...
         </div>
@@ -84,7 +84,7 @@
         <!-- Empty State -->
         <div
             v-else-if="batches.length === 0"
-            class="text-center py-16 text-gray-500 dark:text-gray-400"
+            class="text-center py-16 text-neutral-500 dark:text-neutral-400"
         >
             <p class="text-lg mb-2">No received items yet.</p>
         </div>
@@ -92,12 +92,12 @@
         <!-- Table -->
         <div
             v-else
-            class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700"
+            class="bg-white dark:bg-neutral-800 rounded-xl shadow overflow-hidden border border-neutral-200 dark:border-neutral-700"
         >
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
                     <thead
-                        class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50"
+                        class="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-700/50"
                     >
                         <tr>
                             <th class="px-6 py-3">Date</th>
@@ -108,7 +108,7 @@
                         </tr>
                     </thead>
                     <tbody
-                        class="divide-y divide-gray-100 dark:divide-gray-700"
+                        class="divide-y divide-neutral-100 dark:divide-neutral-700"
                     >
                         <tr
                             v-for="(batch, idx) in batches"
@@ -122,27 +122,27 @@
                             ]"
                         >
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300 whitespace-nowrap"
                             >
                                 {{ formatDate(batch.created_at) }}
                             </td>
                             <td
-                                class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100"
+                                class="px-6 py-4 font-medium text-neutral-900 dark:text-neutral-100"
                             >
                                 {{ batch.supplier_name }}
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300"
                             >
                                 {{ batch.received_by }}
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300"
                             >
                                 {{ totalItems(batch) }}
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-900 dark:text-gray-100 text-right font-medium"
+                                class="px-6 py-4 text-neutral-900 dark:text-neutral-100 text-right font-medium"
                             >
                                 {{ formatPrice(totalCost(batch)) }}
                             </td>
@@ -160,14 +160,14 @@
         ></div>
         <aside
             :class="[
-                'panel fixed right-0 top-0 h-full w-full md:w-1/2 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-xl z-50 overflow-y-auto',
+                'panel fixed right-0 top-0 h-full w-full md:w-1/2 bg-white dark:bg-neutral-800 border-l border-neutral-200 dark:border-neutral-700 shadow-xl z-50 overflow-y-auto',
                 panelOpen ? 'open' : '',
             ]"
         >
             <div class="p-6 relative">
                 <button
                     @click="closePanel"
-                    class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-xl leading-none"
+                    class="absolute top-4 right-4 text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 text-xl leading-none"
                     aria-label="Close details"
                 >
                     ✕
@@ -182,7 +182,7 @@
                 <!-- Batch Metadata -->
                 <p
                     v-if="selectedBatch"
-                    class="text-sm text-gray-500 dark:text-gray-400 mb-4 mt-2"
+                    class="text-sm text-neutral-500 dark:text-neutral-400 mb-4 mt-2"
                 >
                     {{ formatDate(selectedBatch.created_at) }} • Received by: {{ selectedBatch.received_by }}<template v-if="selectedBatch.note"> • {{ selectedBatch.note }}</template>
                 </p>
@@ -190,38 +190,38 @@
                 <!-- Items Sub-Table -->
                 <section class="mt-6">
                     <h3
-                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                        class="text-lg font-semibold text-neutral-700 dark:text-neutral-200 mb-4"
                     >
                         Items in Batch
                     </h3>
                     <div class="overflow-x-auto">
                         <table
-                            class="min-w-full text-sm border border-gray-200 dark:border-gray-700"
+                            class="min-w-full text-sm border border-neutral-200 dark:border-neutral-700"
                         >
-                            <thead class="bg-gray-50 dark:bg-gray-700">
+                            <thead class="bg-neutral-50 dark:bg-neutral-700">
                                 <tr>
                                     <th
-                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-left font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Product
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Qty
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-left font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Expiry
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Unit Cost Price
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Total Cost Price
                                     </th>
@@ -232,35 +232,35 @@
                                     selectedBatch &&
                                     selectedBatch.items.length > 0
                                 "
-                                class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                                class="divide-y divide-neutral-200 dark:divide-neutral-700 bg-white dark:bg-neutral-800"
                             >
                                 <tr
                                     v-for="(item, idx) in selectedBatch.items"
                                     :key="idx"
                                 >
                                     <td
-                                        class="px-4 py-3 text-gray-900 dark:text-gray-100"
+                                        class="px-4 py-3 text-neutral-900 dark:text-neutral-100"
                                     >
                                         <div class="font-medium">{{ item.product_name }}</div>
-                                        <div class="text-xs text-gray-500">{{ item.manufacturer || "—" }}</div>
+                                        <div class="text-xs text-neutral-500">{{ item.manufacturer || "—" }}</div>
                                     </td>
                                     <td
-                                        class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"
+                                        class="px-4 py-3 text-right text-neutral-600 dark:text-neutral-300"
                                     >
                                         {{ item.quantity }}
                                     </td>
                                     <td
-                                        class="px-4 py-3 text-gray-600 dark:text-gray-300"
+                                        class="px-4 py-3 text-neutral-600 dark:text-neutral-300"
                                     >
                                         {{ formatExpiry(item.expiry_date) }}
                                     </td>
                                     <td
-                                        class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"
+                                        class="px-4 py-3 text-right text-neutral-600 dark:text-neutral-300"
                                     >
                                         {{ formatPrice(item.cost_price) }}
                                     </td>
                                     <td
-                                        class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"
+                                        class="px-4 py-3 text-right text-neutral-600 dark:text-neutral-300"
                                     >
                                         {{ formatPrice(item.cost_price * item.quantity) }}
                                     </td>
@@ -272,7 +272,7 @@
                             >
                                 <tr>
                                     <td
-                                        class="px-4 py-3 text-gray-700 dark:text-gray-200"
+                                        class="px-4 py-3 text-neutral-700 dark:text-neutral-200"
                                         colspan="4"
                                     >
                                         Item Total

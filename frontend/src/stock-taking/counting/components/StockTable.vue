@@ -31,7 +31,7 @@
             ref="tableContainer"
         >
             <table
-                class="w-full min-w-[900px] bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                class="w-full min-w-[900px] bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700"
                 :class="{ 'rounded-t-lg': !stickyCategoryHeader, 'rounded-t-none': stickyCategoryHeader }"
             >
             <thead class="bg-emerald-600 dark:bg-emerald-800">

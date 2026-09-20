@@ -2,7 +2,7 @@
     <div class="max-w-6xl mx-auto px-4 py-8">
         <!-- Header -->
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <h1 class="text-2xl font-bold text-neutral-800 dark:text-neutral-100">
                 Stock Taking
             </h1>
             <button
@@ -17,7 +17,7 @@
         <!-- Loading State -->
         <div
             v-if="loading"
-            class="text-center py-16 text-gray-500 dark:text-gray-400"
+            class="text-center py-16 text-neutral-500 dark:text-neutral-400"
         >
             Loading...
         </div>
@@ -33,7 +33,7 @@
         <!-- Empty State -->
         <div
             v-else-if="stockTakings.length === 0"
-            class="text-center py-16 text-gray-500 dark:text-gray-400"
+            class="text-center py-16 text-neutral-500 dark:text-neutral-400"
         >
             <p class="text-lg mb-2">No stock taking sessions yet.</p>
             <p class="text-sm">Click "New Stock Taking" to get started.</p>
@@ -42,12 +42,12 @@
         <!-- Table -->
         <div
             v-else
-            class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700"
+            class="bg-white dark:bg-neutral-800 rounded-xl shadow overflow-hidden border border-neutral-200 dark:border-neutral-700"
         >
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
                     <thead
-                        class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50"
+                        class="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-700/50"
                     >
                         <tr>
                             <th class="px-6 py-3">Name</th>
@@ -59,16 +59,16 @@
                         </tr>
                     </thead>
                     <tbody
-                        class="divide-y divide-gray-100 dark:divide-gray-700"
+                        class="divide-y divide-neutral-100 dark:divide-neutral-700"
                     >
                         <tr
                             v-for="st in stockTakings"
                             :key="st.id"
                             @click="goToStockTaking(st.id)"
-                            class="hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                            class="hover:bg-neutral-50 dark:hover:bg-neutral-700/40 cursor-pointer transition-colors"
                         >
                             <td
-                                class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100"
+                                class="px-6 py-4 font-medium text-neutral-900 dark:text-neutral-100"
                             >
                                 {{ st.name }}
                             </td>
@@ -78,17 +78,17 @@
                                 </span>
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300"
                             >
                                 {{ st.created_by }}
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300"
                             >
                                 {{ formatDate(st.started_at) }}
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300"
                             >
                                 {{
                                     st.completed_at
@@ -97,7 +97,7 @@
                                 }}
                             </td>
                             <td
-                                class="px-6 py-4 text-gray-600 dark:text-gray-300"
+                                class="px-6 py-4 text-neutral-600 dark:text-neutral-300"
                             >
                                 {{ st.completed_by || "—" }}
                             </td>
@@ -114,10 +114,10 @@
             @click.self="closeModal"
         >
             <div
-                class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
+                class="bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
             >
                 <h2
-                    class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4"
+                    class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4"
                 >
                     New Stock Taking
                 </h2>
@@ -130,7 +130,7 @@
                 </div>
 
                 <label
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1"
                 >
                     Name
                 </label>
@@ -140,13 +140,13 @@
                     @keydown.enter="handleCreate"
                     type="text"
                     placeholder="e.g. April 2026 Stock Count"
-                    class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    class="w-full px-4 py-2.5 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
 
                 <div class="flex justify-end gap-3 mt-6">
                     <button
                         @click="closeModal"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition"
+                        class="px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded-lg transition"
                     >
                         Cancel
                     </button>
@@ -272,9 +272,9 @@ export default {
                 case "completed":
                     return `${base} bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300`;
                 case "cancelled":
-                    return `${base} bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400`;
+                    return `${base} bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400`;
                 default:
-                    return `${base} bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400`;
+                    return `${base} bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400`;
             }
         },
     },

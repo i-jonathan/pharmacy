@@ -1,21 +1,21 @@
 <template>
     <div>
-        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">Users</h2>
+        <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">Users</h2>
 
-        <div v-if="loading" class="text-center py-12 text-gray-500 dark:text-gray-400">Loading...</div>
+        <div v-if="loading" class="text-center py-12 text-neutral-500 dark:text-neutral-400">Loading...</div>
 
         <div v-else-if="error" class="text-center py-12 text-red-500 dark:text-red-400">
             <p class="mb-4">{{ error }}</p>
             <button @click="fetchData" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg">Retry</button>
         </div>
 
-        <div v-else-if="users.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div v-else-if="users.length === 0" class="text-center py-12 text-neutral-500 dark:text-neutral-400">
             No users registered.
         </div>
 
-        <div v-else class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div v-else class="bg-white dark:bg-neutral-800 rounded-xl shadow overflow-hidden border border-neutral-200 dark:border-neutral-700">
             <table class="w-full text-sm text-left">
-                <thead class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50">
+                <thead class="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-700/50">
                     <tr>
                         <th class="px-6 py-3">Username</th>
                         <th class="px-6 py-3">Role</th>
@@ -23,19 +23,19 @@
                         <th class="px-6 py-3 w-40">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                        <td class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{{ user.username }}</td>
+                <tbody class="divide-y divide-neutral-100 dark:divide-neutral-700">
+                    <tr v-for="user in users" :key="user.id" class="hover:bg-neutral-50 dark:hover:bg-neutral-700/40">
+                        <td class="px-6 py-4 font-medium text-neutral-900 dark:text-neutral-100">{{ user.username }}</td>
                         <td class="px-6 py-4">
                             <select
                                 :value="user.role_id"
                                 @change="updateRole(user, $event.target.value)"
-                                class="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-gray-100"
+                                class="px-2 py-1 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
                             >
                                 <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
                             </select>
                         </td>
-                        <td class="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs">
+                        <td class="px-6 py-4 text-neutral-500 dark:text-neutral-400 text-xs">
                             {{ formatDate(user.created_at) }}
                         </td>
                         <td class="px-6 py-4">
@@ -52,20 +52,20 @@
         <!-- Reset Password Modal -->
         <div v-if="resetUser" class="fixed inset-0 z-50 flex items-center justify-center">
             <div class="absolute inset-0 bg-black/40" @click="resetUser = null"></div>
-            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+            <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
                     Reset Password for {{ resetUser.username }}
                 </h3>
                 <form @submit.prevent="resetPassword">
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                        <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">New Password</label>
                         <input
                             v-model="newPassword"
                             type="password"
                             required
                             minlength="8"
                             placeholder="At least 8 characters"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-gray-100"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
                         />
                     </div>
                     <div v-if="resetError" class="mb-4 text-sm text-red-500">{{ resetError }}</div>
@@ -73,7 +73,7 @@
                         <button
                             type="button"
                             @click="resetUser = null"
-                            class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 transition-colors"
+                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
                         >Cancel</button>
                         <button
                             type="submit"

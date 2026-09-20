@@ -27,7 +27,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+<body class="bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 min-h-screen flex flex-col">
     {{template "nav.html" .}}
     {{template "subnav.html" .}}
     
@@ -35,14 +35,14 @@
     <main class="p-6 flex-1 w-full space-y-6">
             <div class="flex items-end justify-between">
                 <h1 class="text-2xl font-semibold">Sales History</h1>
-                <div class="text-sm text-gray-500 dark:text-gray-400">
+                <div class="text-sm text-neutral-500 dark:text-neutral-400">
                     Use ↑/↓ to browse sales; Enter to open/close details
                 </div>
             </div>
 
             <!-- Filters -->
             <div
-                class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow flex flex-wrap items-center justify-between gap-3"
+                class="bg-white dark:bg-neutral-800 p-3 rounded-lg shadow flex flex-wrap items-center justify-between gap-3"
             >
                 <!-- Left: Filters -->
                 <div class="flex flex-wrap items-center gap-3">
@@ -50,13 +50,13 @@
                     <div class="flex flex-col">
                         <label
                             for="start-date"
-                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                            class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1"
                             >Start Date</label
                         >
                         <input
                             type="date"
                             id="start-date"
-                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
+                            class="border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1.5 bg-white dark:bg-neutral-700 text-sm focus:ring-2 focus:ring-primary"
                             placeholder="Start"
                         />
                     </div>
@@ -65,13 +65,13 @@
                     <div class="flex flex-col">
                         <label
                             for="end-date"
-                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                            class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1"
                             >End Date</label
                         >
                         <input
                             type="date"
                             id="end-date"
-                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
+                            class="border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1.5 bg-white dark:bg-neutral-700 text-sm focus:ring-2 focus:ring-primary"
                             placeholder="End"
                         />
                     </div>
@@ -80,12 +80,12 @@
                     <div class="flex flex-col">
                         <label
                             for="predefined-range"
-                            class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
+                            class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1"
                             >Quick Range</label
                         >
                         <select
                             id="predefined-range"
-                            class="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary"
+                            class="border border-neutral-300 dark:border-neutral-600 rounded px-2 py-1.5 bg-white dark:bg-neutral-700 text-sm focus:ring-2 focus:ring-primary"
                         >
                             <option value="today" selected>Today</option>
                             <option value="yesterday">Yesterday</option>
@@ -113,13 +113,13 @@
             <!-- Table -->
             <div class="overflow-x-auto">
                 <table
-                    class="min-w-full bg-white dark:bg-gray-800 text-sm"
+                    class="min-w-full bg-white dark:bg-neutral-800 text-sm"
                     id="sales-table"
                     aria-label="Sales history table"
                 >
-                    <thead class="bg-gray-100 dark:bg-gray-700 text-left">
+                    <thead class="bg-neutral-100 dark:bg-neutral-700 text-left">
                         <tr
-                            class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-300"
+                            class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-300"
                         >
                             <th class="px-4 py-3">Receipt #</th>
                             <th class="px-4 py-3">Date</th>
@@ -130,7 +130,7 @@
                     </thead>
                     <tbody
                         id="sales-body"
-                        class="divide-y dark:divide-gray-700"
+                        class="divide-y dark:divide-neutral-700"
                     ></tbody>
                 </table>
             </div>
@@ -139,11 +139,11 @@
         <!-- Side Panel (non-blocking) -->
         <aside
             id="sale-panel"
-            class="panel fixed right-0 top-0 h-full w-full md:w-1/2 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-xl z-40 overflow-y-auto"
+            class="panel fixed right-0 top-0 h-full w-full md:w-1/2 bg-white dark:bg-neutral-800 border-l border-neutral-200 dark:border-neutral-700 shadow-xl z-40 overflow-y-auto"
         >
             <div class="p-6 relative">
                 <button
-                    class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                    class="absolute top-4 right-4 text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
                     id="close-panel"
                     aria-label="Close details"
                 >
@@ -157,7 +157,7 @@
                 </h2>
                 <p
                     id="sale-meta"
-                    class="text-sm text-gray-500 dark:text-gray-400 mb-4 mt-2"
+                    class="text-sm text-neutral-500 dark:text-neutral-400 mb-4 mt-2"
                 >
                     Select a sale to view details.
                 </p>
@@ -165,38 +165,38 @@
                 <!-- Items -->
                 <section class="mb-6">
                     <h3
-                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                        class="text-lg font-semibold text-neutral-700 dark:text-neutral-200 mb-4"
                     >
                         Items in Sale
                     </h3>
                     <div class="overflow-x-auto">
                         <table
-                            class="min-w-full text-sm border border-gray-200 dark:border-gray-700"
+                            class="min-w-full text-sm border border-neutral-200 dark:border-neutral-700"
                         >
-                            <thead class="bg-gray-50 dark:bg-gray-700">
+                            <thead class="bg-neutral-50 dark:bg-neutral-700">
                                 <tr>
                                     <th
-                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-left font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Item
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Qty
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Unit Price
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Discount
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Line Total
                                     </th>
@@ -204,7 +204,7 @@
                             </thead>
                             <tbody
                                 id="items-body"
-                                class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                                class="divide-y divide-neutral-200 dark:divide-neutral-700 bg-white dark:bg-neutral-800"
                             >
                                 <!-- rows get inserted here -->
                             </tbody>
@@ -213,7 +213,7 @@
                             >
                                 <tr>
                                     <td
-                                        class="px-3 py-3 text-gray-700 dark:text-gray-200"
+                                        class="px-3 py-3 text-neutral-700 dark:text-neutral-200"
                                         colspan="4"
                                     >
                                         Sale Total
@@ -227,7 +227,7 @@
                                 </tr>
                                 <tr>
                                     <td
-                                        class="px-3 py-3 text-gray-700 dark:text-gray-200"
+                                        class="px-3 py-3 text-neutral-700 dark:text-neutral-200"
                                         colspan="4"
                                     >
                                         Change
@@ -247,15 +247,15 @@
                 <!-- Payments -->
                 <section class="mb-6">
                     <h3
-                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                        class="text-lg font-semibold text-neutral-700 dark:text-neutral-200 mb-4"
                     >
                         Payment Methods
                     </h3>
                     <div class="overflow-x-auto">
                         <table
-                            class="min-w-full text-sm border dark:border-gray-700"
+                            class="min-w-full text-sm border dark:border-neutral-700"
                         >
-                            <thead class="bg-gray-50 dark:bg-gray-700">
+                            <thead class="bg-neutral-50 dark:bg-neutral-700">
                                 <tr>
                                     <th class="px-3 py-2 text-left">Method</th>
                                     <th class="px-3 py-2 text-right">Amount</th>
@@ -263,7 +263,7 @@
                             </thead>
                             <tbody
                                 id="payments-body"
-                                class="divide-y dark:divide-gray-700"
+                                class="divide-y dark:divide-neutral-700"
                             ></tbody>
                             <tfoot
                                 class="bg-emerald-50 dark:bg-emerald-900/40 font-semibold"
@@ -286,33 +286,33 @@
 
                 <section id="returns-section" class="mb-6 hidden">
                     <h3
-                        class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4"
+                        class="text-lg font-semibold text-neutral-700 dark:text-neutral-200 mb-4"
                     >
                         Returned Items
                     </h3>
                     <div class="overflow-x-auto">
                         <table
-                            class="min-w-full text-sm border border-gray-200 dark:border-gray-700"
+                            class="min-w-full text-sm border border-neutral-200 dark:border-neutral-700"
                         >
-                            <thead class="bg-gray-50 dark:bg-gray-700">
+                            <thead class="bg-neutral-50 dark:bg-neutral-700">
                                 <tr>
                                     <th
-                                        class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-left font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Item
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Qty Returned
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Unit Price
                                     </th>
                                     <th
-                                        class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                        class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                     >
                                         Refund Amount
                                     </th>
@@ -320,7 +320,7 @@
                             </thead>
                             <tbody
                                 id="returns-body"
-                                class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                                class="divide-y divide-neutral-200 dark:divide-neutral-700 bg-white dark:bg-neutral-800"
                             >
                                 <!-- return rows inserted dynamically -->
                             </tbody>
@@ -351,7 +351,7 @@
                     <!-- Left: Reprint Receipt -->
                     <button
                         id="reprint-receipt"
-                        class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
+                        class="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-800 dark:text-neutral-200 font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors"
                     >
                         Reprint Receipt
                     </button>
@@ -373,10 +373,10 @@
             class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center"
         >
             <div
-                class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-9/12 max-w-3xl mx-4"
+                class="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-9/12 max-w-3xl mx-4"
             >
                 <div
-                    class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 px-6 py-4"
+                    class="flex justify-between items-center border-b border-neutral-200 dark:border-neutral-700 px-6 py-4"
                 >
                     <h3
                         class="text-lg font-bold text-emerald-600 dark:text-emerald-400"
@@ -385,7 +385,7 @@
                     </h3>
                     <button
                         id="close-return-modal"
-                        class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                        class="text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
                     >
                         ✕
                     </button>
@@ -393,32 +393,32 @@
 
                 <div class="p-6">
                     <table
-                        class="min-w-full text-sm border border-gray-200 dark:border-gray-700"
+                        class="min-w-full text-sm border border-neutral-200 dark:border-neutral-700"
                     >
-                        <thead class="bg-gray-50 dark:bg-gray-700">
+                        <thead class="bg-neutral-50 dark:bg-neutral-700">
                             <tr>
                                 <th
-                                    class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    class="px-4 py-3 text-left font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                 >
                                     Item
                                 </th>
                                 <th
-                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                 >
                                     Qty Sold
                                 </th>
                                 <th
-                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                 >
                                     Unit Price
                                 </th>
                                 <th
-                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                 >
                                     Qty to Return
                                 </th>
                                 <th
-                                    class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide"
+                                    class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide"
                                 >
                                     Refund
                                 </th>
@@ -426,7 +426,7 @@
                         </thead>
                         <tbody
                             id="return-items-body"
-                            class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+                            class="divide-y divide-neutral-200 dark:divide-neutral-700 bg-white dark:bg-neutral-800"
                         >
                             <!-- Rows get inserted dynamically -->
                         </tbody>
@@ -436,7 +436,7 @@
                             <tr>
                                 <td
                                     colspan="4"
-                                    class="px-4 py-3 text-right text-gray-700 dark:text-gray-200"
+                                    class="px-4 py-3 text-right text-neutral-700 dark:text-neutral-200"
                                 >
                                     Total Refund
                                 </td>

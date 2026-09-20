@@ -1,6 +1,6 @@
 <template>
     <div class="max-w-6xl mx-auto px-4 py-8">
-        <div v-if="loading" class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <div v-if="loading" class="text-center py-16 text-neutral-500 dark:text-neutral-400">
             Loading...
         </div>
 
@@ -12,11 +12,11 @@
         </div>
 
         <div v-else-if="!currentModule">
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+            <h1 class="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">
                 Administration
             </h1>
 
-            <div v-if="modules.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+            <div v-if="modules.length === 0" class="text-center py-16 text-neutral-500 dark:text-neutral-400">
                 No admin modules available.
             </div>
 
@@ -25,7 +25,7 @@
                     v-for="mod in modules"
                     :key="mod.path"
                     @click="currentModule = mod.path"
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 cursor-pointer hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-600 transition-all group"
+                    class="bg-white dark:bg-neutral-800 rounded-xl shadow border border-neutral-200 dark:border-neutral-700 p-6 cursor-pointer hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-600 transition-all group"
                 >
                     <div class="flex items-start gap-4">
                         <div class="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-xl group-hover:scale-110 transition-transform">
@@ -36,10 +36,10 @@
                             <span v-else>&#128218;</span>
                         </div>
                         <div class="flex-1">
-                            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                            <h2 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                 {{ mod.name }}
                             </h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
                                 {{ mod.description }}
                             </p>
                         </div>
@@ -51,7 +51,7 @@
         <div v-else>
             <button
                 @click="currentModule = null"
-                class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-6 transition-colors"
+                class="inline-flex items-center gap-1 text-sm text-neutral-500 dark:text-neutral-400 hover:text-emerald-600 dark:hover:text-emerald-400 mb-6 transition-colors"
             >
                 <span>&larr;</span> Back to Admin Dashboard
             </button>
