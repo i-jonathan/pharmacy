@@ -36,8 +36,8 @@
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.sales" class="space-y-0.5">
           <a href="#/pos" :class="linkClasses(false)"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
-          <a href="/sales/history" :class="linkClasses(false)"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
-          <a href="/sales/held" :class="linkClasses(false)"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
+          <a href="#/sales-history" :class="linkClasses(false)"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
+          <a href="#/held-sales" :class="linkClasses(false)"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
         </div>
       </div>
 
@@ -53,9 +53,9 @@
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.inventory" class="space-y-0.5">
-          <a href="/inventory/items" :class="linkClasses(false)"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
-          <a href="/inventory/receive-items" :class="linkClasses(false)"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
-          <a href="/stock-taking/" :class="linkClasses(false)"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
+          <a href="#/products" :class="linkClasses(false)"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
+          <a href="#/receive-items" :class="linkClasses(false)"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
+          <a href="#/stock-taking" :class="linkClasses(false)"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
           <PermissionGate permission="admin:access">
             <button class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors" @click="$emit('open-admin', { module: 'categories' })">
               <Tags :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
