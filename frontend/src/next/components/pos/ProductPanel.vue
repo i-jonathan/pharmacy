@@ -221,8 +221,7 @@ function closePopover() {
 
 function onDocumentClick(e) {
   if (!popover.value.product) return;
-  if (e.target.closest("button")) return;
-  const el = document.querySelector(".fixed.z-\\[60\\]");
+  const el = document.querySelector(".z-60");
   if (el && !el.contains(e.target)) {
     closePopover();
   }

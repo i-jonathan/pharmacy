@@ -209,14 +209,9 @@
     <Teleport to="body">
       <div
         v-if="pricePopover.index !== null"
-        class="fixed inset-0 z-59"
-        @click="pricePopover.index = null"
-      />
-      <div
-        v-if="pricePopover.index !== null"
         class="price-dropdown fixed z-60 w-44 rounded-sm border border-border bg-popover shadow-lg p-1"
         :style="{ top: pricePopover.y + 'px', left: pricePopover.x + 'px' }"
-        @click.stop
+      >
         <div class="text-xs text-muted-foreground px-2 py-1.5 border-b border-border">Change price</div>
         <button
           v-for="opt in pricePopoverOptions"
@@ -234,7 +229,7 @@
 </template>
 
 <script setup>
-import { reactive, computed } from "vue";
+import { reactive, computed, onMounted, onUnmounted } from "vue";
 import { Pause, Trash2, User, Minus, Plus, X, Pencil, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
@@ -298,6 +293,17 @@ function selectPriceOption(opt) {
   emit("update-price", pricePopover.index, opt.id, opt.price);
   pricePopover.index = null;
 }
+
+function onDocumentClick(e) {
+  if (pricePopover.index === null) return;
+  const el = document.querySelector(".price-dropdown");
+  if (el && !el.contains(e.target)) {
+    pricePopover.index = null;
+  }
+}
+
+onMounted(() => document.addEventListener("click", onDocumentClick));
+onUnmounted(() => document.removeEventListener("click", onDocumentClick));
 
 const emit = defineEmits([
   "remove",
