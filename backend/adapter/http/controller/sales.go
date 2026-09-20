@@ -10,6 +10,7 @@ import (
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/service"
+	"strconv"
 	"time"
 )
 
@@ -114,6 +115,8 @@ func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Reque
 func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
 	startStr := r.URL.Query().Get("start")
 	endStr := r.URL.Query().Get("end")
+	pageStr := r.URL.Query().Get("page")
+	perPageStr := r.URL.Query().Get("per_page")
 	var filter types.SaleFilter
 
 	if startStr != "" {
@@ -125,6 +128,15 @@ func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
 		if end, err := time.Parse("2006-01-02", endStr); err == nil {
 			filter.EndDate = &end
 		}
+	}
+
+	filter.Page = 1
+	filter.PerPage = 20
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		filter.Page = p
+	}
+	if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 {
+		filter.PerPage = pp
 	}
 
 	salesData, err := c.service.FetchSalesHistory(r.Context(), filter)

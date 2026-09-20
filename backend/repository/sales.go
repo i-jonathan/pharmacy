@@ -54,12 +54,46 @@ func (r *repo) FetchSalesTx(ctx context.Context, tx *sqlx.Tx, filter types.SaleF
 	if filter.EndDate != nil {
 		endDate = *filter.EndDate
 	}
+	limit := filter.PerPage
+	offset := (filter.Page - 1) * filter.PerPage
 
-	err := tx.SelectContext(ctx, &sales, fetchSalesQuery, startDate, endDate)
+	err := tx.SelectContext(ctx, &sales, fetchSalesQuery, startDate, endDate, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	return sales, nil
+}
+
+func (r *repo) SumSalesTotal(ctx context.Context, filter types.SaleFilter) (int, error) {
+	var startDate, endDate any
+	if filter.StartDate != nil {
+		startDate = *filter.StartDate
+	}
+	if filter.EndDate != nil {
+		endDate = *filter.EndDate
+	}
+	var total int
+	err := r.Data.GetContext(ctx, &total, sumSalesTotalQuery, startDate, endDate)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func (r *repo) CountSales(ctx context.Context, filter types.SaleFilter) (int, error) {
+	var startDate, endDate any
+	if filter.StartDate != nil {
+		startDate = *filter.StartDate
+	}
+	if filter.EndDate != nil {
+		endDate = *filter.EndDate
+	}
+	var count int
+	err := r.Data.GetContext(ctx, &count, countSalesQuery, startDate, endDate)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (r *repo) BulkFetchSaleItems(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SaleItem, error) {

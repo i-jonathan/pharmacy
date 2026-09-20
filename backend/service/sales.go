@@ -138,11 +138,17 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		return types.SaleHistory{}, httperror.ServerError("Failed to begin transaction", err)
 	}
 
-	// fetch sales. Consider paginating
+	// fetch sales
 	sales, err := s.repo.FetchSalesTx(ctx, tx, filter)
 	if err != nil {
 		log.Println(err)
 		return types.SaleHistory{}, httperror.ServerError("fetching sales failed", err)
+	}
+
+	totalCount, err := s.repo.CountSales(ctx, filter)
+	if err != nil {
+		log.Println(err)
+		return types.SaleHistory{}, httperror.ServerError("counting sales failed", err)
 	}
 
 	// index sales by sale id and fetch all sale id's to use in getting sale items and payments
@@ -222,9 +228,18 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	responses := make([]types.SaleResponse, 0, len(sales))
-	salesHistoryTotal := int(0)
-
 	canViewTotal := HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
+
+	var salesHistoryTotal int
+	if canViewTotal {
+		t, err := s.repo.SumSalesTotal(ctx, filter)
+		if err != nil {
+			log.Println(err)
+			return types.SaleHistory{}, httperror.ServerError("summing sales total failed", err)
+		}
+		salesHistoryTotal = t
+	}
+
 	for _, s := range sales {
 		saleItemsByID := make(map[int]model.SaleItem)
 
@@ -265,8 +280,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 				Quantity:     r.Quantity,
 			})
 
-			salesHistoryTotal -= item.UnitPrice * r.Quantity
-		}
+			}
 
 		// build the final response
 		resp := types.SaleResponse{
@@ -282,9 +296,6 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			Returns:       returnsResp,
 		}
 		responses = append(responses, resp)
-		if canViewTotal {
-			salesHistoryTotal += s.Total
-		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -293,7 +304,10 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	history := types.SaleHistory{
-		Data: responses,
+		Data:        responses,
+		Page:        filter.Page,
+		PerPage:     filter.PerPage,
+		TotalCount:  totalCount,
 	}
 
 	if canViewTotal {

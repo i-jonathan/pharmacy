@@ -174,6 +174,23 @@ const fetchSalesQuery = `
     ($1::date IS NULL OR created_at::date >= $1::date)
     AND ($2::date IS NULL OR created_at::date <= $2::date)
   ORDER BY created_at DESC
+  LIMIT $3 OFFSET $4
+`
+
+const countSalesQuery = `
+  SELECT COUNT(*)
+  FROM sales
+  WHERE
+    ($1::date IS NULL OR created_at::date >= $1::date)
+    AND ($2::date IS NULL OR created_at::date <= $2::date)
+`
+
+const sumSalesTotalQuery = `
+  SELECT COALESCE(SUM(total), 0)
+  FROM sales
+  WHERE
+    ($1::date IS NULL OR created_at::date >= $1::date)
+    AND ($2::date IS NULL OR created_at::date <= $2::date)
 `
 const fetchSalesByIDQuery = `
 	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at

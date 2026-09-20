@@ -50,6 +50,8 @@ type SaleRepository interface {
 	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
 	BulkCreateSalePaymentsTX(ctx context.Context, tx *sqlx.Tx, salePayments []model.SalePayment) error
 	FetchSalesTx(ctx context.Context, tx *sqlx.Tx, filter types.SaleFilter) ([]model.Sale, error)
+	CountSales(ctx context.Context, filter types.SaleFilter) (int, error)
+	SumSalesTotal(ctx context.Context, filter types.SaleFilter) (int, error)
 	BulkFetchSaleItems(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SaleItem, error)
 	BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SalePayment, error)
 	SaveHeldTransaction(ctx context.Context, transaction model.HeldTransaction) error
