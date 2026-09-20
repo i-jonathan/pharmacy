@@ -40,14 +40,43 @@ func (c *appController) GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 	ui := r.URL.Query().Get("ui")
 	if ui == "v2" {
-		err := c.template.ExecuteTemplate(w, "next-dashboard.html", data)
-		if err != nil {
-			http.Error(w, "dashboard error", http.StatusInternalServerError)
-		}
+		c.renderV2(w, r, data)
 		return
 	}
 
 	err := c.template.ExecuteTemplate(w, "dashboard.html", data)
+	if err != nil {
+		http.Error(w, "dashboard error", http.StatusInternalServerError)
+	}
+}
+
+func (c *appController) ServeV2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	perms := getPermissionsFromContext(r)
+	userID := getUserIDFromContext(r)
+
+	store := config.NewSessionStore()
+	session, _ := store.Get(r, "session")
+	userName, _ := session.Values[constant.UserNameSessionKey].(string)
+	roleName, _ := session.Values[constant.RoleNameSessionKey].(string)
+
+	data := map[string]any{
+		"Title":       "",
+		"ActivePage":  "",
+		"Permissions": perms,
+		"User": map[string]any{
+			"id":       userID,
+			"username": userName,
+			"role":     roleName,
+		},
+	}
+
+	c.renderV2(w, r, data)
+}
+
+func (c *appController) renderV2(w http.ResponseWriter, r *http.Request, data map[string]any) {
+	err := c.template.ExecuteTemplate(w, "next-dashboard.html", data)
 	if err != nil {
 		http.Error(w, "dashboard error", http.StatusInternalServerError)
 	}

@@ -15,7 +15,7 @@
     <nav class="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
       <!-- Dashboard -->
       <a
-        href="#/"
+        href="/app/"
         :class="linkClasses('/')"
         :title="collapsed ? 'Dashboard' : ''"
       >
@@ -35,9 +35,9 @@
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.sales || isInSection(salesPaths)" class="space-y-0.5">
-          <a href="#/pos" :class="linkClasses('/pos')"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
-          <a href="#/sales-history" :class="linkClasses('/sales-history')"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
-          <a href="#/held-sales" :class="linkClasses('/held-sales')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
+          <a href="/app/pos" :class="linkClasses('/pos')"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
+          <a href="/app/sales-history" :class="linkClasses('/sales-history')"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
+          <a href="/app/held-sales" :class="linkClasses('/held-sales')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
         </div>
       </div>
 
@@ -53,11 +53,11 @@
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.inventory || isInSection(inventoryPaths)" class="space-y-0.5">
-          <a href="#/products" :class="linkClasses('/products')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
-          <a href="#/receive-items" :class="linkClasses('/receive-items')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
-          <a href="#/stock-taking" :class="linkClasses('/stock-taking')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
+          <a href="/app/products" :class="linkClasses('/products')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
+          <a href="/app/receive-items" :class="linkClasses('/receive-items')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
+          <a href="/app/stock-taking" :class="linkClasses('/stock-taking')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
           <PermissionGate permission="admin:access">
-            <a href="#/categories" :class="linkClasses('/categories')">
+            <a href="/app/categories" :class="linkClasses('/categories')">
               <Tags :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
             </a>
           </PermissionGate>

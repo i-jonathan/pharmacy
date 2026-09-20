@@ -4,18 +4,18 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
-	"pharmacy/httperror"
 )
 
 func InitAppRouter(tmpl *template.Template) http.Handler {
 	appController := controller.NewAppController(tmpl)
 	appMux := http.NewServeMux()
-	
-	appMux.HandleFunc(http.MethodGet + " /dashboard", appController.GetDashboard)
-	
-	appMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		httperror.NotFound("", nil).Render(w, tmpl)
-	})
-	
+
+	// Old UI dashboard (also handles ?ui=v2 redirect)
+	appMux.HandleFunc("GET /dashboard", appController.GetDashboard)
+
+	// V2 SPA shell: serve next-dashboard.html for /app/ and all sub-paths
+	appMux.HandleFunc("GET /{$}", appController.ServeV2)
+	appMux.HandleFunc("GET /{path...}", appController.ServeV2)
+
 	return http.StripPrefix("/app", appMux)
 }

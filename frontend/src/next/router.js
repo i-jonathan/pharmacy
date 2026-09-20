@@ -1,6 +1,11 @@
-import { createRouter, createWebHashHistory } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 
 const routes = [
+  // Redirect old /dashboard path to root (v2)
+  {
+    path: "/dashboard",
+    redirect: "/",
+  },
   {
     path: "/",
     name: "dashboard",
@@ -76,7 +81,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory("/app/"),
   routes,
 });
 
