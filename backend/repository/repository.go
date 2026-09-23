@@ -68,6 +68,7 @@ type ReturnRepository interface {
 	BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error
 	FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error)
 	BulkFetchReturnItemsBySaleIDs(ctx context.Context, saleIDs []int) ([]model.ReturnItemWithSale, error)
+	SumReturnTotal(ctx context.Context, filter types.SaleFilter) (int, error)
 }
 
 type StockTakingRepository interface {

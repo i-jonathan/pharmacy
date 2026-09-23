@@ -371,19 +371,19 @@ function getDateRange(preset) {
     case "yesterday": {
       const yest = new Date(now);
       yest.setDate(yest.getDate() - 1);
-      return { start: yest.toISOString().slice(0, 10), end: today };
+      return { start: yest.toISOString().slice(0, 10), end: yest.toISOString().slice(0, 10) };
     }
     case "this-week": {
-      const mon = new Date(now);
-      mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
-      return { start: mon.toISOString().slice(0, 10), end: today };
+      const sun = new Date(now);
+      sun.setDate(now.getDate() - now.getDay());
+      return { start: sun.toISOString().slice(0, 10), end: today };
     }
     case "last-week": {
-      const lastMon = new Date(now);
-      lastMon.setDate(lastMon.getDate() - ((lastMon.getDay() + 6) % 7) - 7);
-      const lastSun = new Date(lastMon);
-      lastSun.setDate(lastMon.getDate() + 6);
-      return { start: lastMon.toISOString().slice(0, 10), end: lastSun.toISOString().slice(0, 10) };
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay() - 7);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
     }
     case "this-month":
       return { start: `${y}-${m}-01`, end: today };

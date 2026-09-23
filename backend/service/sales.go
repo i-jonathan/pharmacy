@@ -238,6 +238,14 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			return types.SaleHistory{}, httperror.ServerError("summing sales total failed", err)
 		}
 		salesHistoryTotal = t
+
+		// Subtract return refunds so the period total reflects net sales
+		refundTotal, err := s.repo.SumReturnTotal(ctx, filter)
+		if err != nil {
+			log.Println(err)
+			return types.SaleHistory{}, httperror.ServerError("summing return total failed", err)
+		}
+		salesHistoryTotal -= refundTotal
 	}
 
 	for _, s := range sales {

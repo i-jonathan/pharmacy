@@ -192,6 +192,15 @@ const sumSalesTotalQuery = `
     ($1::date IS NULL OR created_at::date >= $1::date)
     AND ($2::date IS NULL OR created_at::date <= $2::date)
 `
+
+const sumReturnTotalQuery = `
+  SELECT COALESCE(SUM(r.total_refunded), 0)
+  FROM returns r
+  JOIN sales s ON s.id = r.sale_id
+  WHERE
+    ($1::date IS NULL OR s.created_at::date >= $1::date)
+    AND ($2::date IS NULL OR s.created_at::date <= $2::date)
+`
 const fetchSalesByIDQuery = `
 	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
 	FROM sales WHERE id = $1;

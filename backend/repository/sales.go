@@ -80,6 +80,22 @@ func (r *repo) SumSalesTotal(ctx context.Context, filter types.SaleFilter) (int,
 	return total, nil
 }
 
+func (r *repo) SumReturnTotal(ctx context.Context, filter types.SaleFilter) (int, error) {
+	var startDate, endDate any
+	if filter.StartDate != nil {
+		startDate = *filter.StartDate
+	}
+	if filter.EndDate != nil {
+		endDate = *filter.EndDate
+	}
+	var total int
+	err := r.Data.GetContext(ctx, &total, sumReturnTotalQuery, startDate, endDate)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (r *repo) CountSales(ctx context.Context, filter types.SaleFilter) (int, error) {
 	var startDate, endDate any
 	if filter.StartDate != nil {
