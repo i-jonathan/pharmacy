@@ -14,14 +14,14 @@
     <!-- Nav -->
     <nav class="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
       <!-- Dashboard -->
-      <a
-        href="/app/"
+      <router-link
+        to="/"
         :class="linkClasses('/')"
         :title="collapsed ? 'Dashboard' : ''"
       >
         <LayoutDashboard :stroke-width="1.5" :size="18" class="shrink-0" />
         <span v-if="!collapsed">Dashboard</span>
-      </a>
+      </router-link>
 
       <!-- Sales Section -->
       <div>
@@ -35,9 +35,9 @@
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.sales || isInSection(salesPaths)" class="space-y-0.5">
-          <a href="/app/pos" :class="linkClasses('/pos')"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></a>
-          <a href="/app/sales-history" :class="linkClasses('/sales-history')"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></a>
-          <a href="/app/held-sales" :class="linkClasses('/held-sales')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></a>
+          <router-link to="/pos" :class="linkClasses('/pos')"><ShoppingCart :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Point of Sale</span></router-link>
+          <router-link to="/sales-history" :class="linkClasses('/sales-history')"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Sales History</span></router-link>
+          <router-link to="/held-sales" :class="linkClasses('/held-sales')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Sales</span></router-link>
         </div>
       </div>
 
@@ -53,13 +53,13 @@
         </button>
         <div v-if="!collapsed" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.inventory || isInSection(inventoryPaths)" class="space-y-0.5">
-          <a href="/app/products" :class="linkClasses('/products')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></a>
-          <a href="/app/receive-items" :class="linkClasses('/receive-items')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></a>
-          <a href="/app/stock-taking" :class="linkClasses('/stock-taking')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></a>
+          <router-link to="/products" :class="linkClasses('/products')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></router-link>
+          <router-link to="/receive-items" :class="linkClasses('/receive-items')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></router-link>
+          <router-link to="/stock-taking" :class="linkClasses('/stock-taking')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></router-link>
           <PermissionGate permission="admin:access">
-            <a href="/app/categories" :class="linkClasses('/categories')">
+            <router-link to="/categories" :class="linkClasses('/categories')">
               <Tags :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Categories</span>
-            </a>
+            </router-link>
           </PermissionGate>
         </div>
       </div>
