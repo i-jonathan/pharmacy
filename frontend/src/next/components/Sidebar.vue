@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
@@ -129,7 +129,25 @@ const route = useRoute();
 const salesPaths = ["/pos", "/sales-history", "/held-sales"];
 const inventoryPaths = ["/products", "/receive-items", "/stock-taking", "/categories"];
 
-const sectionOpen = ref({ sales: false, inventory: false });
+function activeSectionKeys() {
+  const keys = [];
+  if (salesPaths.includes(route.path)) keys.push("sales");
+  if (inventoryPaths.includes(route.path)) keys.push("inventory");
+  return keys;
+}
+
+const sectionOpen = ref(
+  Object.fromEntries(activeSectionKeys().map((k) => [k, true]))
+);
+
+watch(
+  () => route.path,
+  () => {
+    for (const key of activeSectionKeys()) {
+      sectionOpen.value[key] = true;
+    }
+  }
+);
 
 function isInSection(paths) {
   return paths.includes(route.path);
