@@ -1,149 +1,145 @@
 <template>
-  <div class="flex h-[calc(100vh-3.5rem)]">
-    <!-- Main table area -->
-    <div class="flex-1 flex flex-col overflow-hidden" :class="{ 'border-r border-border': detailProduct }">
-      <!-- Header -->
-      <div class="p-6 pb-0">
-        <h1 class="text-2xl font-bold text-foreground">Products</h1>
-        <p class="text-sm text-muted-foreground mt-1">Manage your pharmacy inventory items</p>
+  <div class="p-6">
+    <!-- Header -->
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-foreground">Products</h1>
+      <p class="text-sm text-muted-foreground mt-1">Manage your pharmacy inventory items</p>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+      <div class="relative flex-1">
+        <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search by product name, manufacturer, or barcode..."
+          class="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+      <div class="flex gap-2">
+        <select
+          v-model="categoryFilter"
+          class="px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">All Categories</option>
+          <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+        </select>
+        <Button variant="outline" :disabled="loading" @click="fetchProducts">
+          <RotateCw :size="14" :class="{ 'animate-spin': loading }" class="mr-2" />
+          Refresh
+        </Button>
+      </div>
+    </div>
+
+    <!-- Content area -->
+    <div class="overflow-y-auto">
+      <!-- Loading -->
+      <div v-if="loading" class="flex items-center justify-center py-24 text-muted-foreground">
+        <RotateCw :size="20" class="animate-spin mr-3" />
+        <span class="text-sm">Loading products...</span>
       </div>
 
-      <!-- Toolbar -->
-      <div class="p-6 pb-4 flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1">
-          <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search by product name, manufacturer, or barcode..."
-            class="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-        <div class="flex gap-2">
-          <select
-            v-model="categoryFilter"
-            class="px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="">All Categories</option>
-            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-          </select>
-          <Button variant="outline" :disabled="loading" @click="fetchProducts">
-            <RotateCw :size="14" :class="{ 'animate-spin': loading }" class="mr-2" />
-            Refresh
-          </Button>
-        </div>
+      <!-- Error -->
+      <div v-else-if="error" class="flex flex-col items-center justify-center py-24 text-center">
+        <AlertCircle :size="40" class="text-destructive/40 mb-3" />
+        <p class="text-sm text-muted-foreground mb-3">{{ error }}</p>
+        <Button variant="outline" size="sm" @click="fetchProducts">Retry</Button>
       </div>
 
-      <!-- Content area -->
-      <div class="flex-1 overflow-y-auto px-6 pb-4">
-        <!-- Loading -->
-        <div v-if="loading" class="flex items-center justify-center py-24 text-muted-foreground">
-          <RotateCw :size="20" class="animate-spin mr-3" />
-          <span class="text-sm">Loading products...</span>
-        </div>
+      <!-- Empty -->
+      <div v-else-if="filteredProducts.length === 0" class="flex flex-col items-center justify-center py-24 text-center">
+        <Package :size="40" class="text-muted-foreground/40 mb-3" />
+        <h3 class="text-base font-semibold text-foreground mb-1">No products found</h3>
+        <p class="text-sm text-muted-foreground max-w-sm">
+          {{ searchQuery || categoryFilter ? 'No products match your filters.' : 'No products in inventory yet.' }}
+        </p>
+      </div>
 
-        <!-- Error -->
-        <div v-else-if="error" class="flex flex-col items-center justify-center py-24 text-center">
-          <AlertCircle :size="40" class="text-destructive/40 mb-3" />
-          <p class="text-sm text-muted-foreground mb-3">{{ error }}</p>
-          <Button variant="outline" size="sm" @click="fetchProducts">Retry</Button>
-        </div>
+      <!-- Product Table -->
+      <div v-else class="border border-border rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border bg-muted/30">
+              <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Name</th>
+              <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Manufacturer</th>
+              <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Category</th>
+              <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Price</th>
+              <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Stock</th>
+              <th v-if="canViewReorder" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Reorder At</th>
+              <th v-if="canEditInventory" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Cost Price</th>
+              <th v-if="canEditInventory" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Expiry</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border/50">
+            <tr
+              v-for="p in paginatedProducts"
+              :key="p.id"
+              class="cursor-pointer transition-colors hover:bg-muted/20 outline-none"
+              tabindex="0"
+              @click="selectAndFetch(p.id)"
+              @keydown.enter.prevent="selectAndFetch(p.id)"
+            >
+              <td class="px-4 py-3">
+                <div class="text-sm font-medium text-foreground">{{ p.name }}</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-muted-foreground">{{ p.manufacturer || '—' }}</td>
+              <td class="px-4 py-3 text-sm text-muted-foreground">
+                <span class="bg-muted text-muted-foreground px-2 py-0.5 rounded-full text-xs">{{ p.category }}</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-right font-medium">&#8358;{{ (p.default_price / 100).toLocaleString() }}</td>
+              <td class="px-4 py-3 text-sm text-right">
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium" :class="stockClass(p.stock, p.reorder_level)">{{ p.stock }}</span>
+              </td>
+              <td v-if="canViewReorder" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ p.reorder_level }}</td>
+              <td v-if="canEditInventory" class="px-4 py-3 text-sm text-right text-muted-foreground">&#8358;{{ (p.cost_price / 100).toLocaleString() }}</td>
+              <td v-if="canEditInventory" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ formatDate(p.earliest_expiry) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-        <!-- Empty -->
-        <div v-else-if="filteredProducts.length === 0" class="flex flex-col items-center justify-center py-24 text-center">
-          <Package :size="40" class="text-muted-foreground/40 mb-3" />
-          <h3 class="text-base font-semibold text-foreground mb-1">No products found</h3>
-          <p class="text-sm text-muted-foreground max-w-sm">
-            {{ searchQuery || categoryFilter ? 'No products match your filters.' : 'No products in inventory yet.' }}
-          </p>
-        </div>
-
-        <!-- Product Table -->
-        <div v-else class="border border-border rounded-lg overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-border bg-muted/30">
-                <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Name</th>
-                <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Manufacturer</th>
-                <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Category</th>
-                <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Price</th>
-                <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Stock</th>
-                <th v-if="canViewReorder" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Reorder At</th>
-                <th v-if="canEditInventory" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Cost Price</th>
-                <th v-if="canEditInventory" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Expiry</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border/50">
-              <tr
-                v-for="p in paginatedProducts"
-                :key="p.id"
-                class="cursor-pointer transition-colors hover:bg-muted/20 outline-none"
-                tabindex="0"
-                @click="selectAndFetch(p.id)"
-                @keydown.enter.prevent="selectAndFetch(p.id)"
-              >
-                <td class="px-4 py-3">
-                  <div class="text-sm font-medium text-foreground">{{ p.name }}</div>
-                </td>
-                <td class="px-4 py-3 text-sm text-muted-foreground">{{ p.manufacturer || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-muted-foreground">
-                  <span class="bg-muted text-muted-foreground px-2 py-0.5 rounded-full text-xs">{{ p.category }}</span>
-                </td>
-                <td class="px-4 py-3 text-sm text-right font-medium">&#8358;{{ (p.default_price / 100).toLocaleString() }}</td>
-                <td class="px-4 py-3 text-sm text-right">
-                  <span class="px-2 py-0.5 rounded-full text-xs font-medium" :class="stockClass(p.stock, p.reorder_level)">{{ p.stock }}</span>
-                </td>
-                <td v-if="canViewReorder" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ p.reorder_level }}</td>
-                <td v-if="canEditInventory" class="px-4 py-3 text-sm text-right text-muted-foreground">&#8358;{{ (p.cost_price / 100).toLocaleString() }}</td>
-                <td v-if="canEditInventory" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ formatDate(p.earliest_expiry) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="totalPages > 1" class="flex items-center justify-between pt-4">
-          <span class="text-xs text-muted-foreground">{{ filteredProducts.length }} products</span>
-          <div class="flex items-center gap-4">
-            <span class="text-xs text-muted-foreground">Page {{ currentPage }} of {{ totalPages }}</span>
-            <div class="flex gap-1">
-              <Button variant="outline" size="sm" :disabled="currentPage <= 1" @click="goPage(currentPage - 1)">
-                <ChevronLeft :size="14" />
-              </Button>
-              <Button v-for="p in visiblePages" :key="p" variant="outline" size="sm" :class="{ 'bg-primary/10 text-primary border-primary/30': p === currentPage }" @click="goPage(p)">{{ p }}</Button>
-              <Button variant="outline" size="sm" :disabled="currentPage >= totalPages" @click="goPage(currentPage + 1)">
-                <ChevronRight :size="14" />
-              </Button>
-            </div>
+      <!-- Pagination -->
+      <div v-if="totalPages > 1" class="flex items-center justify-between pt-4">
+        <span class="text-xs text-muted-foreground">{{ filteredProducts.length }} products</span>
+        <div class="flex items-center gap-4">
+          <span class="text-xs text-muted-foreground">Page {{ currentPage }} of {{ totalPages }}</span>
+          <div class="flex gap-1">
+            <Button variant="outline" size="sm" :disabled="currentPage <= 1" @click="goPage(currentPage - 1)"><ChevronLeft :size="14" /></Button>
+            <Button v-for="p in visiblePages" :key="p" variant="outline" size="sm" :class="{ 'bg-primary/10 text-primary border-primary/30': p === currentPage }" @click="goPage(p)">{{ p }}</Button>
+            <Button variant="outline" size="sm" :disabled="currentPage >= totalPages" @click="goPage(currentPage + 1)"><ChevronRight :size="14" /></Button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Detail Sidebar -->
-    <Transition name="slide-panel">
-      <div v-if="detailProduct" class="flex flex-col h-full w-[40%] min-w-[360px] bg-card border-l border-border flex-shrink-0">
-        <!-- Header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div>
-            <h2 class="text-sm font-semibold">{{ editMode ? 'Edit Product' : 'Product Details' }}</h2>
-            <p class="text-xs text-muted-foreground font-mono">#{{ detailProduct.id }}</p>
+    <!-- Product Detail Modal -->
+    <Transition name="fade">
+      <div
+        v-if="detailProduct"
+        class="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-12 bg-black/50 backdrop-blur-sm overflow-y-auto"
+        @click.self="closeDetail"
+      >
+        <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div>
+              <h2 class="text-base font-semibold">{{ editMode ? 'Edit Product' : 'Product Details' }}</h2>
+              <p class="text-xs text-muted-foreground font-mono">#{{ detailProduct.id }}</p>
+            </div>
+            <div class="flex items-center gap-1">
+              <Button v-if="canEditInventory && !editMode" variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" title="Edit" @click="editMode = true">
+                <Pencil :size="14" />
+              </Button>
+              <Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" @click="closeDetail">
+                <X :size="15" />
+              </Button>
+            </div>
           </div>
-          <div class="flex items-center gap-1">
-            <Button v-if="canEditInventory && !editMode" variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" title="Edit" @click="editMode = true">
-              <Pencil :size="14" />
-            </Button>
-            <Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" @click="closeDetail">
-              <X :size="15" />
-            </Button>
-          </div>
-        </div>
 
-        <!-- Scrollable content -->
-        <div class="flex-1 overflow-y-auto">
           <!-- View Mode -->
           <template v-if="!editMode">
-            <div class="px-4 py-4 space-y-4">
+            <div class="px-5 py-4 space-y-4">
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <div class="text-xs text-muted-foreground mb-1">Name</div>
@@ -166,7 +162,7 @@
               </div>
             </div>
 
-            <div class="border-t border-border px-4 py-4">
+            <div class="border-t border-border px-5 py-4">
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <div class="text-xs text-muted-foreground mb-1">Selling Price</div>
@@ -190,7 +186,7 @@
             </div>
 
             <!-- Price Options -->
-            <div v-if="detailProduct.price_options?.length" class="border-t border-border px-4 py-4">
+            <div v-if="detailProduct.price_options?.length" class="border-t border-border px-5 py-4">
               <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Price Options</div>
               <div class="border border-border rounded-sm divide-y divide-border">
                 <div v-for="opt in detailProduct.price_options" :key="opt.id" class="flex items-center justify-between px-3 py-2">
@@ -206,7 +202,7 @@
 
           <!-- Edit Mode -->
           <template v-else>
-            <div class="px-4 py-4 space-y-4">
+            <div class="px-5 py-4 space-y-4">
               <div>
                 <label class="text-xs text-muted-foreground mb-1 block">Name</label>
                 <input v-model="editForm.name" class="w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" />
@@ -237,16 +233,16 @@
               </div>
             </div>
           </template>
-        </div>
 
-        <!-- Bottom Actions (edit mode) -->
-        <div v-if="editMode" class="border-t border-border px-4 py-3 flex items-center gap-2">
-          <Button variant="outline" class="flex-1" @click="cancelEdit">Cancel</Button>
-          <Button class="flex-1" :disabled="saving" @click="saveProduct">
-            <RotateCw v-if="saving" :size="14" class="animate-spin mr-2" />
-            <Check v-else :size="14" class="mr-2" />
-            Save
-          </Button>
+          <!-- Footer Actions -->
+          <div v-if="editMode" class="border-t border-border px-5 py-4 flex items-center gap-2">
+            <Button variant="outline" class="flex-1" @click="cancelEdit">Cancel</Button>
+            <Button class="flex-1" :disabled="saving" @click="saveProduct">
+              <RotateCw v-if="saving" :size="14" class="animate-spin mr-2" />
+              <Check v-else :size="14" class="mr-2" />
+              Save
+            </Button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -404,7 +400,6 @@ async function saveProduct() {
     }
     showToast("Product updated");
     editMode.value = false;
-    // Refresh product list and detail
     await Promise.all([fetchProducts(), selectAndFetch(detailProduct.value.id)]);
   } catch (e) {
     showToast(e.message || "Failed to save");
@@ -448,17 +443,9 @@ onMounted(() => { fetchProducts(); });
 </script>
 
 <style scoped>
-.slide-panel-enter-active,
-.slide-panel-leave-active {
-  transition: opacity 0.15s ease;
-}
-.slide-panel-enter-from,
-.slide-panel-leave-to {
-  opacity: 0;
-}
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
