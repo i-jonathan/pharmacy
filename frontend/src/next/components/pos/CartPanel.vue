@@ -4,6 +4,12 @@
     <div class="flex items-center justify-between px-4 py-3 border-border">
       <h2 class="text-lg font-semibold">Current Sale</h2>
       <div class="flex items-center gap-1.5">
+        <router-link to="/held-sales">
+          <Button variant="outline" size="sm">
+            <History :size="13" class="mr-1" />
+            Held
+          </Button>
+        </router-link>
         <Button variant="outline" size="sm" @click="$emit('hold')" :disabled="cart.length === 0">
           <Pause :size="13" class="mr-1" />
           Hold (F6)
@@ -16,17 +22,27 @@
     </div>
 
     <!-- Customer -->
-    <div class="px-4 py-2 border-border">
-      <div class="text-xs text-muted-foreground mb-1">Customer</div>
+    <div class="px-4 py-2 border-border space-y-1.5">
       <div class="flex items-center gap-2">
-        <User :size="14" class="text-muted-foreground shrink-0" />
-        <input
-          :value="customer"
-          @input="$emit('update:customer', $event.target.value)"
-          class="flex-1 text-sm bg-transparent border-none outline-none"
-          placeholder="Walk-in Customer"
-        />
+        <div class="flex items-center gap-2 flex-1">
+          <User :size="14" class="text-muted-foreground shrink-0" />
+          <input
+            :value="customer"
+            @input="$emit('update:customer', $event.target.value)"
+            class="flex-1 text-sm bg-transparent border-none outline-none"
+            placeholder="Walk-in Customer"
+          />
+        </div>
         <Button variant="outline" size="sm" class="text-xs h-7">+ New</Button>
+      </div>
+      <div class="flex items-center gap-2">
+        <Pencil :size="12" class="text-muted-foreground shrink-0" />
+        <input
+          :value="orderNote"
+          @input="$emit('update:orderNote', $event.target.value)"
+          class="flex-1 text-xs text-muted-foreground bg-transparent border border-border rounded-sm px-2 py-1.5 outline-none focus:ring-1 focus:ring-ring"
+          placeholder="Add order note..."
+        />
       </div>
     </div>
 
@@ -108,18 +124,11 @@
       </Table>
     </div>
 
-    <!-- Order Note + Totals -->
-    <div class="px-4 py-2 border-t border-border">
+    <!-- Totals + Payment Methods (shared row) -->
+    <div class="px-4 py-3 border-t border-border">
       <div class="flex gap-3">
-        <div class="w-1/2">
-          <input
-            :value="orderNote"
-            @input="$emit('update:orderNote', $event.target.value)"
-            class="w-full text-xs text-muted-foreground bg-transparent border border-border rounded-sm px-2 py-2 outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Add order note..."
-          />
-        </div>
-        <div class="w-1/2 space-y-5 bg-muted/50 rounded-sm px-6 py-6">
+        <!-- Totals -->
+        <div class="w-1/2 space-y-3 bg-muted/50 rounded-sm px-4 py-3">
           <div class="flex justify-between text-xs">
             <span class="text-muted-foreground font-bo">Subtotal</span>
             <span class="font-bold">&#8358;{{ subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span>
@@ -128,45 +137,43 @@
             <span class="text-muted-foreground">Discount</span>
             <span>&#8358;{{ totalDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span>
           </div>
-          <div class="flex justify-between font-bold text-lg pt-2 border-t border-border">
+          <div class="flex justify-between font-bold text-sm pt-2 border-t border-border">
             <span>Total</span>
             <span>&#8358;{{ total.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Payment Methods -->
-    <div class="px-4 py-4 border-border">
-      <div class="text-sm font-semibold mb-3">Payment Methods</div>
-      <div class="border border-border rounded-sm divide-y divide-border">
-        <div v-for="method in paymentMethods" :key="method.key" class="flex items-center gap-3 px-3 py-2">
-          <component :is="method.icon" :size="16" :class="method.color" class="shrink-0" />
-          <span class="text-sm text-muted-foreground w-16">{{ method.label }}</span>
-          <div class="flex-1 flex justify-center">
-            <div class="w-80 flex items-center border border-border rounded-sm overflow-hidden">
-            <span class="pl-2 pr-1 text-sm text-muted-foreground">&#8358;</span>
-            <input
-              :value="payments[method.key] || ''"
-              @input="$emit('update-payment', method.key, Number($event.target.value) || 0)"
-              type="text"
-              inputmode="decimal"
-              class="w-full py-1.5 pr-2 text-sm bg-transparent outline-none"
-              placeholder="0.00"
-            />
+        <!-- Payment Methods -->
+        <div class="w-1/2">
+          <div class="text-xs font-semibold mb-2">Payment Methods</div>
+          <div class="border border-border rounded-sm divide-y divide-border">
+            <div v-for="method in paymentMethods" :key="method.key" class="flex items-center gap-2 px-2.5 py-1.5">
+              <component :is="method.icon" :size="14" :class="method.color" class="shrink-0" />
+              <span class="text-xs text-muted-foreground w-14">{{ method.label }}</span>
+              <div class="flex items-center border border-border rounded-sm overflow-hidden flex-1">
+                <span class="pl-1.5 pr-0.5 text-xs text-muted-foreground">&#8358;</span>
+                <input
+                  :value="payments[method.key] || ''"
+                  @input="$emit('update-payment', method.key, Number($event.target.value) || 0)"
+                  type="text"
+                  inputmode="decimal"
+                  class="w-full py-1 pr-1.5 text-xs bg-transparent outline-none"
+                  placeholder="0"
+                />
+              </div>
+              <button
+                class="shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-sm transition-colors"
+                @click="$emit('update-payment', method.key, 0)"
+              >
+                <X :size="11" />
+              </button>
+            </div>
           </div>
-          </div>
-          <button
-            class="shrink-0 w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-sm transition-colors"
-            @click="$emit('update-payment', method.key, 0)"
-          >
-            <X :size="13" />
-          </button>
         </div>
       </div>
     </div>
 
-    <!-- Amount Paid + Change -->
+    <!-- Amount Owed / Paid / Change -->
     <div class="px-4 py-2 border-t border-border space-y-1">
       <div class="flex justify-between">
         <span class="text-muted-foreground text-sm">Amount Owed</span>
@@ -230,7 +237,7 @@
 
 <script setup>
 import { reactive, computed, onMounted, onUnmounted } from "vue";
-import { Pause, Trash2, User, Minus, Plus, X, Pencil, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank } from "lucide-vue-next";
+import { Pause, Trash2, User, Minus, Plus, X, Pencil, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank, History } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
