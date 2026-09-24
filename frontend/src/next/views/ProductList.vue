@@ -65,6 +65,8 @@
             <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Price</th>
             <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Stock</th>
             <th v-if="canViewReorder" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Reorder At</th>
+            <th v-if="canEditInventory" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Cost Price</th>
+            <th v-if="canEditInventory" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Expiry</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-border/50">
@@ -89,6 +91,8 @@
               >{{ p.stock }}</span>
             </td>
             <td v-if="canViewReorder" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ p.reorder_level }}</td>
+            <td v-if="canEditInventory" class="px-4 py-3 text-sm text-right text-muted-foreground">&#8358;{{ (p.cost_price / 100).toLocaleString() }}</td>
+            <td v-if="canEditInventory" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ formatDate(p.earliest_expiry) }}</td>
           </tr>
         </tbody>
       </table>
@@ -129,6 +133,13 @@ const API = "";
 
 const permissions = ref(window.__PERMISSIONS__ ?? {});
 const canViewReorder = computed(() => permissions.value["reorderlevel:view"]);
+const canEditInventory = computed(() => permissions.value["inventory:edit"]);
+
+function formatDate(date) {
+  if (!date) return "—";
+  const d = new Date(date);
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
 
 const allProducts = ref([]);
 const categories = ref([]);
