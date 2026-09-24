@@ -144,13 +144,13 @@ export function usePos() {
     const payload = {
     const payload = {
       reference: holdReference.value || "",
-      payload: JSON.stringify({
+      payload: {
         cart: cloneForStorage(cart),
         payments: { ...payments },
         customer: customer.value,
         orderNote: orderNote.value,
         saleIdempotencyKey: saleIdempotencyKey.value,
-      }),
+      },
     };
 
     const resp = await fetch(`${API_BASE}/sales/hold`, {

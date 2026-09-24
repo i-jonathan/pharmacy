@@ -328,10 +328,21 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 
 func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error {
 	// Validate payload has items
+	// The frontend sends payload as JSON.stringify(...) so RawMessage is a JSON string.
+	// Unwrap it first.
+	payloadBytes := []byte(holdSaleRequest.Payload)
+	if len(payloadBytes) > 0 && payloadBytes[0] == '"' {
+		var s string
+		if err := json.Unmarshal(payloadBytes, &s); err != nil {
+			return httperror.BadRequest("invalid payload string", err)
+		}
+		payloadBytes = []byte(s)
+	}
+
 	var payload struct {
 		Cart []any `json:"cart"`
 	}
-	if err := json.Unmarshal(holdSaleRequest.Payload, &payload); err != nil {
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
 		return httperror.BadRequest("invalid payload", err)
 	}
 	if len(payload.Cart) == 0 {
