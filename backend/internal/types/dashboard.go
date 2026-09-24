@@ -62,9 +62,10 @@ type ExpiryByCategoryData struct {
 }
 
 type TopSellingProductData struct {
-	ProductName string `json:"product_name"`
-	Quantity    int    `json:"quantity"`
-	RevenueKobo int    `json:"revenue_kobo"`
+	ProductName  string `json:"product_name"`
+	Manufacturer string `json:"manufacturer"`
+	Quantity     int    `json:"quantity"`
+	RevenueKobo  int    `json:"revenue_kobo"`
 }
 
 type RecentTransactionData struct {

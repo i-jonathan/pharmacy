@@ -17,9 +17,10 @@ type ExpiringItem struct {
 }
 
 type TopSellingProduct struct {
-	ProductName string `db:"product_name"`
-	Quantity    int    `db:"quantity"`
-	RevenueKobo int    `db:"revenue_kobo"`
+	ProductName  string `db:"product_name"`
+	Manufacturer string `db:"manufacturer"`
+	Quantity     int    `db:"quantity"`
+	RevenueKobo  int    `db:"revenue_kobo"`
 }
 
 type LowStockItem struct {

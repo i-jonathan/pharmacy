@@ -231,15 +231,11 @@ onMounted(() => document.addEventListener("click", onDocumentClick));
 onUnmounted(() => document.removeEventListener("click", onDocumentClick));
 
 const frequentlySold = computed(() => {
-  const seen = new Set();
   return topSelling.value
-    .map((ts) => allProducts.value.find((p) => p.name === ts.product_name))
+    .map((ts) => allProducts.value.find(
+      (p) => p.name === ts.product_name && p.manufacturer === ts.manufacturer
+    ))
     .filter(Boolean)
-    .filter((p) => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    })
     .slice(0, 10);
 });
 

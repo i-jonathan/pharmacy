@@ -198,6 +198,7 @@ func (r *repo) GetTopSellingProducts(ctx context.Context, startDate, endDate tim
 	query := `
 		SELECT
 			p.name as product_name,
+			p.manufacturer as manufacturer,
 			SUM(si.quantity) as quantity,
 			SUM(si.total_price) as revenue_kobo
 		FROM sales s
@@ -205,7 +206,7 @@ func (r *repo) GetTopSellingProducts(ctx context.Context, startDate, endDate tim
 		JOIN product p ON si.product_id = p.id
 		WHERE s.created_at >= $1 AND s.created_at < $2
 		  AND s.status = 'COMPLETED'
-		GROUP BY p.id, p.name
+		GROUP BY p.name, p.manufacturer
 		ORDER BY quantity DESC
 		LIMIT $3
 	`
@@ -223,13 +224,14 @@ func (r *repo) GetTopSellingProductsAllTime(ctx context.Context, limit int) ([]m
 	query := `
 		SELECT
 			p.name as product_name,
+			p.manufacturer as manufacturer,
 			SUM(si.quantity) as quantity,
 			SUM(si.total_price) as revenue_kobo
 		FROM sales s
 		JOIN sales_item si ON s.id = si.sale_id
 		JOIN product p ON si.product_id = p.id
 		WHERE s.status = 'COMPLETED'
-		GROUP BY p.id, p.name
+		GROUP BY p.name, p.manufacturer
 		ORDER BY quantity DESC
 		LIMIT $1
 	`

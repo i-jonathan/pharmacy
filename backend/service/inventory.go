@@ -527,9 +527,10 @@ func (s *inventoryService) GetTopSellingProducts(ctx context.Context, limit int)
 	result := make([]types.TopSellingProductData, len(products))
 	for i, p := range products {
 		result[i] = types.TopSellingProductData{
-			ProductName: p.ProductName,
-			Quantity:    p.Quantity,
-			RevenueKobo: p.RevenueKobo,
+			ProductName:  p.ProductName,
+			Manufacturer: p.Manufacturer,
+			Quantity:     p.Quantity,
+			RevenueKobo:  p.RevenueKobo,
 		}
 	}
 	return result, nil
