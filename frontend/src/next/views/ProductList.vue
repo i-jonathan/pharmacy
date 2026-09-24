@@ -191,8 +191,11 @@
               <div class="border border-border rounded-sm divide-y divide-border">
                 <div v-for="opt in detailProduct.price_options" :key="opt.id" class="flex items-center justify-between px-3 py-2">
                   <div>
-                    <div class="text-sm font-medium">{{ opt.name || 'Base' }}</div>
-                    <div v-if="opt.quantity_per_unit" class="text-xs text-muted-foreground">{{ opt.quantity_per_unit }} per unit</div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium">{{ opt.name || 'Base' }}</span>
+                      <span v-if="opt.id === defaultPriceId" class="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">Default</span>
+                    </div>
+                    <div class="text-xs text-muted-foreground">{{ opt.quantity_per_unit || 0 }} per unit</div>
                   </div>
                   <div class="text-sm font-semibold">&#8358;{{ opt.selling_price?.toLocaleString() }}</div>
                 </div>
@@ -399,6 +402,8 @@ function stockClass(stock, reorderLevel) {
   return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
 }
 
+const defaultPriceId = computed(() => detailProduct.value?.default_price?.id ?? null);
+
 function categoryName(id) {
   return categories.value.find((c) => c.id === id)?.name || "—";
 }
@@ -504,7 +509,9 @@ watch(detailProduct, (p) => {
         selling_price: opt.selling_price || 0,
         quantity_per_unit: opt.quantity_per_unit || 1,
       })),
-      defaultPriceIdx: 0,
+      defaultPriceIdx: p.default_price
+        ? (p.price_options || []).findIndex((o) => o.id === p.default_price.id)
+        : 0,
     };
   }
 });
