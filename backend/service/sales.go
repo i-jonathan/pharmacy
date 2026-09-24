@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -326,6 +327,17 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 }
 
 func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error {
+	// Validate payload has items
+	var payload struct {
+		Cart []any `json:"cart"`
+	}
+	if err := json.Unmarshal(holdSaleRequest.Payload, &payload); err != nil {
+		return httperror.BadRequest("invalid payload", err)
+	}
+	if len(payload.Cart) == 0 {
+		return httperror.BadRequest("cannot hold an empty sale", fmt.Errorf("cart is empty"))
+	}
+
 	reference := holdSaleRequest.Reference
 	if reference == "" {
 		reference = fmt.Sprintf("%s-%s-%04d",

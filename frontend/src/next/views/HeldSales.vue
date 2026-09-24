@@ -174,10 +174,37 @@
             <Play :size="15" />
             Resume
           </Button>
-          <Button variant="destructive" class="flex-1 gap-2" @click="voidSale(detailHeld)">
+          <Button variant="destructive" class="flex-1 gap-2" @click="confirmVoid = detailHeld.reference">
             <Trash2 :size="15" />
             Void
           </Button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Void Confirm Modal -->
+    <Transition name="fade">
+      <div v-if="confirmVoid" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="confirmVoid = null">
+        <div class="bg-card border border-border rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+              <AlertTriangle :size="20" class="text-destructive" />
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold">Void Held Sale</h3>
+              <p class="text-xs text-muted-foreground">This cannot be undone</p>
+            </div>
+          </div>
+          <p class="text-sm text-foreground mb-6">
+            Are you sure you want to void <span class="font-mono font-medium">{{ confirmVoid }}</span>?
+          </p>
+          <div class="flex items-center gap-2 justify-end">
+            <Button variant="outline" size="sm" @click="confirmVoid = null">Cancel</Button>
+            <Button variant="destructive" size="sm" :disabled="confirmVoid === '__loading__'" @click="executeVoid">
+              <Trash2 :size="14" class="mr-1.5" />
+              Void
+            </Button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -187,7 +214,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { PauseCircle, ShoppingCart, Play, Trash2, RotateCw, AlertCircle, X } from "lucide-vue-next";
+import { PauseCircle, ShoppingCart, Play, Trash2, RotateCw, AlertCircle, AlertTriangle, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -207,6 +234,7 @@ const loading = ref(false);
 const error = ref(null);
 const detailHeld = ref(null);
 const selectedIndex = ref(-1);
+const confirmVoid = ref(null);
 
 function getPayload(held) {
   if (!held || !held.payload) return {};
@@ -258,19 +286,25 @@ function formatDate(iso) {
 }
 
 function resumeSale(held) {
-  router.push({ name: "pos", query: { held: held.reference } });
+  // Save the held transaction to localStorage so the POS can restore it
+  localStorage.setItem("resumeHeldSale", JSON.stringify(held));
+  router.push({ name: "pos" });
 }
 
-async function voidSale(held) {
-  if (!confirm(`Void held sale "${held.reference}"? This cannot be undone.`)) return;
+async function executeVoid() {
+  if (!confirmVoid.value) return;
+  const ref = confirmVoid.value;
+  confirmVoid.value = "__loading__";
   try {
-    const res = await fetch(`${API}/sales/held/${held.reference}`, { method: "DELETE" });
+    const res = await fetch(`${API}/sales/held/${ref}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to void held sale");
-    heldSales.value = heldSales.value.filter((h) => h.reference !== held.reference);
-    if (detailHeld.value?.reference === held.reference) closeDetail();
+    heldSales.value = heldSales.value.filter((h) => h.reference !== ref);
+    if (detailHeld.value?.reference === ref) closeDetail();
     selectedIndex.value = -1;
+    confirmVoid.value = null;
   } catch (e) {
     error.value = e.message || "Failed to void";
+    confirmVoid.value = ref;
   }
 }
 
@@ -302,6 +336,14 @@ onMounted(() => {
 }
 .slide-panel-enter-from,
 .slide-panel-leave-to {
+  opacity: 0;
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 </style>

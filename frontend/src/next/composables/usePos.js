@@ -139,6 +139,9 @@ export function usePos() {
 
   // --- API Methods ---
   async function holdCart() {
+    if (cart.length === 0) throw new Error("Cannot hold an empty sale");
+
+    const payload = {
     const payload = {
       reference: holdReference.value || "",
       payload: JSON.stringify({
@@ -346,7 +349,18 @@ export function usePos() {
 
   onMounted(() => {
     window.addEventListener("keydown", onKeyDown);
-    restoreFromLocalStorage();
+    // Check for a held sale being resumed from the Held Sales page
+    try {
+      const raw = localStorage.getItem("resumeHeldSale");
+      if (raw) {
+        const tx = JSON.parse(raw);
+        restoreHeld(tx);
+        localStorage.removeItem("resumeHeldSale");
+      }
+    } catch {
+      localStorage.removeItem("resumeHeldSale");
+    }
+    if (cart.length === 0) restoreFromLocalStorage();
     window.addEventListener("beforeunload", () => {
       if (cart.length > 0) saveToLocalStorage();
     });
