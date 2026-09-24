@@ -157,7 +157,7 @@
     <Transition name="slide-panel">
       <div
         v-if="detailSale"
-        class="flex flex-col h-full w-[40%] min-w-[360px] max-w-[600px] bg-card border-l border-border flex-shrink-0"
+        class="flex flex-col h-full w-[40%] min-w-[360px] bg-card border-l border-border flex-shrink-0"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border">
