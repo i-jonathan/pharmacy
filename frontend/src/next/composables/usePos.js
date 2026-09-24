@@ -142,7 +142,6 @@ export function usePos() {
     if (cart.length === 0) throw new Error("Cannot hold an empty sale");
 
     const payload = {
-    const payload = {
       reference: holdReference.value || "",
       payload: {
         cart: cloneForStorage(cart),
