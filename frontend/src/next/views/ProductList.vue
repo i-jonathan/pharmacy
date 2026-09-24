@@ -64,7 +64,7 @@
             <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Category</th>
             <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Price</th>
             <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Stock</th>
-            <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Reorder At</th>
+            <th v-if="canViewReorder" class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Reorder At</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-border/50">
@@ -88,7 +88,7 @@
                 :class="stockClass(p.stock, p.reorder_level)"
               >{{ p.stock }}</span>
             </td>
-            <td class="px-4 py-3 text-sm text-right text-muted-foreground">{{ p.reorder_level }}</td>
+            <td v-if="canViewReorder" class="px-4 py-3 text-sm text-right text-muted-foreground">{{ p.reorder_level }}</td>
           </tr>
         </tbody>
       </table>
@@ -126,6 +126,9 @@ import { Search, Filter, Plus, RotateCw, AlertCircle, Package, ChevronLeft, Chev
 import { Button } from "@/components/ui/button";
 
 const API = "";
+
+const permissions = ref(window.__PERMISSIONS__ ?? {});
+const canViewReorder = computed(() => permissions.value["reorderlevel:view"]);
 
 const allProducts = ref([]);
 const categories = ref([]);

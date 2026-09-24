@@ -356,9 +356,11 @@ func (c *inventoryController) FetchInventory(w http.ResponseWriter, r *http.Requ
 	}
 
 	resp := struct {
-		Items []model.InventoryItem `json:"items"`
+		Items      []model.InventoryItem `json:"items"`
+		Categories []model.Category      `json:"categories"`
 	}{
-		Items: inventory.Items,
+		Items:      inventory.Items,
+		Categories: inventory.Categories,
 	}
 
 	helper.JSONResponse(w, http.StatusOK, resp)
