@@ -202,7 +202,7 @@
 
           <!-- Edit Mode -->
           <template v-else>
-            <div class="px-5 py-4 space-y-4">
+            <div class="px-5 py-4 space-y-4 overflow-y-auto max-h-[60vh]">
               <div>
                 <label class="text-xs text-muted-foreground mb-1 block">Name</label>
                 <input v-model="editForm.name" class="w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" />
@@ -224,11 +224,50 @@
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="text-xs text-muted-foreground mb-1 block">Cost Price (&#8358;)</label>
-                  <input v-model.number="editForm.cost_price" type="number" class="w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" />
+                  <input v-model.number="editForm.cost_price" type="number" step="0.01" class="w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" />
                 </div>
                 <div>
                   <label class="text-xs text-muted-foreground mb-1 block">Reorder Level</label>
                   <input v-model.number="editForm.reorder_level" type="number" class="w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" />
+                </div>
+              </div>
+
+              <!-- Price Options -->
+              <div class="border-t border-border pt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Price Options</span>
+                  <Button variant="outline" size="sm" @click="addPriceOption">
+                    <Plus :size="12" class="mr-1" />
+                    Add
+                  </Button>
+                </div>
+                <div class="space-y-2">
+                  <div v-for="(opt, idx) in editForm.priceOptions" :key="idx" class="border border-border rounded-sm p-3">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-muted-foreground">Option {{ idx + 1 }}</span>
+                      <Button variant="ghost" size="icon" class="h-6 w-6 text-muted-foreground hover:text-destructive" @click="removePriceOption(idx)">
+                        <X :size="12" />
+                      </Button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                      <div>
+                        <label class="text-[10px] text-muted-foreground mb-0.5 block">Name</label>
+                        <input v-model="opt.name" class="w-full text-xs border border-border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring" placeholder="e.g. Pack" />
+                      </div>
+                      <div>
+                        <label class="text-[10px] text-muted-foreground mb-0.5 block">Price (&#8358;)</label>
+                        <input v-model.number="opt.selling_price" type="number" step="0.01" class="w-full text-xs border border-border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring" placeholder="0" />
+                      </div>
+                      <div>
+                        <label class="text-[10px] text-muted-foreground mb-0.5 block">Qty/Unit</label>
+                        <input v-model.number="opt.quantity_per_unit" type="number" class="w-full text-xs border border-border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring" placeholder="1" />
+                      </div>
+                    </div>
+                    <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                      <input type="radio" name="defaultPrice" :value="idx" :checked="idx === editForm.defaultPriceIdx" @change="editForm.defaultPriceIdx = idx" class="accent-primary" />
+                      <span class="text-xs text-muted-foreground">Default price option</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -258,7 +297,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
-import { Search, RotateCw, AlertCircle, Package, ChevronLeft, ChevronRight, X, Pencil, Check } from "lucide-vue-next";
+import { Search, RotateCw, AlertCircle, Package, ChevronLeft, ChevronRight, X, Pencil, Check, Plus } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 
 const API = "";
@@ -288,6 +327,8 @@ const editForm = ref({
   category_id: null,
   cost_price: 0,
   reorder_level: 0,
+  priceOptions: [],
+  defaultPriceIdx: 0,
 });
 
 let toastTimer = null;
@@ -295,6 +336,22 @@ function showToast(msg) {
   toast.value = msg;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.value = null; }, 2500);
+}
+
+function addPriceOption() {
+  editForm.value.priceOptions.push({
+    _id: null,
+    name: "",
+    selling_price: 0,
+    quantity_per_unit: 1,
+  });
+}
+
+function removePriceOption(idx) {
+  editForm.value.priceOptions.splice(idx, 1);
+  if (editForm.value.defaultPriceIdx >= editForm.value.priceOptions.length) {
+    editForm.value.defaultPriceIdx = Math.max(0, editForm.value.priceOptions.length - 1);
+  }
 }
 
 const filteredProducts = computed(() => {
@@ -387,7 +444,13 @@ async function saveProduct() {
       category_id: editForm.value.category_id,
       cost_price: editForm.value.cost_price,
       reorder_level: editForm.value.reorder_level,
-      prices: [],
+      prices: editForm.value.priceOptions.map((opt, idx) => ({
+        id: opt._id || null,
+        name: opt.name,
+        selling_price: opt.selling_price,
+        quantity_per_unit: opt.quantity_per_unit || 1,
+        is_default: idx === editForm.value.defaultPriceIdx,
+      })),
     };
     const res = await fetch(`${API}/inventory/product/${detailProduct.value.id}`, {
       method: "PUT",
@@ -435,6 +498,13 @@ watch(detailProduct, (p) => {
       category_id: p.category_id || null,
       cost_price: p.cost_price || 0,
       reorder_level: p.reorder_level || 0,
+      priceOptions: (p.price_options || []).map((opt) => ({
+        _id: opt.id,
+        name: opt.name || "",
+        selling_price: opt.selling_price ? opt.selling_price / 100 : 0,
+        quantity_per_unit: opt.quantity_per_unit || 1,
+      })),
+      defaultPriceIdx: 0,
     };
   }
 });
