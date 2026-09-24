@@ -82,7 +82,7 @@
                     <Button variant="ghost" size="icon" class="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" title="Resume sale" @click.stop="resumeSale(held)">
                       <Play :size="15" />
                     </Button>
-                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Void this held sale" @click.stop="voidSale(held)">
+                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Void this held sale" @click.stop="confirmVoid = held.reference">
                       <Trash2 :size="15" />
                     </Button>
                   </div>
