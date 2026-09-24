@@ -117,7 +117,7 @@
     <Transition name="fade">
       <div
         v-if="detailProduct"
-        class="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-12 bg-black/50 backdrop-blur-sm overflow-y-auto"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         @click.self="closeDetail"
       >
         <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
@@ -194,7 +194,7 @@
                     <div class="text-sm font-medium">{{ opt.name || 'Base' }}</div>
                     <div v-if="opt.quantity_per_unit" class="text-xs text-muted-foreground">{{ opt.quantity_per_unit }} per unit</div>
                   </div>
-                  <div class="text-sm font-semibold">&#8358;{{ (opt.selling_price / 100).toLocaleString() }}</div>
+                  <div class="text-sm font-semibold">&#8358;{{ opt.selling_price?.toLocaleString() }}</div>
                 </div>
               </div>
             </div>
@@ -501,7 +501,7 @@ watch(detailProduct, (p) => {
       priceOptions: (p.price_options || []).map((opt) => ({
         _id: opt.id,
         name: opt.name || "",
-        selling_price: opt.selling_price ? opt.selling_price / 100 : 0,
+        selling_price: opt.selling_price || 0,
         quantity_per_unit: opt.quantity_per_unit || 1,
       })),
       defaultPriceIdx: 0,
