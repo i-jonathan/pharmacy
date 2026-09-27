@@ -139,6 +139,25 @@ func (s *inventoryService) SearchForSuppliers(ctx context.Context, query string)
 func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error {
 	log.Printf("Starting receive items process for %d products", len(params.Products))
 
+	// Validate
+	if strings.TrimSpace(params.Supplier) == "" {
+		return httperror.BadRequest("supplier is required", fmt.Errorf("empty supplier"))
+	}
+	if len(params.Products) == 0 {
+		return httperror.BadRequest("at least one product is required", fmt.Errorf("no products"))
+	}
+	for i, value := range params.Products {
+		if value.Quantity <= 0 {
+			return httperror.BadRequest(fmt.Sprintf("product %d: quantity must be > 0", i+1), fmt.Errorf("invalid quantity"))
+		}
+		if value.CostPrice <= 0 {
+			return httperror.BadRequest(fmt.Sprintf("product %d: cost price must be > 0", i+1), fmt.Errorf("invalid cost price"))
+		}
+		if value.SellingPrice <= 0 {
+			return httperror.BadRequest(fmt.Sprintf("product %d: selling price must be > 0", i+1), fmt.Errorf("invalid selling price"))
+		}
+	}
+
 	// Start timing
 	start := time.Now()
 	defer func() {
