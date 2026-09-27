@@ -449,6 +449,7 @@ async function saveProduct() {
       category_id: editForm.value.category_id,
       cost_price: editForm.value.cost_price,
       reorder_level: editForm.value.reorder_level,
+      stock: detailProduct.value.stock,
       prices: editForm.value.priceOptions.map((opt, idx) => ({
         id: opt._id || null,
         name: opt.name,
