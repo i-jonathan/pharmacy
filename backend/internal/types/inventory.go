@@ -47,7 +47,7 @@ type ProductPriceResult struct {
 	ID           int     `json:"id"`
 	Name         string  `json:"name"`
 	SellingPrice float64 `json:"selling_price"`
-	Quantity     int     `json:"quantity"`
+	Quantity     int     `json:"quantity_per_unit"`
 }
 
 type ProductResult struct {
