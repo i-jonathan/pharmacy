@@ -65,31 +65,7 @@
             <div class="text-xs text-muted-foreground">{{ r.created_at ? new Date(r.created_at).toLocaleDateString() : '' }} · {{ r.items?.length || 0 }} items</div>
           </div>
         </div>
-        <div v-else class="px-4 py-6 text-center text-sm text-muted-foreground">No receipts yet. Create your first one.</div>
-      </div>
-
-      <!-- Held Drafts -->
-      <div v-if="heldDrafts.length" class="border border-border rounded-lg overflow-hidden">
-        <div class="px-4 py-3 bg-muted/30 border-b border-border">
-          <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Held Drafts</span>
-        </div>
-        <div class="divide-y divide-border/50">
-          <div v-for="h in heldDrafts" :key="h.reference" class="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
-            <div class="flex items-center gap-2">
-              <PauseCircle :size="14" class="text-amber-600 shrink-0" />
-              <div>
-                <div class="text-sm font-medium text-foreground">Draft #{{ h.reference }}</div>
-                <div class="text-xs text-muted-foreground">{{ getHeldSupplier(h) }} · {{ getHeldItemCount(h) }} items</div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-muted-foreground">{{ formatDate(h.updated_at) }}</span>
-              <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" @click="voidHeldDraft(h.reference)" title="Delete draft">
-                <Trash2 :size="14" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <div v-if="!hasReceipts" class="px-4 py-6 text-center text-sm text-muted-foreground">No receipts yet. Create your first one.</div>
       </div>
     </template>
 
@@ -121,7 +97,7 @@
             placeholder="Enter supplier name..."
             class="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             :class="{ 'border-red-500 dark:border-red-400': validationErrors.supplier }"
-            @input="validationErrors.supplier = false; debouncedSupplierSearch"
+            @input="onSupplierInput"
           />
         </div>
         <ul v-if="supplierSuggestions.length" class="mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
@@ -144,7 +120,7 @@
             type="text"
             placeholder="Search products by name or barcode..."
             class="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
-            @input="debouncedProductSearch"
+            @input="onProductSearch"
           />
         </div>
 
@@ -256,12 +232,15 @@
 
       <!-- Submit -->
       <div v-if="items.length" class="border border-border bg-card rounded-lg p-4">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row items-start justify-between gap-3">
           <div class="flex items-center gap-3 text-sm">
-            <span class="font-medium">{{ items.length }}</span><span class="text-muted-foreground">items ·</span>
-            <span class="font-semibold">&#8358;{{ items.reduce((s,i) => s + num(i.cost_price||0) * num(i.quantity||0), 0) }}</span><span class="text-muted-foreground">total cost</span>
+            <span class="font-semibold">{{ items.length }}</span>
+            <span class="text-muted-foreground">items</span>
+            <span class="text-muted-foreground">·</span>
+            <span class="font-semibold">&#8358;{{ items.reduce((s,i) => s + num(i.cost_price||0) * num(i.quantity||0), 0).toLocaleString() }}</span>
+            <span class="text-muted-foreground">total cost</span>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 mt-2">
             <Button variant="outline" size="sm" :disabled="submitting" @click="holdReceipt"><PauseCircle :size="14" class="mr-1.5" />Hold Draft</Button>
             <Button size="lg" class="px-6 gap-2" :disabled="submitting" @click="receiveItems"><CircleCheck :size="16" />Receive Items</Button>
           </div>
@@ -290,6 +269,7 @@ import { Button } from "@/components/ui/button";
 
 const API = "";
 
+const hasReceipts = computed(() => recentReceipts.value.length > 0);
 const VIEW_DASHBOARD = "dashboard";
 const VIEW_RECEIPT = "receipt";
 
@@ -352,21 +332,22 @@ function suggestPrice(item) {
 // === Dashboard ===
 async function fetchDashboard() {
   try {
-    const r = await fetch(`${API}/inventory/received-items-history/api?start=today&end=today`);
+    const r = await fetch(`${API}/inventory/received-items-history/api`);
     if (r.ok) {
       const d = await r.json();
-      recentReceipts.value = (d.data || []).slice(0, 5);
-    }
-  } catch {}
-  try {
-    const r = await fetch(`${API}/inventory/receive-items/held`);
-    if (r.ok) {
-      const raw = await r.text();
-      heldDrafts.value = JSON.parse(raw);
+      recentReceipts.value = (d.batches || []).slice(0, 5);
     }
   } catch {}
   todayCount.value = recentReceipts.value.length;
-  monthCount.value = recentReceipts.value.length;
+}
+
+function onSupplierInput() {
+  validationErrors.value.supplier = false;
+  debouncedSupplierSearch();
+}
+
+function onProductSearch() {
+  debouncedProductSearch();
 }
 
 function getHeldSupplier(h) {
