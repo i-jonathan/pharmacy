@@ -455,27 +455,29 @@ func (s *inventoryService) UpdateProduct(ctx context.Context, id int, params typ
 		}
 	}
 
-	// Handle stock adjustment
-	stockDiff := params.Stock - currentProduct.Stock
-	if stockDiff != 0 {
-		movementType := model.MovementTypeInManualAdjustment
-		absDiff := stockDiff
-		if stockDiff < 0 {
-			movementType = model.MovementTypeOutManualAdjustment
-			absDiff = -stockDiff
-		}
+	// Handle stock adjustment (only when stock is explicitly provided)
+	if params.Stock != nil {
+		stockDiff := *params.Stock - currentProduct.Stock
+		if stockDiff != 0 {
+			movementType := model.MovementTypeInManualAdjustment
+			absDiff := stockDiff
+			if stockDiff < 0 {
+				movementType = model.MovementTypeOutManualAdjustment
+				absDiff = -stockDiff
+			}
 
-		movement := model.StockMovement{
-			ProductID:    id,
-			Quantity:     absDiff,
-			MovementType: movementType,
-			ReferenceID:  id, // Self-referencing product ID for manual adjustments
-		}
+			movement := model.StockMovement{
+				ProductID:    id,
+				Quantity:     absDiff,
+				MovementType: movementType,
+				ReferenceID:  id,
+			}
 
-		if err := s.repo.CreateStockMovementTx(ctx, tx, movement); err != nil {
-			log.Println(err)
-			s.repo.RollbackTx(tx)
-			return httperror.ServerError("failed to record stock adjustment", err)
+			if err := s.repo.CreateStockMovementTx(ctx, tx, movement); err != nil {
+				log.Println(err)
+				s.repo.RollbackTx(tx)
+				return httperror.ServerError("failed to record stock adjustment", err)
+			}
 		}
 	}
 
