@@ -136,18 +136,27 @@ func (s *stockTakingService) UpdateStockTakingItemCount(ctx context.Context, dat
 	}
 	item.LastUpdatedByID = data.UpdatedByID
 
+	// Validate expiry BEFORE saving, so a bad date rejects the
+	// whole request and doesn't partially apply the count update.
+	var expiryTime time.Time
+	if data.UpdatedExpiry != nil {
+		dateStr := strings.TrimSpace(*data.UpdatedExpiry)
+		if len(dateStr) > 10 {
+			dateStr = dateStr[0:10]
+		}
+		parsed, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return httperror.BadRequest("invalid expiry date format", err)
+		}
+		expiryTime = parsed
+	}
+
 	if err := s.repo.UpdateStockTakingItem(ctx, item); err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to update stock taking item", err)
 	}
 
-	// update the expiry
 	if data.UpdatedExpiry != nil {
-		expiryTime, err := time.Parse("2006-01-02", *data.UpdatedExpiry)
-		if err != nil {
-			return httperror.BadRequest("invalid expiry date format", err)
-		}
-
 		if err := s.repo.UpdateProductCurrentExpiry(ctx, item.ProductID, &expiryTime); err != nil {
 			return httperror.ServerError("failed to update expiry", err)
 		}
