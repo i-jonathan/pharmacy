@@ -14,28 +14,28 @@
         <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
           <div class="flex items-center gap-1.5 mb-1">
             <ClipboardCheck :size="14" class="text-emerald-500 shrink-0" />
-            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Completed</span>
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Completed</span>
           </div>
           <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricCompleted }}</div>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
           <div class="flex items-center gap-1.5 mb-1">
             <Clock :size="14" class="text-amber-500 shrink-0" />
-            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">In Progress</span>
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">In Progress</span>
           </div>
           <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricInProgress }}</div>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
           <div class="flex items-center gap-1.5 mb-1">
             <AlertTriangle :size="14" class="text-destructive shrink-0" />
-            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Issues</span>
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Issues</span>
           </div>
           <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricDiscrepancies }}</div>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
           <div class="flex items-center gap-1.5 mb-1">
             <Package :size="14" class="text-primary shrink-0" />
-            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Items</span>
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Items</span>
           </div>
           <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricCounted }}</div>
         </div>
@@ -61,7 +61,7 @@
       <div v-else class="overflow-x-auto rounded-lg border border-border">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-border bg-muted/30 text-[11px]">
+            <tr class="border-b border-border bg-muted/30 text-xs">
               <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Name</th>
               <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Status</th>
               <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Created By</th>
@@ -74,10 +74,10 @@
             <tr v-for="st in stockTakings" :key="st.id" class="cursor-pointer hover:bg-muted/20 transition-colors" @click="openStockTaking(st.id)">
               <td class="px-3 py-2.5 font-medium text-foreground text-sm">{{ st.name }}</td>
               <td class="px-3 py-2.5"><span :class="statusBadge(st.status)">{{ st.status }}</span></td>
-              <td class="px-3 py-2.5 text-xs text-muted-foreground">{{ st.created_by }}</td>
-              <td class="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(st.started_at) }}</td>
-              <td class="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{{ st.completed_at ? formatDate(st.completed_at) : '—' }}</td>
-              <td class="px-3 py-2.5 text-xs text-muted-foreground">{{ st.completed_by || '—' }}</td>
+              <td class="px-3 py-2.5 text-sm text-muted-foreground">{{ st.created_by }}</td>
+              <td class="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{{ formatDate(st.started_at) }}</td>
+              <td class="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{{ st.completed_at ? formatDate(st.completed_at) : '—' }}</td>
+              <td class="px-3 py-2.5 text-sm text-muted-foreground">{{ st.completed_by || '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -91,7 +91,7 @@
         <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground shrink-0" @click="closeStockTaking"><ChevronLeft :size="16" /></Button>
         <div class="min-w-0 flex-1">
           <h1 class="text-base lg:text-xl font-bold text-foreground">{{ countingName || 'Stock Taking' }}</h1>
-          <p class="text-[11px] sm:text-xs text-muted-foreground">
+          <p class="text-xs sm:text-xs text-muted-foreground">
             {{ countingCreatedBy }} · {{ formatDate(countingStarted) }} ·
             <span class="font-medium" :class="countingStatus === 'Completed' ? 'text-emerald-600' : 'text-primary'">{{ countingStatus }}</span>
           </p>
@@ -139,14 +139,14 @@
         <div class="max-h-[65vh] overflow-y-auto">
           <table class="w-full min-w-[700px] text-sm">
             <thead class="bg-muted/30 sticky top-0 z-10">
-              <tr class="text-[11px]">
+              <tr class="text-xs">
                 <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 sticky left-0 bg-muted/30 z-20 min-w-[160px]">Item</th>
-                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Sys</th>
-                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Disp.</th>
-                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Store</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Sys</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Disp.</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Store</th>
                 <th v-if="showQuantityAndVariance" class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Var</th>
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-32">Expiry</th>
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-28">Notes</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-32">Expiry</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-28">Notes</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/50">
@@ -156,8 +156,8 @@
                   <td colspan="7" class="px-3 py-1.5">
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-xs font-bold text-foreground uppercase tracking-wider">{{ row.category }}</span>
-                      <span class="text-[11px] text-muted-foreground">· {{ row.count }} item{{ row.count !== 1 ? 's' : '' }}</span>
-                      <span v-if="showQuantityAndVariance" class="text-[11px]" :class="row.totalVariance !== 0 ? 'text-destructive font-medium' : 'text-muted-foreground'">· Var: {{ row.totalVariance > 0 ? '+' : '' }}{{ row.totalVariance }}</span>
+                      <span class="text-xs text-muted-foreground">· {{ row.count }} item{{ row.count !== 1 ? 's' : '' }}</span>
+                      <span v-if="showQuantityAndVariance" class="text-xs" :class="row.totalVariance !== 0 ? 'text-destructive font-medium' : 'text-muted-foreground'">· Var: {{ row.totalVariance > 0 ? '+' : '' }}{{ row.totalVariance }}</span>
                     </div>
                   </td>
                 </tr>
@@ -165,20 +165,20 @@
                 <tr v-else class="hover:bg-muted/20 transition-colors" :class="{ 'bg-destructive/5': hasVariance(row) }">
                   <td class="px-2.5 py-2 sticky left-0 bg-card z-10">
                     <div class="text-xs sm:text-sm font-medium text-foreground leading-tight">{{ row.product_name }}</div>
-                    <div v-if="row.manufacturer" class="text-[10px] sm:text-[11px] text-muted-foreground">{{ row.manufacturer }}</div>
-                    <div v-if="row.last_updated_by" class="text-[9px] text-muted-foreground/60">by {{ row.last_updated_by }} {{ row._timeAgoStr || '' }}</div>
+                    <div v-if="row.manufacturer" class="text-xs sm:text-xs text-muted-foreground">{{ row.manufacturer }}</div>
+                    <div v-if="row.last_updated_by" class="text-xs text-muted-foreground/60">by {{ row.last_updated_by }} {{ row._timeAgoStr || '' }}</div>
                   </td>
-                  <td class="px-2.5 py-2 text-right text-xs font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
+                  <td class="px-2.5 py-2 text-center text-xs font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
                   <td class="px-2.5 py-2">
                     <input
                       v-if="countingStatus !== 'Completed'"
                       :value="row.dispensary_count"
                       @input="row.dispensary_count = Math.max(0, num($event.target.value)); row._dispEntered = true; queueUpdate(row)"
                       type="number" min="0"
-                      class="no-spinners w-full px-1.5 py-1 text-xs text-right border border-border rounded-md bg-background outline-none font-mono"
+                      class="no-spinners w-full px-1.5 py-1 text-xs text-center border border-border rounded-md bg-background outline-none font-mono"
                       :class="{ 'border-ring/50 font-semibold': row.dispensary_count !== row.snapshot_quantity }"
                     />
-                    <span v-else class="text-xs font-mono text-foreground block text-right">{{ row.dispensary_count ?? '—' }}</span>
+                    <span v-else class="text-xs font-mono text-foreground block text-center">{{ row.dispensary_count ?? '—' }}</span>
                   </td>
                   <td class="px-2.5 py-2">
                     <input
@@ -186,24 +186,24 @@
                       :value="row.store_count"
                       @input="row.store_count = Math.max(0, num($event.target.value)); queueUpdate(row)"
                       type="number" min="0"
-                      class="no-spinners w-full px-1.5 py-1 text-xs text-right border border-border rounded-md bg-background outline-none font-mono"
+                      class="no-spinners w-full px-1.5 py-1 text-xs text-center border border-border rounded-md bg-background outline-none font-mono"
                       :class="{ 'border-ring/50 font-semibold': row.store_count !== row.snapshot_quantity }"
                       :disabled="!row._dispEntered"
                     />
-                    <span v-else class="text-xs font-mono text-foreground block text-right">{{ row.store_count ?? '—' }}</span>
+                    <span v-else class="text-xs font-mono text-foreground block text-center">{{ row.store_count ?? '—' }}</span>
                   </td>
-                  <td v-if="showQuantityAndVariance" class="px-2.5 py-2 text-right text-xs font-mono" :class="varianceClass(row)">{{ variance(row) > 0 ? '+' : '' }}{{ variance(row) }}</td>
+                  <td v-if="showQuantityAndVariance" class="px-2.5 py-2 text-center text-xs font-mono" :class="varianceClass(row)">{{ variance(row) > 0 ? '+' : '' }}{{ variance(row) }}</td>
                   <td class="px-2.5 py-2">
                     <select
                       v-if="countingStatus !== 'Completed'"
                       v-model="row._expiry"
                       @change="queueUpdate(row)"
-                      class="w-full text-xs border border-border rounded-md bg-background outline-none px-1 py-1"
+                      class="w-full text-xs text-center border border-border rounded-md bg-background outline-none px-1 py-1"
                     >
                       <option :value="null" selected>—</option>
                       <option v-for="d in (row.expiry_options || [])" :key="d" :value="d">{{ formatMonthYear(d) }}</option>
                     </select>
-                    <span v-else class="text-xs text-muted-foreground">{{ formatMonthYear(row._expiry || row.earliest_expiry) }}</span>
+                    <span v-else class="text-xs text-center text-muted-foreground">{{ formatMonthYear(row._expiry || row.earliest_expiry) }}</span>
                   </td>
                   <td class="px-2.5 py-2">
                     <input
@@ -211,10 +211,10 @@
                       :value="row.notes"
                       @input="row.notes = $event.target.value; queueUpdate(row)"
                       type="text"
-                      class="no-spinners w-full px-1.5 py-1 text-[10px] border border-border rounded-md bg-background outline-none"
+                      class="no-spinners w-full px-1.5 py-1 text-xs border border-border rounded-md bg-background outline-none"
                       placeholder="—"
                     />
-                    <span v-else class="text-[10px] text-muted-foreground">{{ row.notes || '—' }}</span>
+                    <span v-else class="text-xs text-muted-foreground">{{ row.notes || '—' }}</span>
                   </td>
                 </tr>
               </template>
@@ -230,9 +230,9 @@
 
       <!-- Summary -->
       <div v-if="!countingLoading && displayItems.length && showQuantityAndVariance" class="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 px-3 py-2.5 bg-muted/30 rounded-lg border border-border text-sm mt-3">
-        <span class="text-[11px] text-muted-foreground">Total Variance: <span class="font-semibold" :class="totalVariance !== 0 ? 'text-destructive' : 'text-foreground'">{{ totalVariance > 0 ? '+' : '' }}{{ totalVariance }}</span></span>
-        <span class="text-[11px] text-muted-foreground">Issues: <span class="font-semibold">{{ totalIssues }}</span></span>
-        <span class="text-[11px] text-muted-foreground">Items: <span class="font-semibold">{{ displayItems.length }}</span></span>
+        <span class="text-xs text-muted-foreground">Total Variance: <span class="font-semibold" :class="totalVariance !== 0 ? 'text-destructive' : 'text-foreground'">{{ totalVariance > 0 ? '+' : '' }}{{ totalVariance }}</span></span>
+        <span class="text-xs text-muted-foreground">Issues: <span class="font-semibold">{{ totalIssues }}</span></span>
+        <span class="text-xs text-muted-foreground">Items: <span class="font-semibold">{{ displayItems.length }}</span></span>
       </div>
     </template>
 
@@ -613,7 +613,7 @@ function timeAgo(d) {
 }
 
 function statusBadge(status) {
-  const base = "inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-full whitespace-nowrap";
+  const base = "inline-block px-1.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap";
   switch ((status || "").toLowerCase().replace(" ", "")) {
     case "inprogress":
       return `${base} bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300`;
