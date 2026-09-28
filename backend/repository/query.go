@@ -21,7 +21,7 @@ SELECT
     p.name AS product_name,
     COALESCE(p.manufacturer, '') AS manufacturer,
     pb.quantity,
-    pb.cost_price,
+    CAST(pb.cost_price AS float8) / 100 AS cost_price,
     pb.batch_no,
     pb.expiry_date
 FROM product_batch pb
