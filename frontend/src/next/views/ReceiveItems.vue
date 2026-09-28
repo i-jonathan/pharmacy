@@ -425,11 +425,18 @@ function suggestPrice(item) {
 
 // === Dashboard ===
 async function fetchDashboard() {
+  let allBatches = [];
   try {
     const r = await fetch(`${API}/inventory/received-items-history/api`);
-    if (r.ok) { const d = await r.json(); recentReceipts.value = (d.batches || []).slice(0, 5); }
+    if (r.ok) { const d = await r.json(); allBatches = d.batches || []; }
   } catch {}
-  todayCount.value = recentReceipts.value.length; monthCount.value = recentReceipts.value.length;
+  recentReceipts.value = allBatches.slice(0, 5);
+  // Count today's receipts and this month's receipts from the full list
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  todayCount.value = allBatches.filter(b => b.created_at >= todayStart).length;
+  monthCount.value = allBatches.filter(b => b.created_at >= monthStart).length;
   // Fetch held drafts count
   try {
     const h = await fetch(`${API}/inventory/receive-items/held/api`);

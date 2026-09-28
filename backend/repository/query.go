@@ -522,7 +522,6 @@ const getAllRolesWithPermissionsQuery = `
 
 const listUsersQuery = `
 		SELECT u.id, u.username, u.role_id, u.created_at, COALESCE(r.name, 'Cashier') as role_name
-tttr.name as role_name,
 		FROM users u
 		LEFT JOIN roles r ON r.id = u.role_id
 		ORDER BY u.created_at DESC
