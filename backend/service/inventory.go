@@ -169,6 +169,10 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		if value.SellingPrice <= 0 {
 			return httperror.BadRequest(fmt.Sprintf("product %d: selling price must be > 0", i+1), fmt.Errorf("invalid selling price"))
 		}
+		// Validate expiry date is not in the past
+		if !value.Expiry.IsZero() && value.Expiry.Before(time.Now()) {
+			return httperror.BadRequest(fmt.Sprintf("product %d: expiry date is in the past", i+1), fmt.Errorf("expired"))
+		}
 	}
 
 	// Start timing

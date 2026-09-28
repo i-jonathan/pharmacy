@@ -274,7 +274,7 @@
                     <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg" title="Price options" @click="openPriceOptions(item)"><Settings2 :size="15" /></Button>
                   </td>
                   <td class="px-3 py-2.5"><div class="inline-flex items-center border border-border rounded-md overflow-hidden"><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = Math.max(0, (item.quantity || 0) - 1)">−</button><input :value="item.quantity" @input="item.quantity = Math.max(0, num($event.target.value))" class="no-spinners h-7 w-9 text-center text-sm bg-transparent border-x border-border outline-none" /><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = (item.quantity || 0) + 1">+</button></div></td>
-                  <td class="px-3 py-2.5"><input :value="item.expiry" @input="item.expiry = $event.target.value" type="date" class="no-spinners w-full px-2 py-1.5 text-sm text-center border border-border rounded-md bg-background outline-none" :class="{ 'border-red-500': item._errors?.expiry }" /></td>
+                  <td class="px-3 py-2.5"><input :value="item.expiry" @input="item.expiry = $event.target.value" type="date" class="no-spinners w-full px-2 py-1.5 text-sm text-center border border-border rounded-md bg-background outline-none" :class="expiryClass(item)" :title="expiryTitle(item)" /></td>
                   <td class="px-2 py-2 text-right font-semibold text-sm text-foreground">&#8358;{{ (num(item.cost_price||0) * num(item.quantity||0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
                   <td class="px-3 py-2.5"><Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-destructive" @click="removeItem(idx)"><X :size="13" /></Button></td>
                 </tr>
@@ -292,7 +292,14 @@
         </div>
         <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div class="text-sm space-y-1.5"><div class="flex items-center gap-2"><Package :size="16" class="text-muted-foreground shrink-0" /><span>{{ items.length }} item{{ items.length !== 1 ? 's' : '' }}</span></div><div class="flex items-center gap-2"><span class="font-semibold">&#8358;{{ items.reduce((s,i) => s + num(i.cost_price||0) * num(i.quantity||0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span><span class="text-muted-foreground">total cost</span></div></div>
-          <div class="flex items-center gap-2"><Button variant="outline" size="sm" :disabled="submitting" @click="holdReceipt"><PauseCircle :size="14" class="mr-1.5" />Hold Draft</Button><Button size="lg" class="px-6 gap-2" :disabled="submitting" @click="receiveItems"><CircleCheck :size="16" />Receive Items</Button></div>
+          <div class="flex flex-col items-start gap-2">
+            <label v-if="hasNearExpiry()" class="flex items-center gap-2 text-xs text-amber-600 cursor-pointer">
+              <input type="checkbox" v-model="expiryConfirmed" class="rounded border-border" />
+              <AlertTriangle :size="12" class="shrink-0" />
+              I confirm the near-expiry dates
+            </label>
+            <div class="flex items-center gap-2"><Button variant="outline" size="sm" :disabled="submitting" @click="holdReceipt"><PauseCircle :size="14" class="mr-1.5" />Hold Draft</Button><Button size="lg" class="px-6 gap-2" :disabled="submitting || (hasNearExpiry() && !expiryConfirmed)" @click="receiveItems"><CircleCheck :size="16" />Receive Items</Button></div>
+          </div>
         </div>
         <div v-if="validationErrors.global" class="text-xs text-destructive mt-1.5 flex items-center gap-1"><AlertTriangle :size="12" />{{ validationErrors.global }}</div>
       </div>
@@ -395,6 +402,7 @@ const rangePreset = ref("today");
 const dateStart = ref("");
 const dateEnd = ref("");
 const submitting = ref(false);
+const expiryConfirmed = ref(false);
 const validationErrors = ref({ supplier: false, global: "" });
 const toast = ref(null);
 const toastType = ref("success");
@@ -421,6 +429,37 @@ function suggestPrice(item) {
       item._suggestedPrice = (num(item.selling_price) !== suggested) ? suggested : undefined;
     }
   }
+}
+
+// === Expiry warnings ===
+function expiryDays(expiryStr) {
+  if (!expiryStr) return null;
+  const d = new Date(expiryStr + (expiryStr.includes("T") ? "" : "T00:00:00"));
+  const now = new Date();
+  return Math.ceil((d.getTime() - now.getTime()) / 86400000);
+}
+function expiryClass(item) {
+  if (item._errors?.expiry) return { 'border-red-500': true };
+  const days = expiryDays(item.expiry);
+  if (days === null) return {};
+  if (days < 0) return { 'border-red-500': true };           // past — error
+  if (days < 183) return { 'border-amber-400': true };        // ≤6mo — warning
+  return {};
+}
+function expiryTitle(item) {
+  const days = expiryDays(item.expiry);
+  if (days === null) return "";
+  if (days < 0) return "Expiry date is in the past";
+  if (days < 183) return "Expiry is within 6 months (" + days + " days)";
+  return "";
+}
+
+// === Expiry confirmation for step 4 ===
+function hasNearExpiry() {
+  return items.value.some(i => {
+    const days = expiryDays(i.expiry);
+    return days !== null && days >= 0 && days < 183;
+  });
 }
 
 // === Dashboard ===
@@ -508,7 +547,7 @@ async function fetchHistory() {
 function startNewReceipt() {
   view.value = VIEW_RECEIPT; supplier.value = ""; items.value.splice(0);
   productQuery.value = ""; validationErrors.value = { supplier: false, global: "" }; fetchCategories();
-  heldReference.value = "";
+  heldReference.value = ""; expiryConfirmed.value = false;
 }
 
 // === Categories ===
@@ -665,6 +704,10 @@ function validate() {
     if (num(item.selling_price) <= 0) { item._errors.sell = true; valid = false; }
     if (num(item.quantity) <= 0) { item._errors.qty = true; valid = false; }
     if (!item.expiry) { item._errors.expiry = true; valid = false; }
+    else {
+      const days = expiryDays(item.expiry);
+      if (days !== null && days < 0) { item._errors.expiry = true; valid = false; }
+    }
   }
   if (!valid && !validationErrors.value.global) validationErrors.value.global = "Fill in all required fields marked in red.";
   return valid;
