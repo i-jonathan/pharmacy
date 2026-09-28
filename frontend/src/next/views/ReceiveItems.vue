@@ -14,12 +14,101 @@
         <div class="rounded-lg border border-border bg-card p-5 cursor-pointer hover:bg-muted/20 transition-colors" @click="$router.push('/held-receive-items')"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center"><PauseCircle :size="20" class="text-amber-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Held Drafts</div><div class="text-2xl font-bold text-foreground">{{ heldCount > 0 ? heldCount : '—' }}</div></div></div></div>
         <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center"><Package :size="20" class="text-emerald-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">This Month</div><div class="text-2xl font-bold text-foreground">{{ monthCount }}</div></div></div></div>
       </div>
-      <div class="border border-border rounded-lg overflow-hidden mb-6">
-        <div class="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border"><span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Receipts</span><router-link to="/received-items-history" class="text-xs text-primary hover:underline">View all</router-link></div>
-        <div v-if="recentReceipts.length" class="divide-y divide-border/50">
-          <div v-for="r in recentReceipts" :key="r.id" class="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer" @click="receiptDetail = r"><div class="flex items-center gap-2"><Truck :size="14" class="text-muted-foreground shrink-0" /><span class="text-sm font-medium text-foreground">{{ r.supplier_name }}</span></div><div class="text-xs text-muted-foreground">{{ formatDate(r.created_at) }} · {{ r.items?.length || 0 }} items</div></div>
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <div class="relative flex-1">
+          <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            v-model="historyQuery"
+            type="text"
+            placeholder="Search by supplier..."
+            class="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+          />
         </div>
-        <div v-else class="px-4 py-6 text-center text-sm text-muted-foreground">No receipts yet.</div>
+        <div class="flex gap-2 flex-wrap">
+          <select
+            v-model="rangePreset"
+            class="px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-ring"
+            @change="onRangePreset"
+          >
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this-week">This Week</option>
+            <option value="last-week">Last Week</option>
+            <option value="this-month">This Month</option>
+            <option value="last-month">Last Month</option>
+            <option value="all">All Time</option>
+          </select>
+          <input
+            v-model="dateStart"
+            type="date"
+            class="px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-ring w-36"
+          />
+          <input
+            v-model="dateEnd"
+            type="date"
+            class="px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-ring w-36"
+          />
+          <Button variant="outline" size="icon" :disabled="historyLoading" @click="fetchHistory">
+            <RotateCw :size="16" :class="{ 'animate-spin': historyLoading }" />
+          </Button>
+        </div>
+      </div>
+
+      <!-- Summary bar -->
+      <div class="flex items-center justify-between px-4 py-2 bg-muted/30 rounded-lg border border-border mb-4">
+        <span class="text-xs text-muted-foreground">
+          <template v-if="!historyLoading && !historyError">{{ historyCount }} receipt{{ historyCount !== 1 ? 's' : '' }}</template>
+        </span>
+        <router-link to="/received-items-history" class="text-xs text-primary hover:underline">Full history →</router-link>
+      </div>
+
+      <!-- History Table -->
+      <div v-if="historyLoading" class="flex items-center justify-center py-12 text-muted-foreground">
+        <RotateCw :size="20" class="animate-spin mr-3" />
+        <span class="text-sm">Loading...</span>
+      </div>
+
+      <div v-else-if="historyError" class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card">
+        <AlertCircle :size="32" class="text-destructive/40 mb-2" />
+        <p class="text-sm text-muted-foreground">{{ historyError }}</p>
+        <Button variant="outline" size="sm" class="mt-2" @click="fetchHistory">Retry</Button>
+      </div>
+
+      <div v-else-if="filteredHistory.length === 0" class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card">
+        <ClipboardList :size="32" class="text-muted-foreground/40 mb-2" />
+        <h3 class="text-sm font-semibold text-foreground mb-1">No receipts found</h3>
+        <p class="text-xs text-muted-foreground">Start a new receipt or adjust your filters.</p>
+      </div>
+
+      <div v-else class="border border-border rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border bg-muted/30 text-[11px]">
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2"></th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">Supplier</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">Date</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">Received By</th>
+              <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-16">Items</th>
+              <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-28">Total Cost</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border/50">
+            <tr
+              v-for="(b, i) in filteredHistory"
+              :key="b.id"
+              class="cursor-pointer hover:bg-muted/20 transition-colors"
+              @click="receiptDetail = b"
+            >
+              <td class="px-3 py-2.5 text-center"><Truck :size="16" class="text-muted-foreground/60" /></td>
+              <td class="px-3 py-2.5"><span class="text-sm font-medium text-foreground">{{ b.supplier_name }}</span></td>
+              <td class="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(b.created_at) }}</td>
+              <td class="px-3 py-2.5 text-xs text-muted-foreground">{{ b.received_by }}</td>
+              <td class="px-3 py-2.5 text-center text-xs text-muted-foreground">{{ b.items?.length || 0 }}</td>
+              <td class="px-3 py-2.5 text-right font-semibold text-sm text-foreground">&#8358;{{ historyTotal(b).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Receipt Detail Modal -->
@@ -265,7 +354,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, Truck, RotateCw, Settings2 } from "lucide-vue-next";
+import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, ClipboardList, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -292,11 +381,19 @@ const newProduct = ref({ name: "", manufacturer: "", barcode: "", selling_price:
 const categories = ref([]);
 const manufacturerSuggestions = ref([]);
 const items = ref([]);
+const heldReference = ref("");
 const recentReceipts = ref([]);
 const todayCount = ref(0);
 const monthCount = ref(0);
 const heldCount = ref(0);
 const receiptDetail = ref(null);
+const historyQuery = ref("");
+const historyBatches = ref([]);
+const historyLoading = ref(false);
+const historyError = ref(null);
+const rangePreset = ref("today");
+const dateStart = ref("");
+const dateEnd = ref("");
 const submitting = ref(false);
 const validationErrors = ref({ supplier: false, global: "" });
 const toast = ref(null);
@@ -342,10 +439,69 @@ async function fetchDashboard() {
 
 function formatDate(d) { if (!d) return ""; try { return new Date(d).toLocaleDateString(); } catch { return ""; } }
 
+// === History table helpers ===
+const filteredHistory = computed(() => {
+  if (!historyQuery.value) return historyBatches.value;
+  const q = historyQuery.value.toLowerCase();
+  return historyBatches.value.filter(
+    (b) => b.supplier_name?.toLowerCase().includes(q) || b.received_by?.toLowerCase().includes(q)
+  );
+});
+
+const historyCount = computed(() => filteredHistory.value.length);
+
+function historyTotal(batch) {
+  if (!batch?.items) return 0;
+  return batch.items.reduce((sum, item) => sum + Number(item.cost_price || 0) * Number(item.quantity || 0), 0);
+}
+
+function getDateRange(preset) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const today = `${y}-${m}-${d}`;
+  switch (preset) {
+    case "today": return { start: today, end: today };
+    case "yesterday": { const yest = new Date(now); yest.setDate(yest.getDate() - 1); return { start: yest.toISOString().slice(0, 10), end: yest.toISOString().slice(0, 10) }; }
+    case "this-week": { const sun = new Date(now); sun.setDate(now.getDate() - now.getDay()); return { start: sun.toISOString().slice(0, 10), end: today }; }
+    case "last-week": { const s = new Date(now); s.setDate(now.getDate() - now.getDay() - 7); const e = new Date(s); e.setDate(s.getDate() + 6); return { start: s.toISOString().slice(0, 10), end: e.toISOString().slice(0, 10) }; }
+    case "this-month": return { start: `${y}-${m}-01`, end: today };
+    case "last-month": { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); const lme = new Date(now.getFullYear(), now.getMonth(), 0); return { start: lm.toISOString().slice(0, 10), end: lme.toISOString().slice(0, 10) }; }
+    default: return { start: "", end: "" };
+  }
+}
+
+function onRangePreset() {
+  const { start, end } = getDateRange(rangePreset.value);
+  dateStart.value = start;
+  dateEnd.value = end;
+  fetchHistory();
+}
+
+async function fetchHistory() {
+  historyLoading.value = true;
+  historyError.value = null;
+  try {
+    const params = new URLSearchParams();
+    if (dateStart.value) params.set("start", dateStart.value);
+    if (dateEnd.value) params.set("end", dateEnd.value);
+    const res = await fetch(`${API}/inventory/received-items-history/api?${params}`);
+    if (!res.ok) throw new Error(`Server error (${res.status})`);
+    const data = await res.json();
+    historyBatches.value = data.batches || [];
+  } catch (e) {
+    historyError.value = e.message || "Failed to load";
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
 // === Navigation ===
 function startNewReceipt() {
   view.value = VIEW_RECEIPT; supplier.value = ""; items.value.splice(0);
   productQuery.value = ""; validationErrors.value = { supplier: false, global: "" }; fetchCategories();
+  heldReference.value = "";
 }
 
 // === Categories ===
@@ -483,7 +639,7 @@ async function saveNewProduct() {
 async function holdReceipt() {
   submitting.value = true;
   try {
-    const p = { reference: "", payload: JSON.stringify({ supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) }) };
+    const p = { reference: heldReference.value, payload: JSON.stringify({ supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) }) };
     const r = await fetch(`${API}/inventory/receive-items/hold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) throw new Error("Failed to hold");
     view.value = VIEW_DASHBOARD; showToast("Receipt saved as draft"); fetchDashboard();
@@ -511,7 +667,7 @@ async function receiveItems() {
   if (!validate()) return;
   submitting.value = true;
   try {
-    const p = { supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })), idempotency_key: (() => { try { return crypto.randomUUID(); } catch { return Date.now() + "-" + Math.random().toString(36).slice(2); } })() };
+    const p = { supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })), idempotency_key: (() => { try { return crypto.randomUUID(); } catch { return Date.now() + "-" + Math.random().toString(36).slice(2); } })() };
     const r = await fetch(`${API}/inventory/receive-items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `HTTP ${r.status}`); }
     view.value = VIEW_DASHBOARD; showToast("Items received successfully"); fetchDashboard();
@@ -556,7 +712,7 @@ function restoreHeldData() {
   localStorage.removeItem("heldReceiveItems");
   try {
     const parsed = JSON.parse(data);
-    const ref = parsed.reference || "";
+    heldReference.value = parsed.reference || "";
     const payload = parsed.payload || {};
     if (payload.supplier) supplier.value = payload.supplier;
     (payload.products || []).forEach((p) => {
@@ -586,6 +742,7 @@ onMounted(() => {
   fetchDashboard(); fetchCategories();
   window.addEventListener("beforeunload", onBeforeUnload);
   restoreHeldData();
+  onRangePreset();
 });
 
 onUnmounted(() => {

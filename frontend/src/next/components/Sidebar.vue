@@ -55,6 +55,8 @@
         <div v-show="collapsed || sectionOpen.inventory || isInSection(inventoryPaths)" class="space-y-0.5">
           <router-link to="/products" :class="linkClasses('/products')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Products</span></router-link>
           <router-link to="/receive-items" :class="linkClasses('/receive-items')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Receive Items</span></router-link>
+          <router-link to="/received-items-history" :class="linkClasses('/received-items-history')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Received History</span></router-link>
+          <router-link to="/held-receive-items" :class="linkClasses('/held-receive-items')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Held Receipts</span></router-link>
           <router-link to="/stock-taking" :class="linkClasses('/stock-taking')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed">Stock Taking</span></router-link>
           <PermissionGate permission="admin:access">
             <router-link to="/categories" :class="linkClasses('/categories')">
@@ -111,7 +113,7 @@ import { ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
-  Package, Truck, ClipboardCheck, Tags, Shield,
+  Package, Truck, ClipboardCheck, ClipboardList, Tags, Shield,
   PillBottle, PanelLeftClose, PanelRightOpen, Moon, Sun, ArrowLeftRight,
   ChevronDown,
 } from "lucide-vue-next";
@@ -127,7 +129,7 @@ defineEmits(["toggle-collapse", "toggle-theme", "open-admin"]);
 const route = useRoute();
 
 const salesPaths = ["/pos", "/sales-history", "/held-sales"];
-const inventoryPaths = ["/products", "/receive-items", "/stock-taking", "/categories"];
+const inventoryPaths = ["/products", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking", "/categories"];
 
 function activeSectionKeys() {
   const keys = [];
