@@ -11,16 +11,52 @@
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-sky-100 dark:bg-sky-900/20 flex items-center justify-center"><CalendarCheck :size="20" class="text-sky-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Received Today</div><div class="text-2xl font-bold text-foreground">{{ todayCount }}</div></div></div></div>
-        <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center"><PauseCircle :size="20" class="text-amber-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Held Drafts</div><div class="text-2xl font-bold text-foreground">—</div></div></div></div>
+        <div class="rounded-lg border border-border bg-card p-5 cursor-pointer hover:bg-muted/20 transition-colors" @click="$router.push('/held-receive-items')"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center"><PauseCircle :size="20" class="text-amber-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Held Drafts</div><div class="text-2xl font-bold text-foreground">{{ heldCount > 0 ? heldCount : '—' }}</div></div></div></div>
         <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center"><Package :size="20" class="text-emerald-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">This Month</div><div class="text-2xl font-bold text-foreground">{{ monthCount }}</div></div></div></div>
       </div>
       <div class="border border-border rounded-lg overflow-hidden mb-6">
         <div class="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border"><span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Receipts</span><router-link to="/received-items-history" class="text-xs text-primary hover:underline">View all</router-link></div>
         <div v-if="recentReceipts.length" class="divide-y divide-border/50">
-          <div v-for="r in recentReceipts" :key="r.id" class="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors"><div class="flex items-center gap-2"><Truck :size="14" class="text-muted-foreground shrink-0" /><span class="text-sm font-medium text-foreground">{{ r.supplier_name }}</span></div><div class="text-xs text-muted-foreground">{{ formatDate(r.created_at) }} · {{ r.items?.length || 0 }} items</div></div>
+          <div v-for="r in recentReceipts" :key="r.id" class="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer" @click="receiptDetail = r"><div class="flex items-center gap-2"><Truck :size="14" class="text-muted-foreground shrink-0" /><span class="text-sm font-medium text-foreground">{{ r.supplier_name }}</span></div><div class="text-xs text-muted-foreground">{{ formatDate(r.created_at) }} · {{ r.items?.length || 0 }} items</div></div>
         </div>
         <div v-else class="px-4 py-6 text-center text-sm text-muted-foreground">No receipts yet.</div>
       </div>
+
+      <!-- Receipt Detail Modal -->
+      <Transition name="fade">
+        <div v-if="receiptDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="receiptDetail = null">
+          <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-semibold">Receipt Details</h3>
+                <p class="text-xs text-muted-foreground">{{ receiptDetail.supplier_name }} · {{ formatDate(receiptDetail.created_at) }} · {{ receiptDetail.received_by }}</p>
+              </div>
+              <Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" @click="receiptDetail = null"><X :size="15" /></Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead class="text-[10px]">Item</TableHead>
+                  <TableHead class="w-10 text-[10px] text-center">Qty</TableHead>
+                  <TableHead class="w-16 text-[10px] text-right">Cost</TableHead>
+                  <TableHead class="w-16 text-[10px] text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="item in (receiptDetail.items || [])" :key="item.product_id">
+                  <TableCell class="py-1.5">
+                    <div class="text-xs font-medium">{{ item.product_name }}</div>
+                    <div v-if="item.manufacturer" class="text-[10px] text-muted-foreground">{{ item.manufacturer }}</div>
+                  </TableCell>
+                  <TableCell class="py-1.5 text-center text-xs text-muted-foreground">{{ item.quantity }}</TableCell>
+                  <TableCell class="py-1.5 text-right text-xs text-muted-foreground">&#8358;{{ Number(item.cost_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</TableCell>
+                  <TableCell class="py-1.5 text-right text-xs font-medium">&#8358;{{ (Number(item.cost_price || 0) * Number(item.quantity || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </Transition>
     </template>
 
     <!-- ===== NEW RECEIPT ===== -->
@@ -231,6 +267,14 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const API = "";
 
@@ -251,6 +295,8 @@ const items = ref([]);
 const recentReceipts = ref([]);
 const todayCount = ref(0);
 const monthCount = ref(0);
+const heldCount = ref(0);
+const receiptDetail = ref(null);
 const submitting = ref(false);
 const validationErrors = ref({ supplier: false, global: "" });
 const toast = ref(null);
@@ -287,6 +333,11 @@ async function fetchDashboard() {
     if (r.ok) { const d = await r.json(); recentReceipts.value = (d.batches || []).slice(0, 5); }
   } catch {}
   todayCount.value = recentReceipts.value.length; monthCount.value = recentReceipts.value.length;
+  // Fetch held drafts count
+  try {
+    const h = await fetch(`${API}/inventory/receive-items/held/api`);
+    if (h.ok) { const d = await h.json(); heldCount.value = d.length || 0; }
+  } catch {}
 }
 
 function formatDate(d) { if (!d) return ""; try { return new Date(d).toLocaleDateString(); } catch { return ""; } }

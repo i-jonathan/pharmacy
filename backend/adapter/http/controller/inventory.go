@@ -254,6 +254,21 @@ func (c *inventoryController) RenderHeldReceivingItems(w http.ResponseWriter, r 
 	}
 }
 
+func (c *inventoryController) FetchHeldReceivingItemsJSON(w http.ResponseWriter, r *http.Request) {
+	heldTransactions, err := c.service.FetchHeldReceivingItems(r.Context())
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to fetch held receiving items", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, heldTransactions)
+}
+
 func (c *inventoryController) DeleteHeldReceivingItems(w http.ResponseWriter, r *http.Request) {
 	reference := r.PathValue("reference")
 	if reference == "" {
