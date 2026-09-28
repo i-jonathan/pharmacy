@@ -152,7 +152,7 @@ watch(
 );
 
 function isInSection(paths) {
-  return paths.includes(route.path);
+  return paths.includes(route.path) || paths.some(p => route.path.startsWith(p + "/"));
 }
 
 function toggleSection(key) {

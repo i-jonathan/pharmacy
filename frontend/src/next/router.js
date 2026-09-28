@@ -73,6 +73,12 @@ const routes = [
     meta: { title: "Stock Taking", parent: "Inventory" },
   },
   {
+    path: "/stock-taking/:id",
+    name: "stock-taking-id",
+    component: () => import("./views/StockTakingDashboard.vue"),
+    meta: { title: "Stock Taking", parent: "Inventory" },
+  },
+  {
     path: "/categories",
     name: "categories",
     component: () => import("./views/CategoriesPage.vue"),
