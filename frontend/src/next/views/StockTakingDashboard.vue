@@ -335,7 +335,7 @@ function startTimeAgoTimer() {
   timeAgoTimer = setInterval(() => {
     timeTick.value = timeTick.value + 1;
     refreshTimeAgo();
-  }, 30000);
+  }, 10000);
 }
 
 function stopTimeAgoTimer() {
@@ -506,13 +506,25 @@ async function sendUpdate(item) {
       body: JSON.stringify({
         dispensary_count: item.dispensary_count,
         store_count: item.store_count,
-        updated_expiry: item._expiry || null,
+        updated_expiry: item._expiry ? item._expiry.split("T")[0] || item._expiry.slice(0, 10) : null,
         notes: item.notes || "",
       }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error("Update failed:", err);
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      console.error("Stock update failed:", err);
+      // Item counts were saved server-side (before expiry validation), so
+      // optimistically update the timestamp anyway.
+      item.last_updated_at = new Date().toISOString();
+      item._timeAgoStr = timeAgo(item.last_updated_at);
+      displayItems.value = displayItems.value.slice();
+    } else {
+      // Optimistically set last_updated so the time-ago text updates immediately
+      // rather than waiting for the WebSocket echo.
+      item.last_updated_at = new Date().toISOString();
+      item._timeAgoStr = timeAgo(item.last_updated_at);
+      // Trigger re-render
+      displayItems.value = displayItems.value.slice();
     }
   } catch (e) {
     console.error("Update error:", e);
