@@ -646,7 +646,7 @@ async function saveNewProduct() {
 async function holdReceipt() {
   submitting.value = true;
   try {
-    const p = { reference: heldReference.value, payload: JSON.stringify({ supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) }) };
+    const p = { reference: heldReference.value, payload: { supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) } };
     const r = await fetch(`${API}/inventory/receive-items/hold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) throw new Error("Failed to hold");
     view.value = VIEW_DASHBOARD; showToast("Receipt saved as draft"); fetchDashboard();
@@ -674,7 +674,7 @@ async function receiveItems() {
   if (!validate()) return;
   submitting.value = true;
   try {
-    const p = { supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })), idempotency_key: (() => { try { return crypto.randomUUID(); } catch { return Date.now() + "-" + Math.random().toString(36).slice(2); } })() };
+    const p = { supplier: supplier.value.trim(), held_receiving_reference: heldReference.value, idempotency_key: (() => { try { return crypto.randomUUID(); } catch { return Date.now() + "-" + Math.random().toString(36).slice(2); } })(), products: items.value.map(i => ({ id: i.id, barcode: i.barcode || "", cost_price: num(i.cost_price), selling_price: num(i.selling_price), quantity: Math.max(1, num(i.quantity)), expiry: i.expiry && i.expiry.trim() ? i.expiry.split("T")[0] + "T00:00:00Z" : new Date().toISOString().split("T")[0] + "T00:00:00Z", price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name || "", selling_price: num(po.price), quantity_per_unit: Math.max(1, po.qty || 1) })) })) };
     const r = await fetch(`${API}/inventory/receive-items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `HTTP ${r.status}`); }
     view.value = VIEW_DASHBOARD; showToast("Items received successfully"); fetchDashboard();
