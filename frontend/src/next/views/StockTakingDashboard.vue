@@ -2,50 +2,48 @@
   <div class="p-6 lg:p-8">
     <!-- ===== DASHBOARD ===== -->
     <template v-if="view === 'dashboard'">
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 class="text-2xl font-bold text-foreground">Stock Taking</h1>
           <p class="text-sm text-muted-foreground mt-1">Conduct and manage inventory counts</p>
         </div>
-        <Button size="lg" @click="showCreateModal = true"><Plus :size="16" class="mr-2" />New Stock Count</Button>
+        <Button size="lg" class="w-full sm:w-auto" @click="showCreateModal = true"><Plus :size="16" class="mr-2" />New Stock Count</Button>
       </div>
 
-      <!-- Metric Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="rounded-lg border border-border bg-card p-4">
-          <div class="flex items-center gap-2 mb-1">
-            <ClipboardCheck :size="16" class="text-emerald-500" />
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Completed</span>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
+          <div class="flex items-center gap-1.5 mb-1">
+            <ClipboardCheck :size="14" class="text-emerald-500 shrink-0" />
+            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Completed</span>
           </div>
-          <div class="text-2xl font-bold text-foreground">{{ metricCompleted }}</div>
+          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricCompleted }}</div>
         </div>
-        <div class="rounded-lg border border-border bg-card p-4">
-          <div class="flex items-center gap-2 mb-1">
-            <Clock :size="16" class="text-amber-500" />
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">In Progress</span>
+        <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
+          <div class="flex items-center gap-1.5 mb-1">
+            <Clock :size="14" class="text-amber-500 shrink-0" />
+            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">In Progress</span>
           </div>
-          <div class="text-2xl font-bold text-foreground">{{ metricInProgress }}</div>
+          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricInProgress }}</div>
         </div>
-        <div class="rounded-lg border border-border bg-card p-4">
-          <div class="flex items-center gap-2 mb-1">
-            <AlertTriangle :size="16" class="text-destructive" />
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Discrepancies</span>
+        <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
+          <div class="flex items-center gap-1.5 mb-1">
+            <AlertTriangle :size="14" class="text-destructive shrink-0" />
+            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Issues</span>
           </div>
-          <div class="text-2xl font-bold text-foreground">{{ metricDiscrepancies }}</div>
+          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricDiscrepancies }}</div>
         </div>
-        <div class="rounded-lg border border-border bg-card p-4">
-          <div class="flex items-center gap-2 mb-1">
-            <Package :size="16" class="text-primary" />
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Items Counted</span>
+        <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
+          <div class="flex items-center gap-1.5 mb-1">
+            <Package :size="14" class="text-primary shrink-0" />
+            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Items</span>
           </div>
-          <div class="text-2xl font-bold text-foreground">{{ metricCounted }}</div>
+          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricCounted }}</div>
         </div>
       </div>
 
-      <!-- Table Section -->
-      <div v-if="!loading && stockTakings.length === 0" class="rounded-lg border border-border bg-card p-12 flex flex-col items-center justify-center text-center">
-        <ClipboardCheck :size="48" class="text-muted-foreground/40 mb-4" />
-        <h3 class="text-lg font-semibold text-foreground mb-1">No stock counts yet</h3>
+      <div v-if="!loading && stockTakings.length === 0" class="rounded-lg border border-border bg-card p-8 lg:p-12 flex flex-col items-center justify-center text-center">
+        <ClipboardCheck :size="36" class="text-muted-foreground/40 mb-3" />
+        <h3 class="text-base font-semibold text-foreground mb-1">No stock counts yet</h3>
         <p class="text-sm text-muted-foreground max-w-sm">Start a new stock count to track inventory levels and identify discrepancies.</p>
       </div>
 
@@ -55,181 +53,193 @@
       </div>
 
       <div v-else-if="error" class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card">
-        <AlertCircle :size="32" class="text-destructive/40 mb-2" />
+        <AlertCircle :size="28" class="text-destructive/40 mb-2" />
         <p class="text-sm text-muted-foreground">{{ error }}</p>
         <Button variant="outline" size="sm" class="mt-2" @click="fetchStockTakings">Retry</Button>
       </div>
 
-      <div v-else class="rounded-lg border border-border overflow-hidden">
+      <div v-else class="overflow-x-auto rounded-lg border border-border">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border bg-muted/30 text-[11px]">
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Name</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Created By</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Started</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Completed</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Completed By</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Name</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Status</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Created By</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Started</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Completed</th>
+              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2.5">By</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border/50">
-            <tr
-              v-for="st in stockTakings"
-              :key="st.id"
-              class="cursor-pointer hover:bg-muted/20 transition-colors"
-              @click="openStockTaking(st.id)"
-            >
-              <td class="px-4 py-3 font-medium text-foreground">{{ st.name }}</td>
-              <td class="px-4 py-3"><span :class="statusBadge(st.status)">{{ st.status }}</span></td>
-              <td class="px-4 py-3 text-xs text-muted-foreground">{{ st.created_by }}</td>
-              <td class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(st.started_at) }}</td>
-              <td class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{{ st.completed_at ? formatDate(st.completed_at) : '—' }}</td>
-              <td class="px-4 py-3 text-xs text-muted-foreground">{{ st.completed_by || '—' }}</td>
+            <tr v-for="st in stockTakings" :key="st.id" class="cursor-pointer hover:bg-muted/20 transition-colors" @click="openStockTaking(st.id)">
+              <td class="px-3 py-2.5 font-medium text-foreground text-sm">{{ st.name }}</td>
+              <td class="px-3 py-2.5"><span :class="statusBadge(st.status)">{{ st.status }}</span></td>
+              <td class="px-3 py-2.5 text-xs text-muted-foreground">{{ st.created_by }}</td>
+              <td class="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(st.started_at) }}</td>
+              <td class="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{{ st.completed_at ? formatDate(st.completed_at) : '—' }}</td>
+              <td class="px-3 py-2.5 text-xs text-muted-foreground">{{ st.completed_by || '—' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </template>
 
-    <!-- ===== STOCK TAKING VIEW ===== -->
+    <!-- ===== STOCK TAKING COUNTING VIEW ===== -->
     <template v-if="view === 'counting'">
-      <!-- Back -->
-      <div class="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground" @click="closeStockTaking"><ChevronLeft :size="16" /></Button>
-        <div>
-          <h1 class="text-xl font-bold text-foreground">Stock Taking: {{ countingName }}</h1>
-          <p class="text-sm text-muted-foreground">
-            Started {{ formatDate(countingStarted) }} · {{ countingCreatedBy }} ·
-            <span class="text-xs font-medium" :class="countingStatus === 'Completed' ? 'text-emerald-600' : 'text-primary'">{{ countingStatus }}</span>
+      <!-- Back + Header (compact, stacks on mobile) -->
+      <div class="flex items-start sm:items-center gap-2 sm:gap-3 flex-wrap mb-4">
+        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground shrink-0" @click="closeStockTaking"><ChevronLeft :size="16" /></Button>
+        <div class="min-w-0 flex-1">
+          <h1 class="text-base lg:text-xl font-bold text-foreground">{{ countingName || 'Stock Taking' }}</h1>
+          <p class="text-[11px] sm:text-xs text-muted-foreground">
+            {{ countingCreatedBy }} · {{ formatDate(countingStarted) }} ·
+            <span class="font-medium" :class="countingStatus === 'Completed' ? 'text-emerald-600' : 'text-primary'">{{ countingStatus }}</span>
           </p>
         </div>
-        <div class="flex gap-2 ml-auto">
-          <Button v-if="showQuantityAndVariance" variant="outline" size="sm" class="gap-2" @click="toggleVarianceFilter">
-            <ListFilter :size="14" class="shrink-0" />
-            {{ filterVariancesOnly ? 'Show All' : 'Filter Variances' }}
+        <div class="flex gap-1.5 sm:gap-2 flex-wrap">
+          <Button v-if="showQuantityAndVariance" variant="outline" size="sm" class="gap-1.5" @click="toggleVarianceFilter">
+            <ListFilter :size="12" class="shrink-0" />
+            <span class="hidden sm:inline">{{ filterVariancesOnly ? 'Show All' : 'Variances' }}</span>
+            <span class="sm:hidden">{{ filterVariancesOnly ? 'All' : 'Var' }}</span>
           </Button>
-          <Button v-if="completeStockPermission" size="sm" :disabled="countingStatus === 'Completed'" class="gap-2" @click="completeStockTaking">
-            <CircleCheck :size="14" class="shrink-0" />
-            {{ countingStatus === 'Completed' ? 'Completed' : 'Complete' }}
+          <Button v-if="completeStockPermission" size="sm" :disabled="countingStatus === 'Completed'" class="gap-1.5" @click="completeStockTaking">
+            <CircleCheck :size="12" class="shrink-0" />
+            <span class="hidden sm:inline">{{ countingStatus === 'Completed' ? 'Done' : 'Complete' }}</span>
+            <span class="sm:hidden">&#10003;</span>
           </Button>
         </div>
       </div>
 
-      <!-- Search -->
-      <div class="relative mb-4">
-        <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search items..."
-          class="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
-        />
+      <!-- Sticky Search -->
+      <div class="sticky top-0 z-20 bg-card -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 border-b border-border" style="position:sticky;top:0;">
+        <div class="relative">
+          <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search items..."
+            class="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
       </div>
 
-      <!-- Loading -->
-      <div v-if="countingLoading" class="flex items-center justify-center py-12 text-muted-foreground">
+      <!-- Loading / Error / Empty -->
+      <div v-if="countingLoading" class="flex items-center justify-center py-12 text-muted-foreground mt-4">
         <RotateCw :size="20" class="animate-spin mr-3" />
         <span class="text-sm">Loading items...</span>
       </div>
-
-      <!-- Error -->
-      <div v-else-if="countingError" class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card">
-        <AlertCircle :size="32" class="text-destructive/40 mb-2" />
+      <div v-else-if="countingError" class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card mt-4">
+        <AlertCircle :size="28" class="text-destructive/40 mb-2" />
         <p class="text-sm text-muted-foreground">{{ countingError }}</p>
         <Button variant="outline" size="sm" class="mt-2" @click="loadStockTaking(countingId)">Retry</Button>
       </div>
 
       <!-- Items Table -->
-      <div v-else-if="filteredItems.length" class="rounded-lg border border-border overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border bg-muted/30 text-[11px]">
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">Item</th>
-              <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-20">System Qty</th>
-              <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-24">Dispensary</th>
-              <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-24">Store</th>
-              <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-20">Variance</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-24">Expiry</th>
-              <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-28">Notes</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border/50">
-            <template v-for="(row, ri) in filteredItems" :key="ri">
-              <!-- Category header -->
-              <tr v-if="row._isCategory" class="bg-muted/20">
-                <td colspan="7" class="px-3 py-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-foreground uppercase tracking-wider">{{ row.category }}</span>
-                    <span class="text-[11px] text-muted-foreground">· {{ row.count }} item{{ row.count !== 1 ? 's' : '' }}</span>
-                    <span v-if="showQuantityAndVariance" class="text-[11px]" :class="row.totalVariance !== 0 ? 'text-destructive font-medium' : 'text-muted-foreground'">· Variance: {{ row.totalVariance > 0 ? '+' : '' }}{{ row.totalVariance }}</span>
-                  </div>
-                </td>
+      <div v-else-if="filteredItems.length" class="overflow-x-auto rounded-lg border border-border mt-4">
+        <div class="max-h-[65vh] overflow-y-auto">
+          <table class="w-full min-w-[700px] text-sm">
+            <thead class="bg-muted/30 sticky top-0 z-10">
+              <tr class="text-[11px]">
+                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 sticky left-0 bg-muted/30 z-20 min-w-[160px]">Item</th>
+                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Sys</th>
+                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Disp.</th>
+                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Store</th>
+                <th v-if="showQuantityAndVariance" class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Var</th>
+                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-32">Expiry</th>
+                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-28">Notes</th>
               </tr>
-              <!-- Item row -->
-              <tr v-else class="hover:bg-muted/20 transition-colors" :class="{ 'bg-destructive/5': hasVariance(row) }">
-                <td class="px-3 py-2.5">
-                  <div class="text-sm font-medium text-foreground">{{ row.product_name }}</div>
-                  <div v-if="row.manufacturer" class="text-[11px] text-muted-foreground">{{ row.manufacturer }}</div>
-                </td>
-                <td class="px-3 py-2.5 text-right text-sm font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
-                <td class="px-3 py-2.5">
-                  <input
-                    v-if="countingStatus !== 'Completed'"
-                    :value="row.dispensary_count"
-                    @input="row.dispensary_count = num($event.target.value); queueUpdate(row)"
-                    type="number" min="0"
-                    class="no-spinners w-full px-2 py-1 text-sm text-right border border-border rounded-md bg-background outline-none font-mono"
-                    :class="{ 'border-ring/50': row.dispensary_count !== row.snapshot_quantity }"
-                  />
-                  <span v-else class="text-sm font-mono text-foreground block text-right">{{ row.dispensary_count ?? '—' }}</span>
-                </td>
-                <td class="px-3 py-2.5">
-                  <input
-                    v-if="countingStatus !== 'Completed'"
-                    :value="row.store_count"
-                    @input="row.store_count = num($event.target.value); queueUpdate(row)"
-                    type="number" min="0"
-                    class="no-spinners w-full px-2 py-1 text-sm text-right border border-border rounded-md bg-background outline-none font-mono"
-                    :class="{ 'border-ring/50': row.store_count !== row.snapshot_quantity }"
-                  />
-                  <span v-else class="text-sm font-mono text-foreground block text-right">{{ row.store_count ?? '—' }}</span>
-                </td>
-                <td class="px-3 py-2.5 text-right text-sm font-mono" :class="varianceClass(row)">{{ variance(row) > 0 ? '+' : '' }}{{ variance(row) }}</td>
-                <td class="px-3 py-2.5 text-xs text-muted-foreground">{{ formatExpiry(row.earliest_expiry) }}</td>
-                <td class="px-3 py-2.5">
-                  <input
-                    v-if="countingStatus !== 'Completed'"
-                    :value="row.notes"
-                    @input="row.notes = $event.target.value; queueUpdate(row)"
-                    type="text"
-                    class="no-spinners w-full px-2 py-1 text-xs border border-border rounded-md bg-background outline-none"
-                    placeholder="—"
-                  />
-                  <span v-else class="text-xs text-muted-foreground">{{ row.notes || '—' }}</span>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+            </thead>
+            <tbody class="divide-y divide-border/50">
+              <template v-for="(row, ri) in filteredItems" :key="ri">
+                <!-- Category header -->
+                <tr v-if="row._isCategory" class="bg-muted/20 sticky-header" :style="'top:' + (40 + (searchStickyOffset)) + 'px'">
+                  <td colspan="7" class="px-3 py-1.5">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-xs font-bold text-foreground uppercase tracking-wider">{{ row.category }}</span>
+                      <span class="text-[11px] text-muted-foreground">· {{ row.count }} item{{ row.count !== 1 ? 's' : '' }}</span>
+                      <span v-if="showQuantityAndVariance" class="text-[11px]" :class="row.totalVariance !== 0 ? 'text-destructive font-medium' : 'text-muted-foreground'">· Var: {{ row.totalVariance > 0 ? '+' : '' }}{{ row.totalVariance }}</span>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Item row -->
+                <tr v-else class="hover:bg-muted/20 transition-colors" :class="{ 'bg-destructive/5': hasVariance(row) }">
+                  <td class="px-2.5 py-2 sticky left-0 bg-card z-10">
+                    <div class="text-xs sm:text-sm font-medium text-foreground leading-tight">{{ row.product_name }}</div>
+                    <div v-if="row.manufacturer" class="text-[10px] sm:text-[11px] text-muted-foreground">{{ row.manufacturer }}</div>
+                    <div v-if="row.last_updated_by" class="text-[9px] text-muted-foreground/60">by {{ row.last_updated_by }} {{ timeAgo(row.last_updated_at) }}</div>
+                  </td>
+                  <td class="px-2.5 py-2 text-right text-xs font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
+                  <td class="px-2.5 py-2">
+                    <input
+                      v-if="countingStatus !== 'Completed'"
+                      :value="row.dispensary_count"
+                      @input="row.dispensary_count = Math.max(0, num($event.target.value)); row._dispEntered = true; queueUpdate(row)"
+                      type="number" min="0"
+                      class="no-spinners w-full px-1.5 py-1 text-xs text-right border border-border rounded-md bg-background outline-none font-mono"
+                      :class="{ 'border-ring/50 font-semibold': row.dispensary_count !== row.snapshot_quantity }"
+                    />
+                    <span v-else class="text-xs font-mono text-foreground block text-right">{{ row.dispensary_count ?? '—' }}</span>
+                  </td>
+                  <td class="px-2.5 py-2">
+                    <input
+                      v-if="countingStatus !== 'Completed'"
+                      :value="row.store_count"
+                      @input="row.store_count = Math.max(0, num($event.target.value)); queueUpdate(row)"
+                      type="number" min="0"
+                      class="no-spinners w-full px-1.5 py-1 text-xs text-right border border-border rounded-md bg-background outline-none font-mono"
+                      :class="{ 'border-ring/50 font-semibold': row.store_count !== row.snapshot_quantity }"
+                      :disabled="!row._dispEntered"
+                    />
+                    <span v-else class="text-xs font-mono text-foreground block text-right">{{ row.store_count ?? '—' }}</span>
+                  </td>
+                  <td v-if="showQuantityAndVariance" class="px-2.5 py-2 text-right text-xs font-mono" :class="varianceClass(row)">{{ variance(row) > 0 ? '+' : '' }}{{ variance(row) }}</td>
+                  <td class="px-2.5 py-2">
+                    <select
+                      v-if="countingStatus !== 'Completed'"
+                      v-model="row._expiry"
+                      @change="queueUpdate(row)"
+                      class="w-full text-xs border border-border rounded-md bg-background outline-none px-1 py-1"
+                    >
+                      <option :value="null" selected>—</option>
+                      <option v-for="d in (row.expiry_options || [])" :key="d" :value="d">{{ formatMonthYear(d) }}</option>
+                    </select>
+                    <span v-else class="text-xs text-muted-foreground">{{ formatMonthYear(row._expiry || row.earliest_expiry) }}</span>
+                  </td>
+                  <td class="px-2.5 py-2">
+                    <input
+                      v-if="countingStatus !== 'Completed'"
+                      :value="row.notes"
+                      @input="row.notes = $event.target.value; queueUpdate(row)"
+                      type="text"
+                      class="no-spinners w-full px-1.5 py-1 text-[10px] border border-border rounded-md bg-background outline-none"
+                      placeholder="—"
+                    />
+                    <span v-else class="text-[10px] text-muted-foreground">{{ row.notes || '—' }}</span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <!-- Empty items -->
-      <div v-else class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card">
-        <ClipboardCheck :size="32" class="text-muted-foreground/40 mb-2" />
+      <div v-else class="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-border bg-card mt-4">
+        <ClipboardCheck :size="28" class="text-muted-foreground/40 mb-2" />
         <p class="text-sm text-muted-foreground">No items match your search.</p>
       </div>
 
       <!-- Summary -->
-      <div v-if="!countingLoading && filteredItems.length && showQuantityAndVariance" class="flex items-center justify-between px-4 py-3 bg-muted/30 rounded-lg border border-border text-sm mt-4">
-        <span class="text-xs text-muted-foreground">Total Variance: <span class="font-semibold" :class="totalVariance !== 0 ? 'text-destructive' : 'text-foreground'">{{ totalVariance > 0 ? '+' : '' }}{{ totalVariance }}</span></span>
-        <span class="text-xs text-muted-foreground">Issues: <span class="font-semibold">{{ totalIssues }}</span></span>
+      <div v-if="!countingLoading && displayItems.length && showQuantityAndVariance" class="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 px-3 py-2.5 bg-muted/30 rounded-lg border border-border text-sm mt-3">
+        <span class="text-[11px] text-muted-foreground">Total Variance: <span class="font-semibold" :class="totalVariance !== 0 ? 'text-destructive' : 'text-foreground'">{{ totalVariance > 0 ? '+' : '' }}{{ totalVariance }}</span></span>
+        <span class="text-[11px] text-muted-foreground">Issues: <span class="font-semibold">{{ totalIssues }}</span></span>
+        <span class="text-[11px] text-muted-foreground">Items: <span class="font-semibold">{{ displayItems.length }}</span></span>
       </div>
     </template>
 
     <!-- ===== CREATE MODAL ===== -->
     <Transition name="fade">
-      <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="showCreateModal = false">
-        <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+      <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showCreateModal = false">
+        <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-md mx-auto p-6">
           <h2 class="text-base font-semibold mb-4">New Stock Taking</h2>
           <div v-if="createError" class="mb-3 text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2">{{ createError }}</div>
           <label class="text-xs text-muted-foreground mb-1.5 block">Name</label>
@@ -281,30 +291,47 @@ const countingName = ref("");
 const countingCreatedBy = ref("");
 const countingStarted = ref("");
 const countingStatus = ref("");
-const items = ref([]);
+let rawItems = [];
 const countingLoading = ref(false);
 const countingError = ref(null);
 const showQuantityAndVariance = ref(false);
 const completeStockPermission = ref(false);
 const searchQuery = ref("");
 const filterVariancesOnly = ref(false);
+const searchStickyOffset = ref(56);
 let websocket = null;
-let updateTimers = new Map(); // product_id -> setTimeout
+let updateTimers = new Map();
+
+// === Enriched items (with _isCategory, _expiry, _dispEntered) ===
+const displayItems = ref([]);
+
+// === Rebuild enriched items whenever raw items change ===
+function rebuildItems() {
+  const items = [];
+  for (const item of rawItems) {
+    if (item._expiry === undefined) {
+      item._expiry = item.earliest_expiry || null;
+    }
+    if (item._dispEntered === undefined) {
+      item._dispEntered = item.dispensary_count !== null && item.dispensary_count !== undefined && item.dispensary_count !== "";
+    }
+    items.push(item);
+  }
+  displayItems.value = items;
+}
 
 // === Metrics ===
-const metricCompleted = computed(() => stockTakings.value.filter(s => s.status === "Completed").length);
-const metricInProgress = computed(() => stockTakings.value.filter(s => s.status === "In Progress" || s.status === "InProgress").length);
-const metricDiscrepancies = computed(() => {
-  // Approximate from completed sessions — relies on items being loaded per session
-  return stockTakings.value.length;
-});
-const metricCounted = computed(() => stockTakings.value.length);
+const metricCompleted = computed(() => stockTakings.value.filter(s => s.status === "Completed" || s.status === "completed").length);
+const metricInProgress = computed(() => stockTakings.value.filter(s => {
+  const st = s.status.toLowerCase();
+  return st === "in progress" || st === "inprogress";
+}).length);
+const metricDiscrepancies = computed(() => displayItems.value.filter(i => variance(i) !== 0).length);
+const metricCounted = computed(() => displayItems.value.length);
 
-// === Computed items (categorized + filtered) ===
+// === Computed items (filtered + categorized) ===
 const filteredItems = computed(() => {
-  let list = items.value;
-
-  // Search filter
+  let list = displayItems.value;
   const q = searchQuery.value.trim().toLowerCase();
   if (q) {
     list = list.filter(i =>
@@ -312,43 +339,39 @@ const filteredItems = computed(() => {
       (i.manufacturer || "").toLowerCase().includes(q)
     );
   }
-
-  // Variance filter
   if (filterVariancesOnly.value) {
     list = list.filter(i => variance(i) !== 0);
   }
-
-  // Group by category
   const groups = {};
   for (const item of list) {
     const cat = item.category || "Uncategorized";
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(item);
   }
-
   const result = [];
   for (const [category, catItems] of Object.entries(groups)) {
-    const catVariance = catItems.reduce((s, i) => s + variance(i), 0);
+    const catVariance = catItems.reduce((s, i) => s + varianceRaw(
+      i.dispensary_count, i.store_count, i.snapshot_quantity
+    ), 0);
     result.push({ _isCategory: true, category, count: catItems.length, totalVariance: catVariance });
     result.push(...catItems);
   }
   return result;
 });
 
+function varianceRaw(disp, store, snap) {
+  return (disp || 0) + (store || 0) - (snap || 0);
+}
 function variance(item) {
-  return (item.dispensary_count || 0) + (item.store_count || 0) - (item.snapshot_quantity || 0);
+  return varianceRaw(item.dispensary_count, item.store_count, item.snapshot_quantity);
 }
 function hasVariance(item) { return variance(item) !== 0; }
 function num(v) { return Number(v || 0); }
 
-const totalVariance = computed(() => {
-  return items.value.reduce((s, i) => s + variance(i), 0);
-});
-const totalIssues = computed(() => {
-  return items.value.filter(i => variance(i) !== 0).length;
-});
+const totalVariance = computed(() => displayItems.value.reduce((s, i) => s + variance(i), 0));
+const totalIssues = computed(() => displayItems.value.filter(i => variance(i) !== 0).length);
 
-// === Dashboard functions ===
+// === Dashboard ===
 async function fetchStockTakings() {
   loading.value = true;
   error.value = null;
@@ -397,13 +420,14 @@ function closeStockTaking() {
   view.value = VIEW_DASHBOARD;
   countingId.value = 0;
   countingName.value = "";
-  items.value = [];
+  rawItems = [];
+  displayItems.value = [];
   searchQuery.value = "";
   filterVariancesOnly.value = false;
   closeWebSocket();
 }
 
-// === Counting functions ===
+// === Counting ===
 async function loadStockTaking(id) {
   countingLoading.value = true;
   countingError.value = null;
@@ -416,11 +440,12 @@ async function loadStockTaking(id) {
     countingCreatedBy.value = st.created_by;
     countingStarted.value = st.started_at;
     countingStatus.value = st.status;
-    items.value = data.items || [];
+    rawItems = data.items || [];
     const perms = data.permissions || {};
     showQuantityAndVariance.value = perms["stock:view"] === true;
     completeStockPermission.value = perms["stock:complete"] === true;
     filterVariancesOnly.value = false;
+    rebuildItems();
     if (countingStatus.value !== "Completed") {
       initWebSocket(id);
     }
@@ -433,16 +458,13 @@ async function loadStockTaking(id) {
 
 function toggleVarianceFilter() {
   filterVariancesOnly.value = !filterVariancesOnly.value;
-  // If the filter would show nothing, keep it off (like old UI)
   if (filterVariancesOnly.value) {
-    const hasAny = items.value.some(i => variance(i) !== 0);
-    if (!hasAny) {
-      filterVariancesOnly.value = false;
-    }
+    const hasAny = displayItems.value.some(i => variance(i) !== 0);
+    if (!hasAny) filterVariancesOnly.value = false;
   }
 }
 
-// === Debounced update via API ===
+// === Debounced update ===
 function queueUpdate(item) {
   const pid = item.product_id;
   if (updateTimers.has(pid)) clearTimeout(updateTimers.get(pid));
@@ -457,7 +479,7 @@ async function sendUpdate(item) {
       body: JSON.stringify({
         dispensary_count: item.dispensary_count,
         store_count: item.store_count,
-        updated_expiry: null,
+        updated_expiry: item._expiry || null,
         notes: item.notes || "",
       }),
     });
@@ -498,9 +520,10 @@ function initWebSocket(id) {
         const msg = JSON.parse(event.data);
         if (msg.type === "stock_item_update") {
           const server = msg.data;
-          const local = items.value.find(i => i.product_id === server.product_id);
+          const local = rawItems.find(i => i.product_id === server.product_id);
           if (local) {
             Object.assign(local, server);
+            rebuildItems();
           }
         } else if (msg.type === "stock_taking_complete") {
           countingStatus.value = "Completed";
@@ -530,16 +553,29 @@ function formatDate(d) {
   try { return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
   catch { return "—"; }
 }
-function formatExpiry(d) {
+
+function formatMonthYear(d) {
   if (!d) return "—";
   try { return new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" }); }
   catch { return "—"; }
 }
 
+const now = new Date();
+function timeAgo(d) {
+  if (!d) return "";
+  try {
+    const diff = Math.floor((now.getTime() - new Date(d).getTime()) / 60000);
+    if (diff < 1) return "just now";
+    if (diff < 60) return diff + "m ago";
+    const hrs = Math.floor(diff / 60);
+    if (hrs < 24) return hrs + "h ago";
+    return Math.floor(hrs / 24) + "d ago";
+  } catch { return ""; }
+}
+
 function statusBadge(status) {
-  const base = "inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full";
-  switch ((status || "").toLowerCase()) {
-    case "in progress":
+  const base = "inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-full whitespace-nowrap";
+  switch ((status || "").toLowerCase().replace(" ", "")) {
     case "inprogress":
       return `${base} bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300`;
     case "completed":
@@ -560,14 +596,10 @@ function varianceClass(item) {
 const route = useRoute();
 
 onMounted(() => {
-  // If navigated to /stock-taking/:id, open that session directly
   const idParam = route.params.id;
   if (idParam) {
     const id = Number(idParam);
-    if (id > 0) {
-      openStockTaking(id);
-      return;
-    }
+    if (id > 0) { openStockTaking(id); return; }
   }
   fetchStockTakings();
 });
@@ -584,4 +616,8 @@ input.no-spinners::-webkit-outer-spin-button,
 input.no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input.no-spinners[type="number"] { -moz-appearance: textfield; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.sticky-header {
+  position: sticky;
+  z-index: 15;
+}
 </style>
