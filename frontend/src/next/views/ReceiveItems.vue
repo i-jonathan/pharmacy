@@ -550,9 +550,42 @@ function cancelDiscard() {
   pendingNav.value = null;
 }
 
+function restoreHeldData() {
+  const data = localStorage.getItem("heldReceiveItems");
+  if (!data) return;
+  localStorage.removeItem("heldReceiveItems");
+  try {
+    const parsed = JSON.parse(data);
+    const ref = parsed.reference || "";
+    const payload = parsed.payload || {};
+    if (payload.supplier) supplier.value = payload.supplier;
+    (payload.products || []).forEach((p) => {
+      keyCounter++;
+      const priceOpts = (p.price_options_changes || []).map((po) => ({
+        id: po.id, name: po.name, price: po.selling_price, qty: po.quantity_per_unit || 1,
+      }));
+      items.value.push({
+        _key: (p.id || "restored") + "-" + keyCounter,
+        id: p.id, name: p.name, manufacturer: p.manufacturer || "",
+        barcode: p.barcode || "", cost_price: Number(p.cost_price || 0),
+        selling_price: Number(p.selling_price || 0), quantity: Number(p.quantity || 1),
+        expiry: (p.expiry || "").split("T")[0] || "",
+        _errors: {}, _priceOptions: priceOpts, _suggestedPrice: undefined,
+      });
+    });
+    if (items.value.length) {
+      view.value = VIEW_RECEIPT;
+      showToast("Held receipt restored");
+    }
+  } catch (e) {
+    console.error("Failed to restore held data:", e);
+  }
+}
+
 onMounted(() => {
   fetchDashboard(); fetchCategories();
   window.addEventListener("beforeunload", onBeforeUnload);
+  restoreHeldData();
 });
 
 onUnmounted(() => {

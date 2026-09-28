@@ -8,15 +8,19 @@
         <p class="text-sm text-muted-foreground mt-1">Draft and incomplete inventory receipts</p>
       </div>
 
-      <!-- Summary bar -->
-      <div class="px-6 pb-3 flex items-center justify-between text-sm">
-        <span class="text-muted-foreground">
-          <template v-if="!loading">{{ totalItems }} held receipt{{ totalItems !== 1 ? 's' : '' }}</template>
+      <!-- Toolbar -->
+      <div class="p-6 pb-4 flex items-center gap-2">
+        <Button variant="outline" size="sm" :disabled="loading" @click="fetchHeld" class="gap-2">
+          <RotateCw :size="14" :class="{ 'animate-spin': loading }" />
+          Refresh
+        </Button>
+        <span v-if="!loading" class="text-xs text-muted-foreground ml-2">
+          {{ heldItems.length }} held receipt{{ heldItems.length !== 1 ? 's' : '' }}
         </span>
       </div>
 
-      <!-- Scrollable table area -->
-      <div class="flex-1 overflow-y-auto px-6 pb-4" ref="tableContainerRef" @keydown="onTableKeydown" tabindex="-1">
+      <!-- Content area -->
+      <div class="flex-1 overflow-y-auto px-6 pb-4">
         <!-- Loading -->
         <div v-if="loading" class="flex items-center justify-center py-24 text-muted-foreground">
           <RotateCw :size="20" class="animate-spin mr-3" />
@@ -53,16 +57,15 @@
                 <th class="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Supplier</th>
                 <th class="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 w-16">Items</th>
                 <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 w-28">Total Cost</th>
+                <th class="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 w-24">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/50">
               <tr
                 v-for="(held, i) in heldItems"
                 :key="held.reference"
-                :ref="(el) => rowRefs[i] = el"
                 class="cursor-pointer transition-colors outline-none"
                 :class="rowClass(i)"
-                :data-index="i"
                 tabindex="0"
                 @click="selectAndShow(i)"
                 @keydown.enter.prevent="selectAndShow(i)"
@@ -73,6 +76,16 @@
                 <td class="px-4 py-3 text-muted-foreground text-xs">{{ getSupplier(held) }}</td>
                 <td class="px-4 py-3 text-center text-muted-foreground">{{ getProducts(held).length }}</td>
                 <td class="px-4 py-3 text-right font-semibold text-foreground">&#8358;{{ totalCost(held).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+                <td class="px-4 py-3 text-right">
+                  <div class="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" class="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" title="Restore receipt" @click.stop="restoreHeld(held)">
+                      <Play :size="15" />
+                    </Button>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete held receipt" @click.stop="confirmDelete = held.reference">
+                      <Trash2 :size="15" />
+                    </Button>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -84,7 +97,7 @@
     <Transition name="slide-panel">
       <div
         v-if="detailHeld"
-        class="flex flex-col h-full w-[40%] min-w-[360px] bg-card border-l border-border flex-shrink-0"
+        class="flex flex-col h-full w-[40%] min-w-[360px] max-w-[600px] bg-card border-l border-border flex-shrink-0"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -136,7 +149,7 @@
             </Table>
           </div>
 
-          <!-- Totals -->
+          <!-- Summary -->
           <div class="px-4 py-3 border-t border-border">
             <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Summary</div>
             <div class="space-y-2 bg-muted/50 rounded-sm px-3 py-3">
@@ -152,17 +165,43 @@
           </div>
         </div>
 
-        <!-- Footer actions -->
-        <div class="flex items-center gap-3 px-4 py-3.5 border-t border-border shrink-0">
-          <Button variant="outline" size="sm" class="gap-2" :disabled="deleting" @click="deleteHeld">
-            <Trash2 :size="14" class="shrink-0" />
-            Delete
-          </Button>
-          <div class="flex-1"></div>
-          <Button size="sm" class="gap-2" @click="restoreHeld">
-            <RefreshCw :size="14" class="shrink-0" />
+        <!-- Bottom Actions -->
+        <div class="border-t border-border px-4 py-3 flex items-center gap-2 shrink-0">
+          <Button class="flex-1 gap-2" @click="restoreHeld(detailHeld)">
+            <Play :size="15" />
             Restore
           </Button>
+          <Button variant="destructive" class="flex-1 gap-2" @click="confirmDelete = detailHeld.reference">
+            <Trash2 :size="15" />
+            Delete
+          </Button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Delete Confirm Modal -->
+    <Transition name="fade">
+      <div v-if="confirmDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="confirmDelete = null">
+        <div class="bg-card border border-border rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+              <AlertTriangle :size="20" class="text-destructive" />
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold">Delete Held Receipt</h3>
+              <p class="text-xs text-muted-foreground">This cannot be undone</p>
+            </div>
+          </div>
+          <p class="text-sm text-foreground mb-6">
+            Are you sure you want to delete <span class="font-mono font-medium">{{ confirmDelete }}</span>?
+          </p>
+          <div class="flex items-center gap-2 justify-end">
+            <Button variant="outline" size="sm" @click="confirmDelete = null">Cancel</Button>
+            <Button variant="destructive" size="sm" :disabled="confirmDelete === '__loading__'" @click="executeDelete">
+              <Trash2 :size="14" class="mr-1.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -175,8 +214,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
-import { RotateCw, AlertCircle, PauseCircle, Truck, Trash2, RefreshCw, X, CircleCheck } from "lucide-vue-next";
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { RotateCw, AlertCircle, AlertTriangle, PauseCircle, Truck, Play, Trash2, X, CircleCheck } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -188,6 +228,7 @@ import {
 } from "@/components/ui/table";
 
 const API = "";
+const router = useRouter();
 
 // State
 const heldItems = ref([]);
@@ -195,9 +236,7 @@ const loading = ref(false);
 const error = ref(null);
 const detailHeld = ref(null);
 const selectedIndex = ref(-1);
-const deleting = ref(false);
-const rowRefs = ref([]);
-const tableContainerRef = ref(null);
+const confirmDelete = ref(null);
 const toast = ref(null);
 let tTimer = null;
 
@@ -251,8 +290,7 @@ async function fetchHeld() {
   try {
     const res = await fetch(`${API}/inventory/receive-items/held/api`);
     if (!res.ok) throw new Error(`Server error (${res.status})`);
-    const data = await res.json();
-    heldItems.value = data || [];
+    heldItems.value = await res.json();
   } catch (e) {
     error.value = e.message || "Failed to load";
   } finally {
@@ -263,69 +301,44 @@ async function fetchHeld() {
 function select(i) {
   if (i < 0 || i >= heldItems.value.length) return;
   selectedIndex.value = i;
-  nextTick(() => {
-    const el = rowRefs.value[i];
-    if (el && typeof el === "object" && "$el" in el) {
-      el.$el?.scrollIntoView?.({ block: "nearest" });
-    } else if (el?.scrollIntoView) {
-      el.scrollIntoView({ block: "nearest" });
-    }
-  });
 }
 
 function selectAndShow(i) {
   select(i);
-  openDetailFor(i);
-}
-
-function openDetailFor(i) {
-  const held = heldItems.value[i];
-  if (!held) return;
-  detailHeld.value = held;
+  detailHeld.value = heldItems.value[i];
 }
 
 function closeDetail() {
   detailHeld.value = null;
-  selectedIndex.value = -1;
 }
 
-function restoreHeld() {
-  if (!detailHeld.value) return;
-  // Save held data to localStorage so ReceiveItems can pick it up
-  const held = detailHeld.value;
-  const payload = (typeof held.payload === "string")
-    ? JSON.parse(held.payload)
-    : held.payload;
+function restoreHeld(held) {
+  if (!held) return;
+  const payload = (typeof held.payload === "string") ? JSON.parse(held.payload) : held.payload;
   localStorage.setItem("heldReceiveItems", JSON.stringify({
     reference: held.reference,
     payload: payload,
   }));
-  // Navigate to receive-items — the old JS will restore from localStorage
-  // For the Vue receive-items, the ReceiveItems.vue doesn't have restore
-  // logic yet, but the legacy JS flow does. Navigate to the server route.
-  window.location.href = "/inventory/receive-items";
+  router.push("/receive-items");
 }
 
-async function deleteHeld() {
-  if (!detailHeld.value) return;
-  const reference = detailHeld.value.reference;
-  deleting.value = true;
-  try {
-    const res = await fetch(`${API}/inventory/receive-items/held/${encodeURIComponent(reference)}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+function executeDelete() {
+  if (!confirmDelete.value) return;
+  const ref = confirmDelete.value;
+  confirmDelete.value = "__loading__";
+  fetch(`${API}/inventory/receive-items/held/${encodeURIComponent(ref)}`, { method: "DELETE" })
+    .then((res) => {
+      if (!res.ok) throw new Error(`Failed to delete (${res.status})`);
+      heldItems.value = heldItems.value.filter((h) => h.reference !== ref);
+      if (detailHeld.value?.reference === ref) closeDetail();
+      selectedIndex.value = -1;
+      confirmDelete.value = null;
+      showToast("Held receipt deleted");
+    })
+    .catch((e) => {
+      error.value = e.message || "Failed to delete";
+      confirmDelete.value = ref;
     });
-    if (!res.ok) throw new Error(`Failed to delete (${res.status})`);
-    // Remove from list and close detail
-    const idx = heldItems.value.map(h => h.reference).indexOf(reference);
-    if (idx >= 0) heldItems.value.splice(idx, 1);
-    closeDetail();
-    showToast("Held receipt deleted");
-  } catch (e) {
-    alert(`Failed to delete: ${e.message}`);
-  } finally {
-    deleting.value = false;
-  }
 }
 
 function formatDate(iso) {
@@ -346,36 +359,6 @@ function showToast(msg, type = "success") {
   tTimer = setTimeout(() => { toast.value = null; }, 3000);
 }
 
-// --- Keyboard navigation ---
-function onTableKeydown(e) {
-  if (heldItems.value.length === 0) return;
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    const next = Math.min(selectedIndex.value + 1, heldItems.value.length - 1);
-    if (next >= 0) select(next);
-    if (detailHeld.value) openDetailFor(next);
-  }
-  if (e.key === "ArrowUp") {
-    e.preventDefault();
-    const prev = Math.max(selectedIndex.value - 1, 0);
-    if (prev >= 0) select(prev);
-    if (detailHeld.value) openDetailFor(prev);
-  }
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    if (selectedIndex.value >= 0) {
-      if (detailHeld.value && heldItems.value[selectedIndex.value]?.reference === detailHeld.value.reference) {
-        closeDetail();
-      } else {
-        openDetailFor(selectedIndex.value);
-      }
-    }
-  }
-  if (e.key === "Escape") {
-    closeDetail();
-  }
-}
-
 onMounted(() => {
   fetchHeld();
 });
@@ -388,6 +371,14 @@ onMounted(() => {
 }
 .slide-panel-enter-from,
 .slide-panel-leave-to {
+  opacity: 0;
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 </style>
