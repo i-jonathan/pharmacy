@@ -48,10 +48,13 @@
 
       <!-- Step 2: Add Products -->
       <div class="rounded-lg border border-border bg-card p-5 mb-4">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">2</div>
-          <span class="text-sm font-semibold text-foreground">Add Products</span>
-          <span v-if="items.length" class="text-xs text-muted-foreground ml-2">· {{ items.length }} item{{ items.length !== 1 ? 's' : '' }}</span>
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">2</div>
+            <span class="text-sm font-semibold text-foreground">Add Products</span>
+            <span v-if="items.length" class="text-xs text-muted-foreground ml-2">· {{ items.length }} item{{ items.length !== 1 ? 's' : '' }}</span>
+          </div>
+          <Button variant="outline" size="sm" @click="openNewProductModal"><Plus :size="13" class="mr-1" />New Product</Button>
         </div>
         <div class="relative">
           <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -64,11 +67,6 @@
             <div class="text-xs text-muted-foreground font-mono">&#8358;{{ (p.default_price?.selling_price || 0).toLocaleString() }}</div>
           </li>
         </ul>
-
-        <!-- Create new product button -->
-        <div class="mt-2.5 pt-2.5 border-t border-border/30">
-          <Button variant="outline" size="sm" class="w-full" @click="openNewProductModal"><Plus :size="14" class="mr-1.5" />Create New Product</Button>
-        </div>
 
         <!-- New Product Modal -->
         <div v-if="showNewProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" @click.self="showNewProductModal = false">
@@ -91,8 +89,8 @@
               </div>
               <div><label class="text-xs text-muted-foreground mb-1 block">Barcode</label><input v-model="newProduct.barcode" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
               <div class="grid grid-cols-2 gap-3">
-                <div><label class="text-xs text-muted-foreground mb-1 block">Selling Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.selling_price" type="number" step="10" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
                 <div><label class="text-xs text-muted-foreground mb-1 block">Cost Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.cost_price" type="number" step="10" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
+                <div><label class="text-xs text-muted-foreground mb-1 block">Selling Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.selling_price" type="number" step="10" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div><label class="text-xs text-muted-foreground mb-1 block">Category</label>
@@ -126,6 +124,7 @@
                 <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5">Item</th>
                 <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-24">Cost</th>
                 <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-28">Sell Price</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-14">Prices</th>
                 <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-14">Qty</th>
                 <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-28">Expiry</th>
                 <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-22">Total</th>
@@ -136,10 +135,7 @@
               <template v-for="(item, idx) in items" :key="item._key">
                 <tr class="hover:bg-muted/20 transition-colors">
                   <td class="px-2 py-2">
-                    <div class="flex items-center gap-2">
-                      <div class="text-sm font-medium text-foreground">{{ item.name }}</div>
-                      <Button variant="ghost" size="icon" class="h-6 w-6 text-muted-foreground hover:text-primary" title="Price options" @click="openPriceOptions(item)"><Settings2 :size="12" /></Button>
-                    </div>
+                    <div class="text-sm font-medium text-foreground">{{ item.name }}</div>
                     <div class="text-[11px] text-muted-foreground">{{ item.manufacturer || '' }}</div>
                   </td>
                   <td class="px-2 py-2"><div class="relative"><span class="text-[11px] text-muted-foreground absolute left-1.5 top-1.5">&#8358;</span><input :value="item.cost_price" @input="item.cost_price = num($event.target.value); suggestPrice(item)" type="number" step="10" min="0" class="no-spinners w-full pl-4 py-1.5 text-right text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.cost }" /></div></td>
@@ -149,6 +145,9 @@
                       <input :value="item.selling_price" @input="item.selling_price = num($event.target.value)" type="number" step="10" min="0" class="no-spinners w-full pl-4 py-1.5 text-right text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.sell }" />
                       <button v-if="item._suggestedPrice !== undefined" class="absolute -bottom-4 left-0 text-[10px] text-primary/70 hover:text-primary cursor-pointer" @click="item.selling_price = item._suggestedPrice; item._suggestedPrice = undefined">Suggested: &#8358;{{ item._suggestedPrice }}</button>
                     </div>
+                  </td>
+                  <td class="px-2 py-2 text-center">
+                    <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg" title="Price options" @click="openPriceOptions(item)"><Settings2 :size="15" /></Button>
                   </td>
                   <td class="px-2 py-2"><div class="inline-flex items-center border border-border rounded-md overflow-hidden"><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = Math.max(0, (item.quantity || 0) - 1)">−</button><input :value="item.quantity" @input="item.quantity = Math.max(0, num($event.target.value))" class="no-spinners h-7 w-9 text-center text-sm bg-transparent border-x border-border outline-none" /><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = (item.quantity || 0) + 1">+</button></div></td>
                   <td class="px-2 py-2"><input :value="item.expiry" @input="item.expiry = $event.target.value" type="date" class="no-spinners w-full px-2 py-1.5 text-sm text-center border border-border rounded-md bg-background outline-none" :class="{ 'border-red-500': item._errors?.expiry }" /></td>
