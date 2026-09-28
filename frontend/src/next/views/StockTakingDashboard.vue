@@ -27,17 +27,17 @@
         </div>
         <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
           <div class="flex items-center gap-1.5 mb-1">
-            <AlertTriangle :size="14" class="text-destructive shrink-0" />
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Issues</span>
+            <Package :size="14" class="text-muted-foreground shrink-0" />
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</span>
           </div>
-          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricDiscrepancies }}</div>
+          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricTotal }}</div>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 lg:p-4">
           <div class="flex items-center gap-1.5 mb-1">
-            <Package :size="14" class="text-primary shrink-0" />
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Items</span>
+            <AlertTriangle :size="14" class="text-destructive shrink-0" />
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cancelled</span>
           </div>
-          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricCounted }}</div>
+          <div class="text-xl lg:text-2xl font-bold text-foreground">{{ metricCancelled }}</div>
         </div>
       </div>
 
@@ -346,13 +346,19 @@ function stopTimeAgoTimer() {
 }
 
 // === Metrics ===
-const metricCompleted = computed(() => stockTakings.value.filter(s => s.status === "Completed" || s.status === "completed").length);
+const metricCompleted = computed(() => stockTakings.value.filter(s => {
+  const st = s.status.toLowerCase();
+  return st === "completed";
+}).length);
 const metricInProgress = computed(() => stockTakings.value.filter(s => {
   const st = s.status.toLowerCase();
   return st === "in progress" || st === "inprogress";
 }).length);
-const metricDiscrepancies = computed(() => displayItems.value.filter(i => variance(i) !== 0).length);
-const metricCounted = computed(() => displayItems.value.length);
+const metricTotal = computed(() => stockTakings.value.length);
+const metricCancelled = computed(() => stockTakings.value.filter(s => {
+  const st = s.status.toLowerCase();
+  return st === "cancelled" || st === "canceled";
+}).length);
 
 // === Computed items (filtered + categorized) ===
 const filteredItems = computed(() => {
