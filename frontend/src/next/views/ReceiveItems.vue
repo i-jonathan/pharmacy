@@ -267,7 +267,7 @@
                       <input :value="item.cost_price" @input="item.cost_price = num($event.target.value); suggestPrice(item)" type="number" step="0.01" min="0" class="no-spinners w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.cost }" />
                   </td>
                   <td class="px-3 py-2.5">
-                      <input :value="item.selling_price" @input="item.selling_price = num($event.target.value); suggestPrice(item)" type="number" step="0.01" min="0" class="no-spinners w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.sell }" />
+                      <input :value="item.selling_price" @input="item.selling_price = num($event.target.value); suggestPrice(item)" type="number" step="0.01" min="0" class="no-spinners w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.sell || (num(item.selling_price) > 0 && num(item.selling_price) <= num(item.cost_price)) }" :title="(num(item.selling_price) > 0 && num(item.selling_price) <= num(item.cost_price)) ? 'Selling price should be higher than cost price' : ''" />
                       <button v-if="item._suggestedPrice !== undefined" class="text-[10px] text-primary/70 hover:text-primary cursor-pointer" @click="item.selling_price = item._suggestedPrice; item._suggestedPrice = undefined">Suggested: &#8358;{{ item._suggestedPrice }}</button>
                   </td>
                   <td class="px-2 py-2 text-center">
@@ -412,12 +412,12 @@ function suggestPrice(item) {
   if (num(item.cost_price) > 0) {
     // Match old UI: cost × 1.3, round UP to nearest 50
     const suggested = Math.ceil(num(item.cost_price) * 1.3 / 50) * 50;
-    // Auto-set if no selling price, or selling price is at/below cost
-    if (!num(item.selling_price) || num(item.selling_price) <= num(item.cost_price)) {
+    // If no selling price yet, auto-fill with suggested
+    if (!num(item.selling_price)) {
       item.selling_price = suggested;
       item._suggestedPrice = undefined;
     } else {
-      // Always show the suggestion (like old UI) when it differs from current price
+      // Show clickable suggestion when it differs from current selling price
       item._suggestedPrice = (num(item.selling_price) !== suggested) ? suggested : undefined;
     }
   }
