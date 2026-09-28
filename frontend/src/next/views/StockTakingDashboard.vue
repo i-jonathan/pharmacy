@@ -151,8 +151,8 @@
             </thead>
             <tbody class="divide-y divide-border/50">
               <template v-for="(row, ri) in filteredItems" :key="ri">
-                <!-- Category header -->
-                <tr v-if="row._isCategory" class="bg-muted/20 sticky-header" :style="'top:' + (40 + (searchStickyOffset)) + 'px'">
+                <!-- Category header (not sticky — thead + search bar are sufficient) -->
+                <tr v-if="row._isCategory" class="bg-muted/20">
                   <td colspan="7" class="px-3 py-1.5">
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-xs font-bold text-foreground uppercase tracking-wider">{{ row.category }}</span>
@@ -166,7 +166,7 @@
                   <td class="px-2.5 py-2 sticky left-0 bg-card z-10">
                     <div class="text-xs sm:text-sm font-medium text-foreground leading-tight">{{ row.product_name }}</div>
                     <div v-if="row.manufacturer" class="text-[10px] sm:text-[11px] text-muted-foreground">{{ row.manufacturer }}</div>
-                    <div v-if="row.last_updated_by" class="text-[9px] text-muted-foreground/60">by {{ row.last_updated_by }} {{ timeAgo(row.last_updated_at) }}</div>
+                    <div v-if="row.last_updated_by" class="text-[9px] text-muted-foreground/60">by {{ row.last_updated_by }} {{ row._timeAgoStr || '' }}</div>
                   </td>
                   <td class="px-2.5 py-2 text-right text-xs font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
                   <td class="px-2.5 py-2">
@@ -298,9 +298,10 @@ const showQuantityAndVariance = ref(false);
 const completeStockPermission = ref(false);
 const searchQuery = ref("");
 const filterVariancesOnly = ref(false);
-const searchStickyOffset = ref(56);
 let websocket = null;
 let updateTimers = new Map();
+let timeAgoTimer = null;
+const timeTick = ref(0);
 
 // === Enriched items (with _isCategory, _expiry, _dispEntered) ===
 const displayItems = ref([]);
@@ -315,9 +316,33 @@ function rebuildItems() {
     if (item._dispEntered === undefined) {
       item._dispEntered = item.dispensary_count !== null && item.dispensary_count !== undefined && item.dispensary_count !== "";
     }
+    item._timeAgoStr = timeAgo(item.last_updated_at);
     items.push(item);
   }
   displayItems.value = items;
+}
+
+function refreshTimeAgo() {
+  for (const item of rawItems) {
+    item._timeAgoStr = timeAgo(item.last_updated_at);
+  }
+  // Force Vue to re-render by cloning the array reference
+  displayItems.value = displayItems.value.slice();
+}
+
+function startTimeAgoTimer() {
+  stopTimeAgoTimer();
+  timeAgoTimer = setInterval(() => {
+    timeTick.value = timeTick.value + 1;
+    refreshTimeAgo();
+  }, 30000);
+}
+
+function stopTimeAgoTimer() {
+  if (timeAgoTimer) {
+    clearInterval(timeAgoTimer);
+    timeAgoTimer = null;
+  }
 }
 
 // === Metrics ===
@@ -424,6 +449,7 @@ function closeStockTaking() {
   displayItems.value = [];
   searchQuery.value = "";
   filterVariancesOnly.value = false;
+  stopTimeAgoTimer();
   closeWebSocket();
 }
 
@@ -446,6 +472,7 @@ async function loadStockTaking(id) {
     completeStockPermission.value = perms["stock:complete"] === true;
     filterVariancesOnly.value = false;
     rebuildItems();
+    startTimeAgoTimer();
     if (countingStatus.value !== "Completed") {
       initWebSocket(id);
     }
@@ -501,6 +528,7 @@ async function completeStockTaking() {
       throw new Error(err.message || "Failed to complete");
     }
     countingStatus.value = "Completed";
+    stopTimeAgoTimer();
     closeWebSocket();
   } catch (e) {
     alert(e.message);
@@ -560,11 +588,10 @@ function formatMonthYear(d) {
   catch { return "—"; }
 }
 
-const now = new Date();
 function timeAgo(d) {
   if (!d) return "";
   try {
-    const diff = Math.floor((now.getTime() - new Date(d).getTime()) / 60000);
+    const diff = Math.floor((new Date().getTime() - new Date(d).getTime()) / 60000);
     if (diff < 1) return "just now";
     if (diff < 60) return diff + "m ago";
     const hrs = Math.floor(diff / 60);
@@ -605,6 +632,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  stopTimeAgoTimer();
   closeWebSocket();
   for (const t of updateTimers.values()) clearTimeout(t);
   updateTimers.clear();
@@ -616,8 +644,4 @@ input.no-spinners::-webkit-outer-spin-button,
 input.no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input.no-spinners[type="number"] { -moz-appearance: textfield; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.sticky-header {
-  position: sticky;
-  z-index: 15;
-}
 </style>
