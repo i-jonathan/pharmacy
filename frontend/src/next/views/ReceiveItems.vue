@@ -60,13 +60,13 @@
           <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input v-model="productQuery" type="text" placeholder="Search products by name or barcode..." ref="searchInputRef" class="no-spinners w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring" @input="onProductSearch" @keydown.escape="productSuggestions = []" />
         </div>
-        <div v-if="!items.length" class="flex flex-col items-center justify-center py-12 text-center"><Package :size="32" class="text-muted-foreground/30 mb-3" /><p class="text-sm text-muted-foreground">Search and select products above. If a product doesn't exist yet, create it below.</p></div>
         <ul v-if="productSuggestions.length" class="mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-y-auto max-h-56">
           <li v-for="(p,i) in productSuggestions" :key="p.id" class="flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors" :class="i < productSuggestions.length - 1 ? 'border-b border-border/50' : ''" @click="addProduct(p)">
             <div class="flex items-center gap-2.5"><PillBottle :size="16" class="text-muted-foreground/60 shrink-0" /><div><div class="font-medium text-foreground">{{ p.name }}</div><div class="text-xs text-muted-foreground">{{ p.manufacturer || '—' }} · {{ p.barcode || 'no barcode' }}</div></div></div>
             <div class="text-xs text-muted-foreground font-mono">&#8358;{{ (p.default_price?.selling_price || 0).toLocaleString() }}</div>
           </li>
         </ul>
+        <div v-if="!items.length && !productSuggestions.length" class="flex items-center justify-center py-8 text-center text-sm text-muted-foreground mt-2"><span class="text-xs">Search above or use <span class="font-medium text-primary">New Product</span> to add items.</span></div>
 
         <!-- New Product Modal -->
         <div v-if="showNewProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" @click.self="showNewProductModal = false">
@@ -89,8 +89,8 @@
               </div>
               <div><label class="text-xs text-muted-foreground mb-1 block">Barcode</label><input v-model="newProduct.barcode" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
               <div class="grid grid-cols-2 gap-3">
-                <div><label class="text-xs text-muted-foreground mb-1 block">Cost Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.cost_price" type="number" step="10" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
-                <div><label class="text-xs text-muted-foreground mb-1 block">Selling Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.selling_price" type="number" step="10" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
+                <div><label class="text-xs text-muted-foreground mb-1 block">Cost Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.cost_price" type="number" step="0.01" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
+                <div><label class="text-xs text-muted-foreground mb-1 block">Selling Price (&#8358;) <span class="text-destructive">*</span></label><input v-model.number="newProduct.selling_price" type="number" step="0.01" class="no-spinners w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" /></div>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div><label class="text-xs text-muted-foreground mb-1 block">Category</label>
@@ -111,7 +111,7 @@
       </div>
 
       <!-- Step 3: Set Details -->
-      <div v-if="items.length" class="mb-4">
+      <div v-if="items.length" class="rounded-lg border border-border bg-card p-5 mb-4">
         <div class="flex items-center gap-2 mb-3">
           <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">3</div>
           <span class="text-sm font-semibold text-foreground">Set Details</span>
@@ -121,38 +121,37 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border bg-muted/30 text-[11px]">
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5">Item</th>
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-24">Cost</th>
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-28">Sell Price</th>
-                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-14">Prices</th>
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-14">Qty</th>
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-28">Expiry</th>
-                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5 w-22">Total</th>
-                <th class="w-8"></th>
+                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">Item</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-44">Cost (&#8358;)</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-44">Sell (&#8358;)</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-24">Prices</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-24">Qty</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-36">Expiry</th>
+                <th class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2 w-28">Total</th>
+                <th class="w-10"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/50">
               <template v-for="(item, idx) in items" :key="item._key">
                 <tr class="hover:bg-muted/20 transition-colors">
-                  <td class="px-2 py-2">
+                  <td class="px-3 py-2.5">
                     <div class="text-sm font-medium text-foreground">{{ item.name }}</div>
                     <div class="text-[11px] text-muted-foreground">{{ item.manufacturer || '' }}</div>
                   </td>
-                  <td class="px-2 py-2"><div class="relative"><span class="text-[11px] text-muted-foreground absolute left-1.5 top-1.5">&#8358;</span><input :value="item.cost_price" @input="item.cost_price = num($event.target.value); suggestPrice(item)" type="number" step="10" min="0" class="no-spinners w-full pl-4 py-1.5 text-right text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.cost }" /></div></td>
-                  <td class="px-2 py-2">
-                    <div class="relative">
-                      <span class="text-[11px] text-muted-foreground absolute left-1.5 top-1.5">&#8358;</span>
-                      <input :value="item.selling_price" @input="item.selling_price = num($event.target.value)" type="number" step="10" min="0" class="no-spinners w-full pl-4 py-1.5 text-right text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.sell }" />
-                      <button v-if="item._suggestedPrice !== undefined" class="absolute -bottom-4 left-0 text-[10px] text-primary/70 hover:text-primary cursor-pointer" @click="item.selling_price = item._suggestedPrice; item._suggestedPrice = undefined">Suggested: &#8358;{{ item._suggestedPrice }}</button>
-                    </div>
+                  <td class="px-3 py-2.5">
+                      <input :value="item.cost_price" @input="item.cost_price = num($event.target.value); suggestPrice(item)" type="number" step="0.01" min="0" class="no-spinners w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.cost }" />
+                  </td>
+                  <td class="px-3 py-2.5">
+                      <input :value="item.selling_price" @input="item.selling_price = num($event.target.value); suggestPrice(item)" type="number" step="0.01" min="0" class="no-spinners w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.sell }" />
+                      <button v-if="item._suggestedPrice !== undefined" class="text-[10px] text-primary/70 hover:text-primary cursor-pointer" @click="item.selling_price = item._suggestedPrice; item._suggestedPrice = undefined">Suggested: &#8358;{{ item._suggestedPrice }}</button>
                   </td>
                   <td class="px-2 py-2 text-center">
                     <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg" title="Price options" @click="openPriceOptions(item)"><Settings2 :size="15" /></Button>
                   </td>
-                  <td class="px-2 py-2"><div class="inline-flex items-center border border-border rounded-md overflow-hidden"><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = Math.max(0, (item.quantity || 0) - 1)">−</button><input :value="item.quantity" @input="item.quantity = Math.max(0, num($event.target.value))" class="no-spinners h-7 w-9 text-center text-sm bg-transparent border-x border-border outline-none" /><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = (item.quantity || 0) + 1">+</button></div></td>
-                  <td class="px-2 py-2"><input :value="item.expiry" @input="item.expiry = $event.target.value" type="date" class="no-spinners w-full px-2 py-1.5 text-sm text-center border border-border rounded-md bg-background outline-none" :class="{ 'border-red-500': item._errors?.expiry }" /></td>
-                  <td class="px-2 py-2 text-right font-semibold text-sm text-foreground">&#8358;{{ num(item.cost_price||0) * num(item.quantity||0) }}</td>
-                  <td class="px-2 py-2"><Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-destructive" @click="removeItem(idx)"><X :size="13" /></Button></td>
+                  <td class="px-3 py-2.5"><div class="inline-flex items-center border border-border rounded-md overflow-hidden"><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = Math.max(0, (item.quantity || 0) - 1)">−</button><input :value="item.quantity" @input="item.quantity = Math.max(0, num($event.target.value))" class="no-spinners h-7 w-9 text-center text-sm bg-transparent border-x border-border outline-none" /><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = (item.quantity || 0) + 1">+</button></div></td>
+                  <td class="px-3 py-2.5"><input :value="item.expiry" @input="item.expiry = $event.target.value" type="date" class="no-spinners w-full px-2 py-1.5 text-sm text-center border border-border rounded-md bg-background outline-none" :class="{ 'border-red-500': item._errors?.expiry }" /></td>
+                  <td class="px-2 py-2 text-right font-semibold text-sm text-foreground">&#8358;{{ (num(item.cost_price||0) * num(item.quantity||0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+                  <td class="px-3 py-2.5"><Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-destructive" @click="removeItem(idx)"><X :size="13" /></Button></td>
                 </tr>
               </template>
             </tbody>
@@ -167,7 +166,7 @@
           <span class="text-sm font-semibold text-foreground">Review Totals</span>
         </div>
         <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="text-sm space-y-1.5"><div class="flex items-center gap-2"><Package :size="16" class="text-muted-foreground shrink-0" /><span>{{ items.length }} item{{ items.length !== 1 ? 's' : '' }}</span></div><div class="flex items-center gap-2"><span class="font-semibold">&#8358;{{ items.reduce((s,i) => s + num(i.cost_price||0) * num(i.quantity||0), 0).toLocaleString() }}</span><span class="text-muted-foreground">total cost</span></div></div>
+          <div class="text-sm space-y-1.5"><div class="flex items-center gap-2"><Package :size="16" class="text-muted-foreground shrink-0" /><span>{{ items.length }} item{{ items.length !== 1 ? 's' : '' }}</span></div><div class="flex items-center gap-2"><span class="font-semibold">&#8358;{{ items.reduce((s,i) => s + num(i.cost_price||0) * num(i.quantity||0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span><span class="text-muted-foreground">total cost</span></div></div>
           <div class="flex items-center gap-2"><Button variant="outline" size="sm" :disabled="submitting" @click="holdReceipt"><PauseCircle :size="14" class="mr-1.5" />Hold Draft</Button><Button size="lg" class="px-6 gap-2" :disabled="submitting" @click="receiveItems"><CircleCheck :size="16" />Receive Items</Button></div>
         </div>
         <div v-if="validationErrors.global" class="text-xs text-destructive mt-1.5 flex items-center gap-1"><AlertTriangle :size="12" />{{ validationErrors.global }}</div>
@@ -183,7 +182,7 @@
           <p class="text-xs text-muted-foreground mb-4">Set alternative pricing for different pack sizes or formulations.</p>
           <div v-for="(po, pi) in priceOptionsTarget._priceOptions" :key="pi" class="flex items-center gap-2 text-xs border border-border/50 rounded-md px-3 py-2 mb-2">
             <input :value="po.name" @input="po.name = $event.target.value" class="no-spinners w-24 px-2 py-1.5 border border-border rounded-md bg-background outline-none" placeholder="Name" />
-            <input :value="po.price" @input="po.price = num($event.target.value)" type="number" step="10" class="no-spinners w-22 px-2 py-1.5 text-right border border-border rounded-md bg-background outline-none" placeholder="Price" />
+            <input :value="po.price" @input="po.price = num($event.target.value)" type="number" step="0.01" class="no-spinners w-22 px-2 py-1.5 text-right border border-border rounded-md bg-background outline-none" placeholder="Price" />
             <input :value="po.qty" @input="po.qty = num($event.target.value)" type="number" class="no-spinners w-16 px-2 py-1.5 text-right border border-border rounded-md bg-background outline-none" placeholder="Qty" />
             <Button variant="ghost" size="icon" class="h-6 w-6 text-muted-foreground hover:text-destructive" @click="priceOptionsTarget._priceOptions.splice(pi, 1)"><X :size="11" /></Button>
           </div>
@@ -195,6 +194,31 @@
       </div>
     </template>
 
+    <!-- Nav Guard Modal -->
+    <Transition name="fade">
+      <div v-if="showNavGuardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="cancelDiscard">
+        <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
+              <AlertTriangle :size="20" class="text-amber-600" />
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold">Unsaved Receipt</h3>
+              <p class="text-xs text-muted-foreground">You have items that haven't been received yet.</p>
+            </div>
+          </div>
+          <p class="text-sm text-foreground mb-5">Navigate away and discard these items, or cancel and hold them first.</p>
+          <div class="flex items-center gap-2 justify-end">
+            <Button variant="outline" size="sm" @click="cancelDiscard">Cancel</Button>
+            <Button size="sm" class="gap-2" @click="confirmDiscard">
+              <X :size="13" class="shrink-0" />
+              Discard
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Toast -->
     <Transition name="fade">
       <div v-if="toast" class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-card border border-border px-4 py-3 rounded-xl shadow-2xl text-sm font-medium"><CircleCheck v-if="toastType === 'success'" :size="16" class="text-emerald-600" /><AlertCircle v-else :size="16" class="text-destructive" />{{ toast }}</div>
@@ -203,7 +227,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 
@@ -219,7 +244,7 @@ const productQuery = ref("");
 const productSuggestions = ref([]);
 const showNewProductModal = ref(false);
 const newProductSaving = ref(false);
-const newProduct = ref({ name: "", manufacturer: "", barcode: "", selling_price: 0, cost_price: 0, category_id: 0, reorder_level: 5, duplicateMsg: "" });
+const newProduct = ref({ name: "", manufacturer: "", barcode: "", selling_price: 0, cost_price: 0, category_id: 0, reorder_level: 1, duplicateMsg: "" });
 const categories = ref([]);
 const manufacturerSuggestions = ref([]);
 const items = ref([]);
@@ -232,6 +257,8 @@ const toast = ref(null);
 const toastType = ref("success");
 const priceOptionsTarget = ref(null);
 const searchInputRef = ref(null);
+const showNavGuardModal = ref(false);
+const pendingNav = ref(null);
 
 let tTimer = null; let keyCounter = 0; let msTimer = null;
 
@@ -240,9 +267,16 @@ function showToast(msg, type = "success") { toast.value = msg; toastType.value =
 
 function suggestPrice(item) {
   if (num(item.cost_price) > 0) {
-    const suggested = Math.round(num(item.cost_price) * 1.3 / 10) * 10;
-    if (!num(item.selling_price) || num(item.selling_price) <= num(item.cost_price)) { item.selling_price = suggested; }
-    else if (num(item.selling_price) <= suggested) { item._suggestedPrice = suggested; }
+    // Match old UI: cost × 1.3, round UP to nearest 50
+    const suggested = Math.ceil(num(item.cost_price) * 1.3 / 50) * 50;
+    // Auto-set if no selling price, or selling price is at/below cost
+    if (!num(item.selling_price) || num(item.selling_price) <= num(item.cost_price)) {
+      item.selling_price = suggested;
+      item._suggestedPrice = undefined;
+    } else {
+      // Always show the suggestion (like old UI) when it differs from current price
+      item._suggestedPrice = (num(item.selling_price) !== suggested) ? suggested : undefined;
+    }
   }
 }
 
@@ -301,12 +335,15 @@ function addProduct(p) {
   productQuery.value = ""; productSuggestions.value = []; keyCounter++;
   const cost = p.cost_price || (p.default_price?.selling_price ? p.default_price.selling_price * 0.7 : 0);
   const sell = p.default_price?.selling_price || 0;
-  const suggestedSell = sell > 0 ? sell : (cost > 0 ? Math.round(cost * 1.3 / 10) * 10 : 0);
+  const costBasedSuggested = cost > 0 ? Math.ceil(cost * 1.3 / 50) * 50 : 0;
+  const suggestedSell = sell > 0 ? sell : costBasedSuggested;
   const priceOpts = (p.price_options || []).map((po) => ({ id: po.id, name: po.name, price: po.selling_price, qty: po.quantity_per_unit || 1 }));
   items.value.push({
     _key: p.id + "-" + keyCounter, id: p.id, name: p.name, manufacturer: p.manufacturer || "",
     barcode: p.barcode || "", cost_price: cost, selling_price: suggestedSell, quantity: 1, expiry: "",
-    _errors: {}, _priceOptions: priceOpts, _suggestedPrice: undefined,
+    _errors: {}, _priceOptions: priceOpts,
+    // Show suggestion if using default sell price and cost-based differs (matching old UI)
+    _suggestedPrice: (sell > 0 && costBasedSuggested > 0 && costBasedSuggested !== suggestedSell) ? costBasedSuggested : undefined,
   });
   refocusSearch();
 }
@@ -320,15 +357,8 @@ function closePriceOptions() { priceOptionsTarget.value = null; }
 // === New Product Modal ===
 function openNewProductModal() {
   productSuggestions.value = []; showNewProductModal.value = true;
-  newProduct.value = { name: "", manufacturer: "", barcode: "", selling_price: 0, cost_price: 0, category_id: 0, reorder_level: 5, duplicateMsg: "" };
+  newProduct.value = { name: "", manufacturer: "", barcode: "", selling_price: 0, cost_price: 0, category_id: 0, reorder_level: 1, duplicateMsg: "" };
   manufacturerSuggestions.value = [];
-}
-
-function checkDuplicateProduct() {
-  const name = newProduct.value.name.trim().toLowerCase();
-  const mfr = newProduct.value.manufacturer.trim().toLowerCase();
-  newProduct.value.duplicateMsg = "";
-  // Check is done async on manufacturer input instead
 }
 
 // === Manufacturer autocomplete ===
@@ -368,6 +398,8 @@ function checkDuplicateProduct() {
 async function saveNewProduct() {
   if (!newProduct.value.name.trim()) { showToast("Product name is required", "error"); return; }
   if (!newProduct.value.manufacturer.trim()) { showToast("Manufacturer is required", "error"); return; }
+  if (num(newProduct.value.category_id) <= 0) { showToast("Category is required", "error"); return; }
+  if (num(newProduct.value.cost_price) <= 0) { showToast("Cost price is required", "error"); return; }
   if (num(newProduct.value.selling_price) <= 0) { showToast("Selling price is required", "error"); return; }
   if (newProduct.value.duplicateMsg) { showToast("A product with this name and manufacturer already exists", "error"); return; }
   newProductSaving.value = true;
@@ -376,15 +408,15 @@ async function saveNewProduct() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: newProduct.value.name.trim(), manufacturer: newProduct.value.manufacturer.trim(),
-        barcode: newProduct.value.barcode.trim(), category_id: num(newProduct.value.category_id) || 1,
-        reorder_level: num(newProduct.value.reorder_level) || 5, cost_price: num(newProduct.value.cost_price),
+        barcode: newProduct.value.barcode.trim(), category_id: num(newProduct.value.category_id),
+        reorder_level: num(newProduct.value.reorder_level) || 1, cost_price: num(newProduct.value.cost_price),
         selling_price: num(newProduct.value.selling_price),
       }),
     });
     if (!r.ok) throw new Error("Failed to create product");
     const created = await r.json();
     showNewProductModal.value = false;
-    const suggestedSell = num(newProduct.value.selling_price) || Math.round(num(newProduct.value.cost_price) * 1.3 / 10) * 10;
+    const suggestedSell = num(newProduct.value.selling_price) || Math.ceil(num(newProduct.value.cost_price) * 1.3 / 50) * 50;
     items.value.push({
       _key: "new-" + keyCounter++, id: created.id, name: newProduct.value.name.trim(),
       manufacturer: newProduct.value.manufacturer.trim(), barcode: newProduct.value.barcode.trim(),
@@ -436,7 +468,46 @@ async function receiveItems() {
   finally { submitting.value = false; }
 }
 
-onMounted(() => { fetchDashboard(); fetchCategories(); });
+function onBeforeUnload(e) {
+  if (view.value === VIEW_RECEIPT && items.value.length > 0) {
+    e.preventDefault();
+  }
+}
+
+const router = useRouter();
+let navConfirmed = false;
+
+const navGuard = router.beforeEach((to) => {
+  if (navConfirmed) { navConfirmed = false; return true; }
+  if (view.value === VIEW_RECEIPT && items.value.length > 0 && to.name !== undefined) {
+    pendingNav.value = to;
+    showNavGuardModal.value = true;
+    return false;
+  }
+  return true;
+});
+
+function confirmDiscard() {
+  showNavGuardModal.value = false;
+  const target = pendingNav.value;
+  pendingNav.value = null;
+  if (target) { navConfirmed = true; router.push(target); }
+}
+
+function cancelDiscard() {
+  showNavGuardModal.value = false;
+  pendingNav.value = null;
+}
+
+onMounted(() => {
+  fetchDashboard(); fetchCategories();
+  window.addEventListener("beforeunload", onBeforeUnload);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("beforeunload", onBeforeUnload);
+  navGuard(); // remove the global navigation guard so other pages aren't blocked
+});
 </script>
 
 <style scoped>

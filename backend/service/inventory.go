@@ -23,6 +23,19 @@ func NewInventoryService(repo repository.PharmacyRepository) *inventoryService {
 }
 
 func (s *inventoryService) CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error) {
+	if params.Name == "" {
+		return types.AddItemResponse{}, httperror.BadRequest("product name is required", fmt.Errorf("empty name"))
+	}
+	if params.CategoryID <= 0 {
+		return types.AddItemResponse{}, httperror.BadRequest("category is required", fmt.Errorf("invalid category"))
+	}
+	if params.CostPrice <= 0 {
+		return types.AddItemResponse{}, httperror.BadRequest("cost price must be greater than 0", fmt.Errorf("invalid cost price"))
+	}
+	if params.SellingPrice <= 0 {
+		return types.AddItemResponse{}, httperror.BadRequest("selling price must be greater than 0", fmt.Errorf("invalid selling price"))
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
