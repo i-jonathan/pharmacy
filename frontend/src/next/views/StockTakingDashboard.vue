@@ -86,26 +86,26 @@
 
     <!-- ===== STOCK TAKING COUNTING VIEW ===== -->
     <template v-if="view === 'counting'">
-      <!-- Back + Header (compact, stacks on mobile) -->
-      <div class="flex items-start sm:items-center gap-2 sm:gap-3 flex-wrap mb-4">
-        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground shrink-0" @click="closeStockTaking"><ChevronLeft :size="16" /></Button>
-        <div class="min-w-0 flex-1">
-          <h1 class="text-base lg:text-xl font-bold text-foreground">{{ countingName || 'Stock Taking' }}</h1>
-          <p class="text-xs sm:text-xs text-muted-foreground">
-            {{ countingCreatedBy }} · {{ formatDate(countingStarted) }} ·
-            <span class="font-medium" :class="countingStatus === 'Completed' ? 'text-emerald-600' : 'text-primary'">{{ countingStatus }}</span>
-          </p>
+      <!-- Back + Header (stacks on mobile, side-by-side on desktop) -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground shrink-0" @click="closeStockTaking"><ChevronLeft :size="16" /></Button>
+          <div class="min-w-0 flex-1">
+            <h1 class="text-base lg:text-xl font-bold text-foreground">{{ countingName || 'Stock Taking' }}</h1>
+            <p class="text-xs text-muted-foreground">
+              {{ countingCreatedBy }} · {{ formatDate(countingStarted) }} ·
+              <span class="font-medium" :class="countingStatus === 'Completed' ? 'text-emerald-600' : 'text-primary'">{{ countingStatus }}</span>
+            </p>
+          </div>
         </div>
-        <div class="flex gap-1.5 sm:gap-2 flex-wrap">
-          <Button v-if="showQuantityAndVariance" variant="outline" size="sm" class="gap-1.5" @click="toggleVarianceFilter">
+        <div class="flex gap-2 w-full sm:w-auto sm:ml-auto">
+          <Button v-if="showQuantityAndVariance" variant="outline" size="sm" class="flex-1 sm:flex-none gap-1.5" @click="toggleVarianceFilter">
             <ListFilter :size="12" class="shrink-0" />
-            <span class="hidden sm:inline">{{ filterVariancesOnly ? 'Show All' : 'Variances' }}</span>
-            <span class="sm:hidden">{{ filterVariancesOnly ? 'All' : 'Var' }}</span>
+            <span>{{ filterVariancesOnly ? 'Show All' : 'Variances' }}</span>
           </Button>
-          <Button v-if="completeStockPermission" size="sm" :disabled="countingStatus === 'Completed'" class="gap-1.5" @click="completeStockTaking">
+          <Button v-if="completeStockPermission" size="sm" class="flex-1 sm:flex-none gap-1.5" :disabled="countingStatus === 'Completed'" @click="completeStockTaking">
             <CircleCheck :size="12" class="shrink-0" />
-            <span class="hidden sm:inline">{{ countingStatus === 'Completed' ? 'Done' : 'Complete' }}</span>
-            <span class="sm:hidden">&#10003;</span>
+            <span>{{ countingStatus === 'Completed' ? 'Complete' : 'Complete' }}</span>
           </Button>
         </div>
       </div>
@@ -118,7 +118,7 @@
             v-model="searchQuery"
             type="text"
             placeholder="Search items..."
-            class="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+            class="w-full pl-9 pr-4 py-3 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
@@ -140,13 +140,13 @@
           <table class="w-full min-w-[700px] text-sm">
             <thead class="bg-muted/30 sticky top-0 z-10">
               <tr class="text-xs">
-                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 sticky left-0 bg-muted/30 z-20 min-w-[160px]">Item</th>
-                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Sys</th>
-                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Disp.</th>
-                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-24">Store</th>
-                <th v-if="showQuantityAndVariance" class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-20">Var</th>
-                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-32">Expiry</th>
-                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2 w-28">Notes</th>
+                <th class="text-left font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 sticky left-0 bg-muted/30 z-20 min-w-[160px]">Item</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 w-20">Sys</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 w-24">Disp.</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 w-24">Store</th>
+                <th v-if="showQuantityAndVariance" class="text-right font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 w-20">Var</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 w-32">Expiry</th>
+                <th class="text-center font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-2.5 w-28">Notes</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/50">
@@ -163,55 +163,55 @@
                 </tr>
                 <!-- Item row -->
                 <tr v-else class="hover:bg-muted/20 transition-colors" :class="{ 'bg-destructive/5': hasVariance(row) }">
-                  <td class="px-2.5 py-2 sticky left-0 bg-card z-10">
+                  <td class="px-2.5 py-2.5 sticky left-0 bg-card z-10">
                     <div class="text-xs sm:text-sm font-medium text-foreground leading-tight">{{ row.product_name }}</div>
                     <div v-if="row.manufacturer" class="text-xs sm:text-xs text-muted-foreground">{{ row.manufacturer }}</div>
                     <div v-if="row.last_updated_by" class="text-xs text-muted-foreground/60">by {{ row.last_updated_by }} {{ row._timeAgoStr || '' }}</div>
                   </td>
-                  <td class="px-2.5 py-2 text-center text-xs font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
-                  <td class="px-2.5 py-2">
+                  <td class="px-2.5 py-2.5 text-center text-xs font-mono text-muted-foreground">{{ row.snapshot_quantity ?? '—' }}</td>
+                  <td class="px-2.5 py-2.5">
                     <input
                       v-if="countingStatus !== 'Completed'"
                       :value="row.dispensary_count"
                       @input="row.dispensary_count = Math.max(0, num($event.target.value)); row._dispEntered = true; queueUpdate(row)"
                       type="number" min="0"
-                      class="no-spinners w-full px-1.5 py-1 text-xs text-center border border-border rounded-md bg-background outline-none font-mono"
+                      class="no-spinners w-full px-1.5 py-1.5 text-xs text-center border border-border rounded-md bg-background outline-none font-mono"
                       :class="{ 'border-ring/50 font-semibold': row.dispensary_count !== row.snapshot_quantity }"
                     />
                     <span v-else class="text-xs font-mono text-foreground block text-center">{{ row.dispensary_count ?? '—' }}</span>
                   </td>
-                  <td class="px-2.5 py-2">
+                  <td class="px-2.5 py-2.5">
                     <input
                       v-if="countingStatus !== 'Completed'"
                       :value="row.store_count"
                       @input="row.store_count = Math.max(0, num($event.target.value)); queueUpdate(row)"
                       type="number" min="0"
-                      class="no-spinners w-full px-1.5 py-1 text-xs text-center border border-border rounded-md bg-background outline-none font-mono"
+                      class="no-spinners w-full px-1.5 py-1.5 text-xs text-center border border-border rounded-md bg-background outline-none font-mono"
                       :class="{ 'border-ring/50 font-semibold': row.store_count !== row.snapshot_quantity }"
                       :disabled="!row._dispEntered"
                     />
                     <span v-else class="text-xs font-mono text-foreground block text-center">{{ row.store_count ?? '—' }}</span>
                   </td>
-                  <td v-if="showQuantityAndVariance" class="px-2.5 py-2 text-center text-xs font-mono" :class="varianceClass(row)">{{ variance(row) > 0 ? '+' : '' }}{{ variance(row) }}</td>
-                  <td class="px-2.5 py-2">
+                  <td v-if="showQuantityAndVariance" class="px-2.5 py-2.5 text-center text-xs font-mono" :class="varianceClass(row)">{{ variance(row) > 0 ? '+' : '' }}{{ variance(row) }}</td>
+                  <td class="px-2.5 py-2.5">
                     <select
                       v-if="countingStatus !== 'Completed'"
                       v-model="row._expiry"
                       @change="queueUpdate(row)"
-                      class="w-full text-xs text-center border border-border rounded-md bg-background outline-none px-1 py-1"
+                      class="w-full text-xs text-center border border-border rounded-md bg-background outline-none px-1 py-1.5"
                     >
                       <option :value="null" selected>—</option>
                       <option v-for="d in (row.expiry_options || [])" :key="d" :value="d">{{ formatMonthYear(d) }}</option>
                     </select>
                     <span v-else class="text-xs text-center text-muted-foreground">{{ formatMonthYear(row._expiry || row.earliest_expiry) }}</span>
                   </td>
-                  <td class="px-2.5 py-2">
+                  <td class="px-2.5 py-2.5">
                     <input
                       v-if="countingStatus !== 'Completed'"
                       :value="row.notes"
                       @input="row.notes = $event.target.value; queueUpdate(row)"
                       type="text"
-                      class="no-spinners w-full px-1.5 py-1 text-xs border border-border rounded-md bg-background outline-none"
+                      class="no-spinners w-full px-1.5 py-1.5 text-xs border border-border rounded-md bg-background outline-none"
                       placeholder="—"
                     />
                     <span v-else class="text-xs text-muted-foreground">{{ row.notes || '—' }}</span>
@@ -241,14 +241,14 @@
       <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showCreateModal = false">
         <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-md mx-auto p-6">
           <h2 class="text-base font-semibold mb-4">New Stock Taking</h2>
-          <div v-if="createError" class="mb-3 text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2">{{ createError }}</div>
+          <div v-if="createError" class="mb-3 text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2.5">{{ createError }}</div>
           <label class="text-xs text-muted-foreground mb-1.5 block">Name</label>
           <input
             v-model="newName"
             @keydown.enter="handleCreate"
             type="text"
             placeholder="e.g. September 2026 Stock Count"
-            class="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+            class="w-full px-3 py-2.5 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
           />
           <div class="flex items-center gap-2 mt-5 justify-end">
             <Button variant="outline" size="sm" @click="showCreateModal = false">Cancel</Button>
