@@ -356,8 +356,8 @@ export default {
                 const data = {
                     dispensary_count: updatedItem.dispensary_count,
                     store_count: updatedItem.store_count,
-                    updated_expiry: updatedItem.expiry
-                        ? formatToDateString(updatedItem.expiry)
+                    updated_expiry: updatedItem.earliest_expiry
+                        ? formatToDateString(updatedItem.earliest_expiry)
                         : null,
                     notes: updatedItem.notes || "",
                 };

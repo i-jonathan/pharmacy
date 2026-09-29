@@ -246,7 +246,7 @@ func (c *stockTakingController) UpdateStockTakingItemCount(w http.ResponseWriter
 			return
 		}
 
-		httperror.ServerError("failed to update stock taking item count", err)
+		httperror.ServerError("failed to update stock taking item count", err).JSONRespond(w)
 		return
 	}
 
@@ -294,7 +294,7 @@ func (c *stockTakingController) CompleteStockTaking(w http.ResponseWriter, r *ht
 			return
 		}
 
-		httperror.ServerError("failed to update stock taking item count", err)
+		httperror.ServerError("failed to update stock taking item count", err).JSONRespond(w)
 		return
 	}
 
