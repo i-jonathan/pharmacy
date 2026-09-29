@@ -4,6 +4,7 @@ import (
 	"context"
 	"pharmacy/internal/types"
 	"pharmacy/model"
+	"time"
 )
 
 type UserService interface {
@@ -24,6 +25,7 @@ type InventoryService interface {
 	FetchInventory(ctx context.Context) (*model.Inventory, error)
 	FetchProductByID(ctx context.Context, id int) (types.ProductResult, error)
 	FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error)
+	GetTopSellingProducts(ctx context.Context, limit int) ([]types.TopSellingProductData, error)
 }
 
 type SaleService interface {
@@ -45,7 +47,7 @@ type StockTakingService interface {
 }
 
 type DashboardService interface {
-	GetDashboardData(ctx context.Context) (*types.DashboardResponse, error)
+	GetDashboardData(ctx context.Context, startDate, endDate *time.Time) (*types.DashboardResponse, error)
 }
 
 type AdminService interface {

@@ -86,12 +86,14 @@ type InventoryItem struct {
 	CategoryID     int        `db:"category_id" json:"category_id"`
 	DefaultPriceID int        `db:"default_price_id" json:"default_price_id"`
 	DefaultPrice   int        `db:"default_price" json:"default_price"`
+	CostPrice      int        `db:"cost_price" json:"cost_price"`
 	ReorderLevel   int        `db:"reorder_level" json:"reorder_level"`
 	Stock          int        `db:"stock" json:"stock"`
 	Category       string     `db:"category" json:"category"`
 	Manufacturer   string     `db:"manufacturer" json:"manufacturer"`
 	Name           string     `db:"name" json:"name"`
 	EarliestExpiry *time.Time `db:"earliest_expiry" json:"earliest_expiry,omitempty"`
+	PriceOptions   ProductPrices `db:"price_options" json:"price_options"`
 }
 
 type Inventory struct {

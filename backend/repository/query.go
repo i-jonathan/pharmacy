@@ -21,7 +21,7 @@ SELECT
     p.name AS product_name,
     COALESCE(p.manufacturer, '') AS manufacturer,
     pb.quantity,
-    pb.cost_price,
+    CAST(pb.cost_price AS float8) / 100 AS cost_price,
     pb.batch_no,
     pb.expiry_date
 FROM product_batch pb
@@ -38,6 +38,7 @@ const fetchUserByNameQuery = `
 	    u.username,
 	    u.password,
 	    u.role_id,
+		r.name as role_name,
 	    COALESCE(
 	        json_agg(
 	            json_build_object(
@@ -53,7 +54,7 @@ const fetchUserByNameQuery = `
 	LEFT JOIN role_permissions rp ON rp.role_id = r.id
 	LEFT JOIN permissions p ON p.id = rp.permission_id
 	WHERE u.username = $1
-	GROUP BY u.id, u.username, u.password, u.role_id;
+	GROUP BY u.id, u.username, u.password, u.role_id, r.name;
 `
 const bulkFetchUserByIDQuery = `SELECT id, username FROM users WHERE id = ANY($1)`
 const createProductQuery = `INSERT INTO product
@@ -173,6 +174,32 @@ const fetchSalesQuery = `
     ($1::date IS NULL OR created_at::date >= $1::date)
     AND ($2::date IS NULL OR created_at::date <= $2::date)
   ORDER BY created_at DESC
+  LIMIT $3 OFFSET $4
+`
+
+const countSalesQuery = `
+  SELECT COUNT(*)
+  FROM sales
+  WHERE
+    ($1::date IS NULL OR created_at::date >= $1::date)
+    AND ($2::date IS NULL OR created_at::date <= $2::date)
+`
+
+const sumSalesTotalQuery = `
+  SELECT COALESCE(SUM(total), 0)
+  FROM sales
+  WHERE
+    ($1::date IS NULL OR created_at::date >= $1::date)
+    AND ($2::date IS NULL OR created_at::date <= $2::date)
+`
+
+const sumReturnTotalQuery = `
+  SELECT COALESCE(SUM(r.total_refunded), 0)
+  FROM returns r
+  JOIN sales s ON s.id = r.sale_id
+  WHERE
+    ($1::date IS NULL OR s.created_at::date >= $1::date)
+    AND ($2::date IS NULL OR s.created_at::date <= $2::date)
 `
 const fetchSalesByIDQuery = `
 	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
@@ -199,7 +226,22 @@ const bulkFetchProductByIDQuery = `
 	FROM product WHERE id = ANY($1)
 `
 const fetchInventoryViewQuery = `
-	SELECT * from inventory_view ORDER BY name ASC;
+	SELECT iv.*, COALESCE(ppo.price_options, '[]') AS price_options
+	FROM inventory_view iv
+	LEFT JOIN (
+		SELECT product_id,
+			json_agg(
+				json_build_object(
+					'id', pp.id,
+					'selling_price', pp.selling_price,
+					'name', pp.name,
+					'quantity_per_unit', pp.quantity_per_unit
+				)
+			) AS price_options
+		FROM product_price pp
+		GROUP BY product_id
+	) ppo ON iv.id = ppo.product_id
+	ORDER BY iv.name ASC;
 `
 const fetchPriceByIDQuery = `SELECT * from product_price where id = $1`
 const insertIntoHeldTransactionQuery = `

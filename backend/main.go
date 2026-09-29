@@ -22,7 +22,6 @@ import (
 )
 
 //go:embed template/*.html
-//go:embed template/partials/*.html
 var templateFS embed.FS
 
 //go:embed all:template/static/**
@@ -107,11 +106,11 @@ func main() {
 			httperror.NotFound("Page Not Found", nil).Render(w, tmpl)
 			return
 		}
-		http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+		http.Redirect(w, r, "/app/", http.StatusSeeOther)
 	})
 
 	middlewareStack := middleware.CreateStack(
-		// middleware.CSRFMiddleware,
+		middleware.CSRFMiddleware,
 		middleware.Logging,
 	)
 
@@ -190,7 +189,7 @@ func parseTemplates() {
 			return template.JS(b)
 		},
 		"ViteAsset": viteAsset,
-	}).ParseFS(templateFS, "template/*.html", "template/partials/*.html")
+	}).ParseFS(templateFS, "template/*.html")
 	if err != nil {
 		panic("failed to parse templates: " + err.Error())
 	}

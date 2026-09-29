@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/helper"
 	"pharmacy/adapter/websocket"
@@ -17,29 +16,14 @@ import (
 )
 
 type stockTakingController struct {
-	service  service.StockTakingService
-	template *template.Template
-	wsHub    *websocket.Hub
+	service service.StockTakingService
+	wsHub   *websocket.Hub
 }
 
-func NewStockTakingController(service service.StockTakingService, tmpl *template.Template, wsHub *websocket.Hub) *stockTakingController {
+func NewStockTakingController(service service.StockTakingService, wsHub *websocket.Hub) *stockTakingController {
 	return &stockTakingController{
-		service:  service,
-		template: tmpl,
-		wsHub:    wsHub,
-	}
-}
-
-func (c *stockTakingController) RenderStockTakingDashboard(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	data := map[string]any{
-		"Title":         "Stock Taking Dashboard",
-		"ActivePage":    "stock-taking",
-		"SubActivePage": "dashboard",
-	}
-	err := c.template.ExecuteTemplate(w, "stock-taking-dashboard.html", data)
-	if err != nil {
-		http.Error(w, "stock taking dashboard render error", http.StatusInternalServerError)
+		service: service,
+		wsHub:   wsHub,
 	}
 }
 
@@ -171,29 +155,6 @@ func (c *stockTakingController) FetchStockTakingItems(w http.ResponseWriter, r *
 	helper.JSONResponse(w, http.StatusOK, map[string]any{
 		"items": items,
 	})
-}
-
-func (c *stockTakingController) RenderStockTakingPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	id := r.PathValue("id")
-
-	data := struct {
-		StockTakingID string
-		Title         string
-		ActivePage    string
-		SubActivePage string
-	}{
-		StockTakingID: id,
-		Title:         "Stock Taking",
-		ActivePage:    "stock-taking",
-		SubActivePage: "stock-taking-page",
-	}
-
-	err := c.template.ExecuteTemplate(w, "stock-taking.html", data)
-	if err != nil {
-		http.Error(w, "stock taking page render error", http.StatusInternalServerError)
-	}
 }
 
 func (c *stockTakingController) UpdateStockTakingItemCount(w http.ResponseWriter, r *http.Request) {

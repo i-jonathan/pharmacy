@@ -3,36 +3,22 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/helper"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/service"
+	"strconv"
 	"time"
 )
 
 type saleController struct {
-	service  service.SaleService
-	template *template.Template
+	service service.SaleService
 }
 
-func NewSaleController(svc service.SaleService, tmpl *template.Template) *saleController {
-	return &saleController{svc, tmpl}
-}
-
-func (c *saleController) RenderSalesReceipt(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	data := map[string]any{
-		"Title":         "Sales Receipt",
-		"ActivePage":    "sales",
-		"SubActivePage": "new-sale",
-	}
-	err := c.template.ExecuteTemplate(w, "receipt.html", data)
-	if err != nil {
-		http.Error(w, "sales receipt render error", http.StatusInternalServerError)
-	}
+func NewSaleController(svc service.SaleService) *saleController {
+	return &saleController{service: svc}
 }
 
 func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
@@ -67,53 +53,11 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 	helper.JSONResponse(w, http.StatusOK, map[string]any{"msg": "Saved Successfully"})
 }
 
-func (c *saleController) RenderSalesHistory(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	// defaults to today
-	now := time.Now()
-	todayFilter := types.SaleFilter{
-		StartDate: &now,
-		EndDate:   &now,
-	}
-
-	sales, err := c.service.FetchSalesHistory(r.Context(), todayFilter)
-	if err != nil {
-		var httperr *httperror.HTTPError
-		if errors.As(err, &httperr) {
-			http.Error(w, httperr.Message, httperr.Code)
-			return
-		}
-
-		http.Error(w, "sales history fetch error", http.StatusInternalServerError)
-		return
-	}
-
-	salesJSON, err := json.Marshal(sales)
-	if err != nil {
-		http.Error(w, "sales history json error", http.StatusInternalServerError)
-		return
-	}
-
-	perms, _ := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
-
-	data := map[string]any{
-		"Title":         "Sales History",
-		"ActivePage":    "sales",
-		"SubActivePage": "sales-history",
-		"SalesJSON":     template.JS(salesJSON),
-		"Permissions":   perms,
-	}
-
-	err = c.template.ExecuteTemplate(w, "sales-history.html", data)
-	if err != nil {
-		http.Error(w, "sales history render error", http.StatusInternalServerError)
-	}
-}
-
 func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
 	startStr := r.URL.Query().Get("start")
 	endStr := r.URL.Query().Get("end")
+	pageStr := r.URL.Query().Get("page")
+	perPageStr := r.URL.Query().Get("per_page")
 	var filter types.SaleFilter
 
 	if startStr != "" {
@@ -125,6 +69,15 @@ func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
 		if end, err := time.Parse("2006-01-02", endStr); err == nil {
 			filter.EndDate = &end
 		}
+	}
+
+	filter.Page = 1
+	filter.PerPage = 20
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		filter.Page = p
+	}
+	if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 {
+		filter.PerPage = pp
 	}
 
 	salesData, err := c.service.FetchSalesHistory(r.Context(), filter)
@@ -165,38 +118,14 @@ func (c *saleController) HoldSaleTransaction(w http.ResponseWriter, r *http.Requ
 	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Held Successfully"})
 }
 
-func (c *saleController) RenderHeldSaleReceipts(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
+func (c *saleController) FetchHeldTransactionsJSON(w http.ResponseWriter, r *http.Request) {
 	heldTransactions, err := c.service.FetchHeldSaleTransactions(r.Context())
 	if err != nil {
-		var httperr *httperror.HTTPError
-		if errors.As(err, &httperr) {
-			http.Error(w, httperr.Message, httperr.Code)
-			return
-		}
-
-		http.Error(w, "sales history fetch error", http.StatusInternalServerError)
+		httperror.ServerError("failed to fetch held transactions", err).JSONRespond(w)
 		return
 	}
 
-	transactionJSON, err := json.Marshal(heldTransactions)
-	if err != nil {
-		http.Error(w, "held transactions json error", http.StatusInternalServerError)
-		return
-	}
-
-	data := map[string]any{
-		"Title":            "Held Receipts",
-		"ActivePage":       "sales",
-		"SubActivePage":    "held-receipts",
-		"HeldTransactions": template.JS(transactionJSON),
-	}
-
-	err = c.template.ExecuteTemplate(w, "held-receipt.html", data)
-	if err != nil {
-		http.Error(w, "held receipts render error", http.StatusInternalServerError)
-	}
+	helper.JSONResponse(w, http.StatusOK, heldTransactions)
 }
 
 func (c *saleController) DeleteHeldSale(w http.ResponseWriter, r *http.Request) {

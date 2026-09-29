@@ -60,6 +60,26 @@ func (r *repo) GetTotalInventoryItems(ctx context.Context) (int, error) {
 	return totalItems, nil
 }
 
+func (r *repo) GetExpiringCount(ctx context.Context) (int, error) {
+	query := `
+		SELECT COUNT(*) as expiring_count
+		FROM product p
+		LEFT JOIN inventory_view iv ON p.id = iv.id
+		WHERE p.current_expiry IS NOT NULL
+		  AND p.current_expiry >= CURRENT_DATE
+		  AND p.current_expiry <= CURRENT_DATE + INTERVAL '90 days'
+		  AND COALESCE(iv.stock, 0) > 0
+	`
+
+	var count int
+	err := r.Data.GetContext(ctx, &count, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (r *repo) GetLowStockCount(ctx context.Context) (int, error) {
 	query := `
 		SELECT COUNT(*) as low_stock_count
@@ -148,6 +168,83 @@ func (r *repo) GetExpiringItems(ctx context.Context, startDate, endDate time.Tim
 	return expiringItems, nil
 }
 
+func (r *repo) GetExpiringItemsByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiryByCategory, error) {
+	query := `
+		SELECT
+			c.name as category,
+			COUNT(DISTINCT p.id) as count,
+			COALESCE(SUM(p.cost_price * COALESCE(iv.stock, 0)), 0) as total_cost_kobo
+		FROM product p
+		JOIN category c ON p.category_id = c.id
+		LEFT JOIN inventory_view iv ON p.id = iv.id
+		WHERE p.current_expiry IS NOT NULL
+		  AND p.current_expiry >= $1
+		  AND p.current_expiry <= $2
+		  AND COALESCE(iv.stock, 0) > 0
+		GROUP BY c.name
+		ORDER BY total_cost_kobo DESC
+	`
+
+	var items []model.ExpiryByCategory
+	err := r.Data.SelectContext(ctx, &items, query, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (r *repo) GetTopSellingProducts(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.TopSellingProduct, error) {
+	query := `
+		SELECT
+			p.name as product_name,
+			p.manufacturer as manufacturer,
+			SUM(si.quantity) as quantity,
+			SUM(si.total_price) as revenue_kobo
+		FROM sales s
+		JOIN sales_item si ON s.id = si.sale_id
+		JOIN product p ON si.product_id = p.id
+		WHERE s.created_at >= $1 AND s.created_at < $2
+		  AND s.status = 'COMPLETED'
+		GROUP BY p.name, p.manufacturer
+		ORDER BY quantity DESC
+		LIMIT $3
+	`
+
+	var products []model.TopSellingProduct
+	err := r.Data.SelectContext(ctx, &products, query, startDate, endDate, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func (r *repo) GetTopSellingProductsAllTime(ctx context.Context, limit int) ([]model.TopSellingProduct, error) {
+	query := `
+		SELECT
+			p.name as product_name,
+			p.manufacturer as manufacturer,
+			SUM(si.quantity) as quantity,
+			SUM(si.total_price) as revenue_kobo
+		FROM sales s
+		JOIN sales_item si ON s.id = si.sale_id
+		JOIN product p ON si.product_id = p.id
+		WHERE s.status = 'COMPLETED'
+		GROUP BY p.name, p.manufacturer
+		ORDER BY quantity DESC
+		LIMIT $1
+	`
+
+	var products []model.TopSellingProduct
+	err := r.Data.SelectContext(ctx, &products, query, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
 func (r *repo) GetSalesByTime(ctx context.Context, startTime, endTime time.Time) ([]model.Sale, error) {
 	query := `
 		SELECT id, receipt_number, cashier_id, subtotal, discount, total, status, created_at
@@ -163,4 +260,24 @@ func (r *repo) GetSalesByTime(ctx context.Context, startTime, endTime time.Time)
 	}
 
 	return sales, nil
+}
+
+func (r *repo) GetRecentSales(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.RecentTransaction, error) {
+	query := `
+		SELECT s.id, s.receipt_number, s.total, COUNT(si.id) as item_count, s.status, s.created_at
+		FROM sales s
+		LEFT JOIN sales_item si ON s.id = si.sale_id
+		WHERE s.created_at >= $1 AND s.created_at < $2
+		GROUP BY s.id, s.receipt_number, s.total, s.status, s.created_at
+		ORDER BY s.created_at DESC
+		LIMIT $3
+	`
+
+	var transactions []model.RecentTransaction
+	err := r.Data.SelectContext(ctx, &transactions, query, startDate, endDate, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return transactions, nil
 }

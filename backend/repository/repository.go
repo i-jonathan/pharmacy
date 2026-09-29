@@ -50,6 +50,8 @@ type SaleRepository interface {
 	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
 	BulkCreateSalePaymentsTX(ctx context.Context, tx *sqlx.Tx, salePayments []model.SalePayment) error
 	FetchSalesTx(ctx context.Context, tx *sqlx.Tx, filter types.SaleFilter) ([]model.Sale, error)
+	CountSales(ctx context.Context, filter types.SaleFilter) (int, error)
+	SumSalesTotal(ctx context.Context, filter types.SaleFilter) (int, error)
 	BulkFetchSaleItems(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SaleItem, error)
 	BulkFetchSalePayments(ctx context.Context, tx *sqlx.Tx, saleIDs []int) ([]model.SalePayment, error)
 	SaveHeldTransaction(ctx context.Context, transaction model.HeldTransaction) error
@@ -66,6 +68,7 @@ type ReturnRepository interface {
 	BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error
 	FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error)
 	BulkFetchReturnItemsBySaleIDs(ctx context.Context, saleIDs []int) ([]model.ReturnItemWithSale, error)
+	SumReturnTotal(ctx context.Context, filter types.SaleFilter) (int, error)
 }
 
 type StockTakingRepository interface {
@@ -87,9 +90,14 @@ type DashboardRepository interface {
 	GetTransactionCount(ctx context.Context, startDate, endDate time.Time) (int, error)
 	GetTotalInventoryItems(ctx context.Context) (int, error)
 	GetLowStockCount(ctx context.Context) (int, error)
+	GetExpiringCount(ctx context.Context) (int, error)
 	GetLowStockItems(ctx context.Context) ([]model.LowStockItem, error)
 	GetSalesByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.SalesByCategory, error)
 	GetExpiringItems(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiringItem, error)
+	GetExpiringItemsByCategory(ctx context.Context, startDate, endDate time.Time) ([]model.ExpiryByCategory, error)
+	GetTopSellingProducts(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.TopSellingProduct, error)
+	GetTopSellingProductsAllTime(ctx context.Context, limit int) ([]model.TopSellingProduct, error)
+	GetRecentSales(ctx context.Context, startDate, endDate time.Time, limit int) ([]model.RecentTransaction, error)
 }
 
 type AdminRepository interface {

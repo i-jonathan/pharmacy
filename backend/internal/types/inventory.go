@@ -47,7 +47,7 @@ type ProductPriceResult struct {
 	ID           int     `json:"id"`
 	Name         string  `json:"name"`
 	SellingPrice float64 `json:"selling_price"`
-	Quantity     int     `json:"quantity"`
+	Quantity     int     `json:"quantity_per_unit"`
 }
 
 type ProductResult struct {
@@ -109,7 +109,7 @@ type UpdateProductRequest struct {
 	Manufacturer string               `json:"manufacturer"`
 	CategoryID   int                  `json:"category_id"`
 	ReorderLevel int                  `json:"reorder_level"`
-	Stock        int                  `json:"stock"`
+	Stock        *int                  `json:"stock"`
 	CostPrice    float64              `json:"cost_price"`
 	Prices       []ProductPriceUpdate `json:"prices"`
 }

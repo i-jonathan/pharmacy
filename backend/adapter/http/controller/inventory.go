@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"pharmacy/adapter/http/helper"
@@ -17,19 +16,6 @@ import (
 	"strconv"
 	"time"
 )
-
-func (c *inventoryController) RenderReceivedItemsHistory(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	data := map[string]any{
-		"Title":         "Received Items History",
-		"ActivePage":    "inventory",
-		"SubActivePage": "received-items-history",
-	}
-	err := c.template.ExecuteTemplate(w, "received-items-history.html", data)
-	if err != nil {
-		http.Error(w, "received items history render error", http.StatusInternalServerError)
-	}
-}
 
 func (c *inventoryController) FetchReceivedItemsHistory(w http.ResponseWriter, r *http.Request) {
 	startStr := r.URL.Query().Get("start")
@@ -65,12 +51,11 @@ func (c *inventoryController) FetchReceivedItemsHistory(w http.ResponseWriter, r
 }
 
 type inventoryController struct {
-	service  service.InventoryService
-	template *template.Template
+	service service.InventoryService
 }
 
-func NewInventoryController(svc service.InventoryService, tmpl *template.Template) *inventoryController {
-	return &inventoryController{service: svc, template: tmpl}
+func NewInventoryController(svc service.InventoryService) *inventoryController {
+	return &inventoryController{service: svc}
 }
 
 func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Request) {
@@ -93,33 +78,6 @@ func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Reque
 	}
 
 	helper.JSONResponse(w, http.StatusOK, itemResponse)
-}
-
-func (c *inventoryController) GetReceiveItems(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	categories, err := c.service.FetchCategories(r.Context())
-	if err != nil {
-		http.Error(w, "error fetching categories", http.StatusInternalServerError)
-		return
-	}
-
-	data := struct {
-		Categories    []types.CategoriesResponse
-		Title         string
-		ActivePage    string
-		SubActivePage string
-	}{
-		Categories:    categories,
-		Title:         "Receive Items",
-		ActivePage:    "inventory",
-		SubActivePage: "receive-items",
-	}
-
-	err = c.template.ExecuteTemplate(w, "receive-items.html", data)
-	if err != nil {
-		http.Error(w, "receive items render error", http.StatusInternalServerError)
-	}
 }
 
 func (c *inventoryController) SearchForProduct(w http.ResponseWriter, r *http.Request) {
@@ -220,38 +178,19 @@ func (c *inventoryController) HoldReceivingItems(w http.ResponseWriter, r *http.
 	helper.JSONResponse(w, http.StatusOK, map[string]string{"message": "Held Successfully"})
 }
 
-func (c *inventoryController) RenderHeldReceivingItems(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
+func (c *inventoryController) FetchHeldReceivingItemsJSON(w http.ResponseWriter, r *http.Request) {
 	heldTransactions, err := c.service.FetchHeldReceivingItems(r.Context())
 	if err != nil {
 		var httperr *httperror.HTTPError
 		if errors.As(err, &httperr) {
-			http.Error(w, httperr.Message, httperr.Code)
+			httperr.JSONRespond(w)
 			return
 		}
-
-		http.Error(w, "held receiving items fetch error", http.StatusInternalServerError)
+		httperror.ServerError("failed to fetch held receiving items", err).JSONRespond(w)
 		return
 	}
 
-	transactionJSON, err := json.Marshal(heldTransactions)
-	if err != nil {
-		http.Error(w, "held receiving items json error", http.StatusInternalServerError)
-		return
-	}
-
-	data := map[string]any{
-		"Title":            "Held Receive Items",
-		"ActivePage":       "inventory",
-		"SubActivePage":    "held-receive-items",
-		"HeldTransactions": template.JS(transactionJSON),
-	}
-
-	err = c.template.ExecuteTemplate(w, "held-receive-items.html", data)
-	if err != nil {
-		http.Error(w, "held receiving items render error", http.StatusInternalServerError)
-	}
+	helper.JSONResponse(w, http.StatusOK, heldTransactions)
 }
 
 func (c *inventoryController) DeleteHeldReceivingItems(w http.ResponseWriter, r *http.Request) {
@@ -271,41 +210,6 @@ func (c *inventoryController) DeleteHeldReceivingItems(w http.ResponseWriter, r 
 
 		http.Error(w, "held receiving items delete error", http.StatusInternalServerError)
 		return
-	}
-}
-
-func (c *inventoryController) RenderInventoryPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	inventory, err := c.service.FetchInventory(r.Context())
-	if err != nil {
-		http.Error(w, "error fetching inventory", http.StatusInternalServerError)
-		return
-	}
-
-	perms, ok := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
-	if !ok {
-		perms = make(map[string]bool)
-	}
-	data := struct {
-		Categories    []model.Category
-		Items         []model.InventoryItem
-		Permissions   map[string]bool
-		Title         string
-		ActivePage    string
-		SubActivePage string
-	}{
-		Categories:    inventory.Categories,
-		Items:         inventory.Items,
-		Permissions:   perms,
-		Title:         "Inventory",
-		ActivePage:    "inventory",
-		SubActivePage: "item-list",
-	}
-
-	err = c.template.ExecuteTemplate(w, "inventory.html", data)
-	if err != nil {
-		http.Error(w, "inventory page render error", http.StatusInternalServerError)
 	}
 }
 
@@ -356,13 +260,37 @@ func (c *inventoryController) FetchInventory(w http.ResponseWriter, r *http.Requ
 	}
 
 	resp := struct {
-		Items []model.InventoryItem `json:"items"`
+		Items      []model.InventoryItem `json:"items"`
+		Categories []model.Category      `json:"categories"`
 	}{
-		Items: inventory.Items,
+		Items:      inventory.Items,
+		Categories: inventory.Categories,
 	}
 
 	helper.JSONResponse(w, http.StatusOK, resp)
 }
+
+func (c *inventoryController) GetTopSellingProducts(w http.ResponseWriter, r *http.Request) {
+	limit := 4
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	products, err := c.service.GetTopSellingProducts(r.Context(), limit)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to fetch top selling products", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, products)
+}
+
 func (c *inventoryController) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)

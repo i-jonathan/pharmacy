@@ -8,6 +8,8 @@ import (
 type SaleFilter struct {
 	StartDate *time.Time
 	EndDate   *time.Time
+	Page      int
+	PerPage   int
 }
 
 type SaleItem struct {
@@ -72,6 +74,9 @@ type SaleResponse struct {
 type SaleHistory struct {
 	TotalAmount float64        `json:"total"`
 	Data        []SaleResponse `json:"data"`
+	Page        int            `json:"page"`
+	PerPage     int            `json:"per_page"`
+	TotalCount  int            `json:"total_count"`
 }
 
 type HoldTransactionRequest struct {

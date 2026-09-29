@@ -22,7 +22,29 @@ func NewDashboardService(repo repository.DashboardRepository) DashboardService {
 	}
 }
 
-func (s *dashboardService) GetDashboardData(ctx context.Context) (*types.DashboardResponse, error) {
+func (s *dashboardService) GetDashboardData(ctx context.Context, startDate, endDate *time.Time) (*types.DashboardResponse, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	// Use provided dates or default to today
+	sd := todayStart
+	ed := now
+	prevStart := time.Now().AddDate(0, 0, -1).Truncate(24 * time.Hour)
+	prevEnd := todayStart
+
+	if startDate != nil {
+		sd = *startDate
+	}
+	if endDate != nil {
+		ed = *endDate
+	}
+	if startDate != nil && endDate != nil {
+		// For custom ranges, previous period is same length
+		duration := ed.Sub(sd)
+		prevEnd = sd
+		prevStart = prevEnd.Add(-duration)
+	}
+
 	// Check if user has sales total permission
 	hasSalesPermission := HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
 
@@ -32,24 +54,29 @@ func (s *dashboardService) GetDashboardData(ctx context.Context) (*types.Dashboa
 	var salesTrend []types.SalesTrendData
 
 	if hasSalesPermission {
-		// Only fetch sales data if user has permission
 		var err error
-		todaySales, err = s.repo.GetTotalSales(ctx, time.Now().Truncate(24*time.Hour), time.Now())
+		todaySales, err = s.repo.GetTotalSales(ctx, sd, ed)
 		if err != nil {
 			log.Printf("failed to get today's sales: %v", err)
 			return nil, httperror.ServerError("failed to get today's sales", err)
 		}
 
-		yesterdaySales, err = s.repo.GetTotalSales(ctx, time.Now().AddDate(0, 0, -1).Truncate(24*time.Hour), time.Now().AddDate(0, 0, -1))
+		yesterdaySales, err = s.repo.GetTotalSales(ctx, prevStart, prevEnd)
 		if err != nil {
 			log.Printf("failed to get yesterday's sales: %v", err)
 			return nil, httperror.ServerError("failed to get yesterday's sales", err)
 		}
 
-		// Get sales trend (last 7 days) - only if user has permission
-		days := []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+		// Get sales trend over the requested period
+		days := int(ed.Sub(sd).Hours() / 24)
+		if days < 1 {
+			days = 1
+		}
+		if days > 31 {
+			days = 31
+		}
 
-		for i := 6; i >= 0; i-- {
+		for i := days; i >= 0; i-- {
 			date := time.Now().AddDate(0, 0, -i)
 			dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 			dayEnd := dayStart.Add(24 * time.Hour)
@@ -60,28 +87,21 @@ func (s *dashboardService) GetDashboardData(ctx context.Context) (*types.Dashboa
 				return nil, err
 			}
 
-			dayIndex := int(date.Weekday())
-			if dayIndex == 0 { // Sunday is 0 in Go, but we want it last
-				dayIndex = 6
-			} else {
-				dayIndex--
-			}
-
 			salesTrend = append(salesTrend, types.SalesTrendData{
-				Day:   days[dayIndex],
+				Date:  date.Format("Jan 2"),
 				Sales: sales,
 			})
 		}
 	}
 
-	// Get other KPI data (these don't require sales permission)
-	todayTransactions, err := s.repo.GetTransactionCount(ctx, time.Now().Truncate(24*time.Hour), time.Now())
+	// Get other KPI data
+	todayTransactions, err := s.repo.GetTransactionCount(ctx, sd, ed)
 	if err != nil {
 		log.Printf("failed to get today's transactions: %v", err)
 		return nil, httperror.ServerError("failed to get today's transactions", err)
 	}
 
-	yesterdayTransactions, err := s.repo.GetTransactionCount(ctx, time.Now().AddDate(0, 0, -1).Truncate(24*time.Hour), time.Now().AddDate(0, 0, -1))
+	yesterdayTransactions, err := s.repo.GetTransactionCount(ctx, prevStart, prevEnd)
 	if err != nil {
 		log.Printf("failed to get yesterday's transactions: %v", err)
 		return nil, httperror.ServerError("failed to get yesterday's transactions", err)
@@ -99,14 +119,19 @@ func (s *dashboardService) GetDashboardData(ctx context.Context) (*types.Dashboa
 		return nil, httperror.ServerError("failed to get low stock count", err)
 	}
 
+	expiringCount, err := s.repo.GetExpiringCount(ctx)
+	if err != nil {
+		log.Printf("failed to get expiring count: %v", err)
+		return nil, httperror.ServerError("failed to get expiring count", err)
+	}
+
 	// Get category sales
-	categorySales, err := s.repo.GetSalesByCategory(ctx, time.Now().AddDate(0, 0, -30), time.Now())
+	categorySales, err := s.repo.GetSalesByCategory(ctx, sd, ed)
 	if err != nil {
 		log.Printf("failed to get sales by category: %v", err)
 		return nil, httperror.ServerError("failed to get category sales", err)
 	}
 
-	// Convert to percentages and format for API
 	var categorySalesData []types.CategorySalesData
 	totalSales := 0
 	for _, sale := range categorySales {
@@ -124,18 +149,40 @@ func (s *dashboardService) GetDashboardData(ctx context.Context) (*types.Dashboa
 		})
 	}
 
-	// Get expiring items data
+	// Get expiring items
 	expiringItems, err := s.repo.GetExpiringItems(ctx, time.Now(), time.Now().AddDate(0, 0, 90))
 	if err != nil {
 		log.Printf("failed to get expiring items: %v", err)
 		return nil, httperror.ServerError("failed to get expiring items", err)
 	}
 
-	// Get low stock items and convert
+	// Get expiring items grouped by category with cost values
+	expiryByCategory, err := s.repo.GetExpiringItemsByCategory(ctx, time.Now(), time.Now().AddDate(0, 0, 90))
+	if err != nil {
+		log.Printf("failed to get expiring items by category: %v", err)
+		return nil, httperror.ServerError("failed to get expiring items by category", err)
+	}
+
+	// Get top selling products for the past 7 days
+	weekStart := now.AddDate(0, 0, -7)
+	topSelling, err := s.repo.GetTopSellingProducts(ctx, weekStart, now, 5)
+	if err != nil {
+		log.Printf("failed to get top selling products: %v", err)
+		return nil, httperror.ServerError("failed to get top selling products", err)
+	}
+
+	// Get low stock items
 	lowStockItems, err := s.repo.GetLowStockItems(ctx)
 	if err != nil {
 		log.Printf("failed to get low stock items: %v", err)
 		return nil, httperror.ServerError("failed to get low stock items", err)
+	}
+
+	// Get recent transactions
+	recentTransactions, err := s.repo.GetRecentSales(ctx, sd, ed, 5)
+	if err != nil {
+		log.Printf("failed to get recent transactions: %v", err)
+		return nil, httperror.ServerError("failed to get recent transactions", err)
 	}
 
 	return &types.DashboardResponse{
@@ -144,14 +191,33 @@ func (s *dashboardService) GetDashboardData(ctx context.Context) (*types.Dashboa
 			TodayTransactions: todayTransactions,
 			TotalInventory:    totalInventory,
 			LowStockCount:     lowStockCount,
+			ExpiringCount:     expiringCount,
 			SalesTrend:        calculatePercentageChange(float64(yesterdaySales), float64(todaySales)),
 			TransactionTrend:  calculatePercentageChange(float64(yesterdayTransactions), float64(todayTransactions)),
 		},
-		SalesTrend:    salesTrend,
-		CategorySales: categorySalesData,
-		ExpiringItems: convertExpiringItems(expiringItems),
-		LowStockItems: convertLowStockItems(lowStockItems),
+		SalesTrend:         salesTrend,
+		CategorySales:      categorySalesData,
+		TopSellingProducts: convertTopSellingProducts(topSelling),
+		ExpiringItems:      convertExpiringItems(expiringItems),
+		ExpiryByCategory:   convertExpiryByCategory(expiryByCategory),
+		LowStockItems:      convertLowStockItems(lowStockItems),
+		RecentTransactions: convertRecentTransactions(recentTransactions),
 	}, nil
+}
+
+func convertRecentTransactions(transactions []model.RecentTransaction) []types.RecentTransactionData {
+	var result []types.RecentTransactionData
+	for _, t := range transactions {
+		result = append(result, types.RecentTransactionData{
+			ID:            t.ID,
+			ReceiptNumber: t.ReceiptNumber,
+			Total:         t.Total,
+			ItemCount:     t.ItemCount,
+			Status:        t.Status,
+			CreatedAt:     t.CreatedAt,
+		})
+	}
+	return result
 }
 
 func calculatePercentageChange(oldValue, newValue float64) float64 {
@@ -159,7 +225,7 @@ func calculatePercentageChange(oldValue, newValue float64) float64 {
 		if newValue == 0 {
 			return 0
 		}
-		return 100 // 100% increase from 0
+		return 100
 	}
 	return ((newValue - oldValue) / oldValue) * 100
 }
@@ -174,6 +240,30 @@ func convertExpiringItems(items []model.ExpiringItem) []types.ExpiringItemData {
 			CostPriceKobo:   item.CostPriceKobo,
 			ExpiryDate:      item.ExpiryDate,
 			DaysUntilExpiry: item.DaysUntilExpiry,
+		})
+	}
+	return result
+}
+
+func convertExpiryByCategory(items []model.ExpiryByCategory) []types.ExpiryByCategoryData {
+	var result []types.ExpiryByCategoryData
+	for _, item := range items {
+		result = append(result, types.ExpiryByCategoryData{
+			Category:      item.Category,
+			Count:         item.Count,
+			TotalCostKobo: item.TotalCostKobo,
+		})
+	}
+	return result
+}
+
+func convertTopSellingProducts(items []model.TopSellingProduct) []types.TopSellingProductData {
+	var result []types.TopSellingProductData
+	for _, item := range items {
+		result = append(result, types.TopSellingProductData{
+			ProductName: item.ProductName,
+			Quantity:    item.Quantity,
+			RevenueKobo: item.RevenueKobo,
 		})
 	}
 	return result

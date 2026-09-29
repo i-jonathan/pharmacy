@@ -3,11 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/helper"
 	"pharmacy/httperror"
-	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/service"
 	"strconv"
@@ -15,35 +13,10 @@ import (
 
 type adminController struct {
 	adminService service.AdminService
-	template     *template.Template
 }
 
-func NewAdminController(svc service.AdminService, tmpl *template.Template) *adminController {
-	return &adminController{adminService: svc, template: tmpl}
-}
-
-func (c *adminController) GetAdminDashboard(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	perms, ok := r.Context().Value(constant.PermissionsSessionKey).(map[string]bool)
-	if !ok {
-		perms = make(map[string]bool)
-	}
-
-	data := struct {
-		Permissions map[string]bool
-		Title       string
-		ActivePage  string
-	}{
-		Permissions: perms,
-		Title:       "Admin Dashboard",
-		ActivePage:  "admin",
-	}
-
-	err := c.template.ExecuteTemplate(w, "admin.html", data)
-	if err != nil {
-		http.Error(w, "admin page render error", http.StatusInternalServerError)
-	}
+func NewAdminController(svc service.AdminService) *adminController {
+	return &adminController{adminService: svc}
 }
 
 func (c *adminController) ListModules(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,121 @@
+<template>
+  <div class="space-y-6 p-4 sm:p-6 lg:p-8">
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center justify-center py-24">
+      <div class="text-muted-foreground">Loading dashboard data...</div>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="error" class="flex flex-col items-center justify-center py-24">
+      <div class="text-destructive mb-4">{{ error }}</div>
+      <Button variant="outline" @click="fetchDashboard(dateFilter)">Retry</Button>
+    </div>
+
+    <!-- Dashboard Content -->
+    <template v-else>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-medium text-foreground">Today at a glance</h2>
+          <p class="mt-1 text-xs text-muted-foreground">Key sales and stock signals for the selected period.</p>
+        </div>
+        <DateFilterBar v-model="dateFilter" @update:model-value="onFilterChange" />
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <MetricCard
+          title="Total Sales"
+          :formatted-value="formatNaira(getKPIValue('today_sales', 0))"
+          :trend="getKPIValue('sales_trend', null)"
+          :icon="DollarSign"
+          accent="emerald"
+        />
+        <MetricCard
+          title="Total Orders"
+          :formatted-value="getKPIValue('today_transactions', 0).toLocaleString()"
+          :trend="getKPIValue('transaction_trend', null)"
+          :icon="ShoppingCart"
+          accent="emerald"
+        />
+        <MetricCard
+          title="Total Products"
+          :formatted-value="getKPIValue('total_inventory', 0).toLocaleString()"
+          subtitle="Products in inventory"
+          :icon="Package"
+          accent="emerald"
+        />
+        <MetricCard
+          title="Low Stock Items"
+          :formatted-value="getKPIValue('low_stock_count', 0).toLocaleString()"
+          subtitle="View and Restock"
+          :icon="AlertTriangle"
+          accent="amber"
+          clickable
+          @click="goToLowStock"
+        />
+        <MetricCard
+          title="Expiring Soon"
+          :formatted-value="getKPIValue('expiring_count', 0).toLocaleString()"
+          subtitle="View All"
+          :icon="Calendar"
+          accent="amber"
+          clickable
+          @click="goToExpiring"
+        />
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SalesTrendChart />
+        <TopSellingProducts :data="dashboardData?.top_selling_products ?? []" />
+      </div>
+
+      <!-- Recent Transactions + Low Stock Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RecentTransactions :transactions="dashboardData?.recent_transactions ?? []" />
+        <LowStockTable :items="dashboardData?.low_stock_items ?? []" :limit="5" @view-all="goToLowStock" />
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup>
+import { onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { DollarSign, ShoppingCart, Package, AlertTriangle, Calendar } from "lucide-vue-next";
+import { Button } from "@/components/ui/button";
+import { useDashboard } from "../composables/useDashboard.js";
+import { shared } from "../store.js";
+import MetricCard from "./MetricCard.vue";
+import SalesTrendChart from "./SalesTrendChart.vue";
+import TopSellingProducts from "./TopSellingProducts.vue";
+import RecentTransactions from "./RecentTransactions.vue";
+import LowStockTable from "./LowStockTable.vue";
+import DateFilterBar from "./DateFilterBar.vue";
+
+const router = useRouter();
+const { loading, error, dashboardData, dateFilter, fetchDashboard, getKPIValue } = useDashboard();
+
+function formatNaira(kobo) {
+  const naira = kobo / 100;
+  return `₦${naira.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function onFilterChange(filter) {
+  fetchDashboard(filter);
+}
+
+function goToLowStock() {
+  shared.lowStockItems = dashboardData.value?.low_stock_items ?? [];
+  router.push({ name: "low-stock" });
+}
+
+function goToExpiring() {
+  shared.expiringItems = dashboardData.value?.expiring_items ?? [];
+  router.push({ name: "expiring" });
+}
+
+onMounted(() => {
+  fetchDashboard(dateFilter.value);
+});
+</script>

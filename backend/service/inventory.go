@@ -23,6 +23,19 @@ func NewInventoryService(repo repository.PharmacyRepository) *inventoryService {
 }
 
 func (s *inventoryService) CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error) {
+	if params.Name == "" {
+		return types.AddItemResponse{}, httperror.BadRequest("product name is required", fmt.Errorf("empty name"))
+	}
+	if params.CategoryID <= 0 {
+		return types.AddItemResponse{}, httperror.BadRequest("category is required", fmt.Errorf("invalid category"))
+	}
+	if params.CostPrice <= 0 {
+		return types.AddItemResponse{}, httperror.BadRequest("cost price must be greater than 0", fmt.Errorf("invalid cost price"))
+	}
+	if params.SellingPrice <= 0 {
+		return types.AddItemResponse{}, httperror.BadRequest("selling price must be greater than 0", fmt.Errorf("invalid selling price"))
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
@@ -138,6 +151,29 @@ func (s *inventoryService) SearchForSuppliers(ctx context.Context, query string)
 
 func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params types.ReceiveSupplyRequest) error {
 	log.Printf("Starting receive items process for %d products", len(params.Products))
+
+	// Validate
+	if strings.TrimSpace(params.Supplier) == "" {
+		return httperror.BadRequest("supplier is required", fmt.Errorf("empty supplier"))
+	}
+	if len(params.Products) == 0 {
+		return httperror.BadRequest("at least one product is required", fmt.Errorf("no products"))
+	}
+	for i, value := range params.Products {
+		if value.Quantity <= 0 {
+			return httperror.BadRequest(fmt.Sprintf("product %d: quantity must be > 0", i+1), fmt.Errorf("invalid quantity"))
+		}
+		if value.CostPrice <= 0 {
+			return httperror.BadRequest(fmt.Sprintf("product %d: cost price must be > 0", i+1), fmt.Errorf("invalid cost price"))
+		}
+		if value.SellingPrice <= 0 {
+			return httperror.BadRequest(fmt.Sprintf("product %d: selling price must be > 0", i+1), fmt.Errorf("invalid selling price"))
+		}
+		// Validate expiry date is not in the past
+		if !value.Expiry.IsZero() && value.Expiry.Before(time.Now()) {
+			return httperror.BadRequest(fmt.Sprintf("product %d: expiry date is in the past", i+1), fmt.Errorf("expired"))
+		}
+	}
 
 	// Start timing
 	start := time.Now()
@@ -455,27 +491,29 @@ func (s *inventoryService) UpdateProduct(ctx context.Context, id int, params typ
 		}
 	}
 
-	// Handle stock adjustment
-	stockDiff := params.Stock - currentProduct.Stock
-	if stockDiff != 0 {
-		movementType := model.MovementTypeInManualAdjustment
-		absDiff := stockDiff
-		if stockDiff < 0 {
-			movementType = model.MovementTypeOutManualAdjustment
-			absDiff = -stockDiff
-		}
+	// Handle stock adjustment (only when stock is explicitly provided)
+	if params.Stock != nil {
+		stockDiff := *params.Stock - currentProduct.Stock
+		if stockDiff != 0 {
+			movementType := model.MovementTypeInManualAdjustment
+			absDiff := stockDiff
+			if stockDiff < 0 {
+				movementType = model.MovementTypeOutManualAdjustment
+				absDiff = -stockDiff
+			}
 
-		movement := model.StockMovement{
-			ProductID:    id,
-			Quantity:     absDiff,
-			MovementType: movementType,
-			ReferenceID:  id, // Self-referencing product ID for manual adjustments
-		}
+			movement := model.StockMovement{
+				ProductID:    id,
+				Quantity:     absDiff,
+				MovementType: movementType,
+				ReferenceID:  id,
+			}
 
-		if err := s.repo.CreateStockMovementTx(ctx, tx, movement); err != nil {
-			log.Println(err)
-			s.repo.RollbackTx(tx)
-			return httperror.ServerError("failed to record stock adjustment", err)
+			if err := s.repo.CreateStockMovementTx(ctx, tx, movement); err != nil {
+				log.Println(err)
+				s.repo.RollbackTx(tx)
+				return httperror.ServerError("failed to record stock adjustment", err)
+			}
 		}
 	}
 
@@ -515,6 +553,25 @@ func (s *inventoryService) FetchProductByID(ctx context.Context, id int) (types.
 		},
 		PriceOptions: priceOptions,
 	}, nil
+}
+
+func (s *inventoryService) GetTopSellingProducts(ctx context.Context, limit int) ([]types.TopSellingProductData, error) {
+	products, err := s.repo.GetTopSellingProductsAllTime(ctx, limit)
+	if err != nil {
+		log.Println("error fetching top selling products:", err)
+		return nil, httperror.ServerError("failed to fetch top selling products", err)
+	}
+
+	result := make([]types.TopSellingProductData, len(products))
+	for i, p := range products {
+		result[i] = types.TopSellingProductData{
+			ProductName:  p.ProductName,
+			Manufacturer: p.Manufacturer,
+			Quantity:     p.Quantity,
+			RevenueKobo:  p.RevenueKobo,
+		}
+	}
+	return result, nil
 }
 
 func (s *inventoryService) FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error) {

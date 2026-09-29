@@ -4,6 +4,7 @@ import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: "/static/dist/",
   plugins: [vue()],
   build: {
     outDir: "../backend/template/static/dist",
@@ -11,11 +12,8 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
-        dashboard: "./src/main.js",
-        stockCounting: "./src/stock-taking/counting/main.js",
-        stockDashboard: "./src/stock-taking/dashboard/main.js",
-        receivedItemsHistory: "./src/inventory/received-items-history/main.js",
-        admin: "./src/admin/main.js",
+        next: "./src/next/main.js",
+        login: "./src/login/main.js",
       },
     },
   },
@@ -27,6 +25,22 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/sales": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/inventory": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/admin": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/stock-taking": {
         target: "http://localhost:8000",
         changeOrigin: true,
       },

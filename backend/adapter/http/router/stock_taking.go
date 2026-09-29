@@ -12,13 +12,11 @@ import (
 )
 
 func InitStockTakingRouter(svc service.StockTakingService, tmpl *template.Template, wsHub *websocket.Hub) http.Handler {
-	stockTakingController := controller.NewStockTakingController(svc, tmpl, wsHub)
+	stockTakingController := controller.NewStockTakingController(svc, wsHub)
 	stockTakingMux := http.NewServeMux()
 
-	stockTakingMux.HandleFunc(http.MethodGet+" /{$}", stockTakingController.RenderStockTakingDashboard)
 	stockTakingMux.HandleFunc(http.MethodGet+" /api/list", stockTakingController.ListStockTakings)
 	stockTakingMux.HandleFunc(http.MethodPost+" /api/create", stockTakingController.CreateStockTaking)
-	stockTakingMux.HandleFunc(http.MethodGet+" /{id}", stockTakingController.RenderStockTakingPage)
 	stockTakingMux.Handle(http.MethodGet+" /api/{id}", middleware.AddPermissionsToContext(
 		http.HandlerFunc(stockTakingController.FetchStockTaking),
 	))

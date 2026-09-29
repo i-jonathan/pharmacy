@@ -4,18 +4,15 @@ import (
 	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
-	"pharmacy/httperror"
 )
 
 func InitAppRouter(tmpl *template.Template) http.Handler {
 	appController := controller.NewAppController(tmpl)
 	appMux := http.NewServeMux()
-	
-	appMux.HandleFunc(http.MethodGet + " /dashboard", appController.GetDashboard)
-	
-	appMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		httperror.NotFound("", nil).Render(w, tmpl)
-	})
-	
+
+	// Serve the Vue SPA shell for /app/ and its routes.
+	appMux.HandleFunc("GET /{$}", appController.ServeV2)
+	appMux.HandleFunc("GET /{path...}", appController.ServeV2)
+
 	return http.StripPrefix("/app", appMux)
 }

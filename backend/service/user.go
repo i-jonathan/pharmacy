@@ -65,6 +65,7 @@ func (s *userService) AuthenticateUser(ctx context.Context, user *model.User) er
 	}
 	user.ID = storedUser.ID
 	user.RoleID = storedUser.RoleID
+	user.RoleName = storedUser.RoleName
 	user.Password = ""
 	user.Permissions = storedUser.Permissions
 	return nil
