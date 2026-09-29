@@ -1,72 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Code}} Error | Primocrest Pharmacy</title>
-    <link href="/static/css/tailwind.css" rel="stylesheet">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f9f7" />
+    <title>
+      {{if eq .Code 404}}Page not found{{else if eq .Code 403}}Access denied{{else if eq .Code 401}}Sign in required{{else if eq .Code 500}}Something went wrong{{else}}Request error{{end}}
+      | Primocrest Pharmacy
+    </title>
+    <link href="/static/css/tailwind.css" rel="stylesheet" />
     <style>
-        html {
-            transition: background-color 0.3s, color 0.3s;
-        }
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      html.dark { color-scheme: dark; }
+      body { min-height: 100vh; min-height: 100dvh; }
+      .error-action:focus-visible { outline: 3px solid rgb(21 128 61 / 30%); outline-offset: 3px; }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
     </style>
-</head>
-<body class="bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 min-h-screen flex flex-col items-center justify-center p-6 text-center">
-    
-    <div class="max-w-md w-full space-y-8">
-        <!-- Error Icon/Graphic -->
-        <div class="relative">
-            <div class="text-9xl font-extrabold text-emerald-500 opacity-20 dark:opacity-10 absolute inset-0 flex items-center justify-center select-none">
-                {{.Code}}
-            </div>
-            <div class="relative z-10">
-                {{if eq .Code 404}}
-                <div class="text-6xl mb-4">🔍</div>
-                {{else if eq .Code 403}}
-                <div class="text-6xl mb-4">🚫</div>
-                {{else}}
-                <div class="text-6xl mb-4">⚠️</div>
-                {{end}}
-            </div>
-        </div>
+  </head>
+  <body class="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <main class="relative flex min-h-screen min-h-[100dvh] items-center justify-center overflow-hidden px-5 py-12 sm:px-8">
+      <div aria-hidden="true" class="pointer-events-none absolute -right-36 -top-40 h-[28rem] w-[28rem] rounded-full bg-emerald-200/30 blur-3xl dark:bg-emerald-900/20"></div>
+      <div aria-hidden="true" class="pointer-events-none absolute -bottom-48 -left-40 h-[30rem] w-[30rem] rounded-full bg-lime-200/30 blur-3xl dark:bg-lime-900/10"></div>
 
-        <div class="space-y-4">
-            <h1 class="text-4xl font-bold text-neutral-800 dark:text-neutral-100">
+      <div class="relative w-full max-w-2xl">
+        <a href="/" class="mb-8 inline-flex items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 focus-visible:outline-offset-4">
+          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm shadow-emerald-900/15" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
+              <path d="M8.25 3.75h7.5v4.5h4.5v7.5h-4.5v4.5h-7.5v-4.5h-4.5v-7.5h4.5v-4.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+              <path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="text-sm font-semibold tracking-tight text-neutral-800 dark:text-neutral-100">Primocrest <span class="font-normal text-neutral-500 dark:text-neutral-400">Pharmacy</span></span>
+        </a>
+
+        <section aria-labelledby="error-title" class="overflow-hidden rounded-3xl border border-neutral-200/80 bg-white/90 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.25)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/90">
+          <div class="p-7 sm:p-12">
+            <div class="mb-8 flex items-center gap-4">
+              <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl {{if eq .Code 404}}bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300{{else if or (eq .Code 401) (eq .Code 403)}}bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300{{else}}bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300{{end}}" aria-hidden="true">
                 {{if eq .Code 404}}
-                Page Not Found
-                {{else if eq .Code 403}}
-                Access Denied
-                {{else if eq .Code 500}}
-                Internal Server Error
+                <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2M10.8 7.8v3.7l2.4 1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {{else if or (eq .Code 401) (eq .Code 403)}}
+                <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
                 {{else}}
-                Oops! Something went wrong
+                <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7"><path d="m10.3 4.8-7 12.1A1.4 1.4 0 0 0 4.5 19h15a1.4 1.4 0 0 0 1.2-2.1l-7-12.1a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 9v4m0 3h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                 {{end}}
+              </div>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-800 dark:text-emerald-300">Request status <span class="mx-1 text-neutral-300 dark:text-neutral-700">/</span> {{.Code}}</p>
+                <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">We couldn’t complete that request.</p>
+              </div>
+            </div>
+
+            <h1 id="error-title" class="max-w-xl text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white sm:text-4xl">
+              {{if eq .Code 404}}We can’t find that page.{{else if eq .Code 403}}You don’t have access to this page.{{else if eq .Code 401}}Please sign in to continue.{{else if eq .Code 500}}Something went wrong on our end.{{else if eq .Code 400}}We couldn’t process that request.{{else}}We hit an unexpected problem.{{end}}
             </h1>
-            
-            <p class="text-lg text-neutral-600 dark:text-neutral-400">
-                {{.Message}}
+            <p class="mt-4 max-w-lg text-base leading-7 text-neutral-600 dark:text-neutral-300">
+              {{if eq .Code 404}}The link may be outdated, or the page may have moved. Check the address and try again.{{else if eq .Code 403}}Your account may not have the permissions needed. If you think this is a mistake, ask an administrator for help.{{else if eq .Code 401}}Your session may have expired. Sign in again and return to what you were doing.{{else if eq .Code 500}}Please try again in a moment. If the problem continues, contact your administrator.{{else if eq .Code 400}}Check the information and try again.{{else}}{{.Message}}{{end}}
             </p>
-        </div>
 
-        <div class="pt-8">
-            <a href="/app/"
-               class="inline-block px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-lg transform transition active:scale-95">
-                Back to Dashboard
-            </a>
-        </div>
-
-        <div class="pt-12 text-sm text-neutral-500 dark:text-neutral-500">
-            <p>&copy; 2026 Primocrest Pharmacy. All rights reserved.</p>
-        </div>
-    </div>
+            <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+              {{if eq .Code 401}}
+              <a href="/user/login" class="error-action inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 active:translate-y-px dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                Sign in
+                <svg viewBox="0 0 20 20" fill="none" class="h-4 w-4" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+              {{else}}
+              <a href="/app/" class="error-action inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 active:translate-y-px dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                Go to dashboard
+                <svg viewBox="0 0 20 20" fill="none" class="h-4 w-4" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+              {{end}}
+              <button type="button" onclick="if (history.length > 1) history.back(); else location.assign('/app/');" class="error-action inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 active:translate-y-px dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                <svg viewBox="0 0 20 20" fill="none" class="h-4 w-4" aria-hidden="true"><path d="M16 10H4m5 5-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Go back
+              </button>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 border-t border-neutral-100 bg-neutral-50/80 px-7 py-4 text-xs text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950/50 dark:text-neutral-400 sm:flex-row sm:items-center sm:justify-between sm:px-12">
+            <span>Primocrest Pharmacy</span>
+            <span>Need help? Contact your administrator.</span>
+          </div>
+        </section>
+      </div>
+    </main>
 
     <script>
-        // Check for theme in local storage or system preference
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+      try {
+        const savedTheme = localStorage.getItem('theme');
+        const useDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', useDark);
+      } catch (_) {
+        document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
     </script>
-</body>
+  </body>
 </html>

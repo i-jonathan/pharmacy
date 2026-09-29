@@ -78,6 +78,12 @@ const routes = [
     component: () => import("./views/StockTakingDashboard.vue"),
     meta: { title: "Stock Taking", parent: "Inventory" },
   },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    component: () => import("./views/NotFoundPage.vue"),
+    meta: { title: "Page Not Found" },
+  },
 ];
 
 const router = createRouter({
