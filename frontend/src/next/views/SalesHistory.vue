@@ -258,31 +258,18 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border/50">
-<<<<<<< Updated upstream
-                  <tr v-for="ret in detailSale.returns" :key="ret.product_name + ret.quantity">
-=======
                   <tr v-for="ret in detailSale.returns" :key="ret.sale_item_id">
->>>>>>> Stashed changes
                     <td class="px-2 py-1.5">
                       <div class="text-xs font-medium">{{ ret.product_name }}</div>
                       <div v-if="ret.manufacturer" class="text-[10px] text-muted-foreground">{{ ret.manufacturer }}</div>
                     </td>
                     <td class="px-2 py-1.5 text-center text-xs text-muted-foreground">{{ ret.quantity }}</td>
-<<<<<<< Updated upstream
-                    <td class="px-2 py-1.5 text-right text-xs font-medium">&#8358;{{ (ret.unit_price * ret.quantity).toLocaleString() }}</td>
-=======
                     <td class="px-2 py-1.5 text-right text-xs font-medium">&#8358;{{ returnedRefund(ret).toLocaleString() }}</td>
->>>>>>> Stashed changes
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
-<<<<<<< Updated upstream
-        </div>
-      </div>
-    </Transition>
-=======
 
           <div class="border-t border-border px-4 py-4">
             <Button
@@ -395,20 +382,14 @@
     <div v-if="toast" class="fixed bottom-5 right-5 z-[80] rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-xl" role="status">
       {{ toast }}
     </div>
->>>>>>> Stashed changes
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
-<<<<<<< Updated upstream
-import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
-=======
 import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X, Undo2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
->>>>>>> Stashed changes
 import {
   Table,
   TableBody,
@@ -436,8 +417,6 @@ const perPage = ref(20);
 
 const rowRefs = ref([]);
 const tableContainerRef = ref(null);
-<<<<<<< Updated upstream
-=======
 const returnDialogOpen = ref(false);
 const returnSubmitting = ref(false);
 const returnQuantities = ref({});
@@ -445,13 +424,10 @@ const returnNotes = ref("");
 const returnError = ref("");
 const toast = ref("");
 let toastTimer = null;
->>>>>>> Stashed changes
 
 const totalCount = ref(0);
 const totalItems = computed(() => totalCount.value);
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / perPage.value)));
-<<<<<<< Updated upstream
-=======
 const hasReturnableItems = computed(() => detailSale.value?.items?.some((item) => Number(item.returned_quantity || 0) < Number(item.quantity)) ?? false);
 const selectedReturnItems = computed(() => detailSale.value?.items?.filter((item) => Number(returnQuantities.value[item.id] || 0) > 0) ?? []);
 const hasSelectedReturnItems = computed(() => selectedReturnItems.value.length > 0 && selectedReturnItems.value.every((item) => {
@@ -459,7 +435,6 @@ const hasSelectedReturnItems = computed(() => selectedReturnItems.value.length >
   return Number.isInteger(quantity) && quantity > 0 && quantity <= Number(item.quantity) - Number(item.returned_quantity || 0);
 }));
 const returnRefundTotal = computed(() => selectedReturnItems.value.reduce((sum, item) => sum + returnRefundAmount(item, Number(returnQuantities.value[item.id] || 0)), 0));
->>>>>>> Stashed changes
 
 // Backend returns already-paginated data; client-side search filters within current page
 const filteredSales = computed(() => {
@@ -499,8 +474,6 @@ function lineTotal(item) {
   return Math.max(0, (item.unit_price * item.quantity) - (item.discount || 0));
 }
 
-<<<<<<< Updated upstream
-=======
 function returnRefundAmount(item, quantity, previouslyReturned = Number(item.returned_quantity || 0)) {
   if (!item || item.quantity <= 0 || quantity <= 0) return 0;
   const lineTotalKobo = Math.max(0, Math.round((Number(item.unit_price) * Number(item.quantity) - Number(item.discount || 0)) * 100));
@@ -515,7 +488,6 @@ function returnedRefund(returnedItem) {
   return item ? returnRefundAmount(item, Number(returnedItem.quantity), 0) : 0;
 }
 
->>>>>>> Stashed changes
 function rowClass(i) {
   return [
     "hover:bg-muted/20 focus:ring-1 focus:ring-ring focus:ring-inset",
@@ -654,8 +626,6 @@ function closeDetail() {
   detailSale.value = null;
 }
 
-<<<<<<< Updated upstream
-=======
 function openReturnDialog() {
   if (!detailSale.value) return;
   returnQuantities.value = Object.fromEntries(
@@ -714,7 +684,6 @@ async function submitReturn() {
   }
 }
 
->>>>>>> Stashed changes
 function formatDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -777,9 +746,6 @@ onMounted(() => {
 .slide-panel-leave-to {
   opacity: 0;
 }
-<<<<<<< Updated upstream
-</style>
-=======
 
 input.no-spinners::-webkit-outer-spin-button,
 input.no-spinners::-webkit-inner-spin-button {
@@ -791,4 +757,3 @@ input.no-spinners[type="number"] {
   -moz-appearance: textfield;
 }
 </style>
->>>>>>> Stashed changes
