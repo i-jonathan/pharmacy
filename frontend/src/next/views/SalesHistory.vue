@@ -258,28 +258,157 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border/50">
+<<<<<<< Updated upstream
                   <tr v-for="ret in detailSale.returns" :key="ret.product_name + ret.quantity">
+=======
+                  <tr v-for="ret in detailSale.returns" :key="ret.sale_item_id">
+>>>>>>> Stashed changes
                     <td class="px-2 py-1.5">
                       <div class="text-xs font-medium">{{ ret.product_name }}</div>
                       <div v-if="ret.manufacturer" class="text-[10px] text-muted-foreground">{{ ret.manufacturer }}</div>
                     </td>
                     <td class="px-2 py-1.5 text-center text-xs text-muted-foreground">{{ ret.quantity }}</td>
+<<<<<<< Updated upstream
                     <td class="px-2 py-1.5 text-right text-xs font-medium">&#8358;{{ (ret.unit_price * ret.quantity).toLocaleString() }}</td>
+=======
+                    <td class="px-2 py-1.5 text-right text-xs font-medium">&#8358;{{ returnedRefund(ret).toLocaleString() }}</td>
+>>>>>>> Stashed changes
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
+<<<<<<< Updated upstream
         </div>
       </div>
     </Transition>
+=======
+
+          <div class="border-t border-border px-4 py-4">
+            <Button
+              v-if="hasReturnableItems"
+              class="w-full sm:w-auto"
+              variant="outline"
+              @click="openReturnDialog"
+            >
+              <Undo2 :size="15" class="mr-2" />
+              Return items
+            </Button>
+            <p v-else class="text-xs text-muted-foreground">All items on this sale have been returned.</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <div
+      v-if="returnDialogOpen && detailSale"
+      class="fixed inset-0 z-[70] flex items-end justify-center bg-neutral-950/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-5"
+      @click.self="closeReturnDialog"
+      @keydown.esc="closeReturnDialog"
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="return-dialog-title"
+        class="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl"
+      >
+        <header class="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
+          <div>
+            <h2 id="return-dialog-title" class="text-base font-semibold text-foreground">Return sold items</h2>
+            <p class="mt-0.5 text-xs text-muted-foreground">Receipt {{ detailSale.receipt_number }}</p>
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close return dialog" :disabled="returnSubmitting" @click="closeReturnDialog">
+            <X :size="16" />
+          </Button>
+        </header>
+
+        <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          <p class="mb-4 rounded-lg bg-muted/50 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+            Enter the quantity being returned. The refund preview includes the original line discount. Returned quantities cannot be returned again.
+          </p>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full min-w-[560px] text-sm">
+              <thead class="bg-muted/40">
+                <tr>
+                  <th class="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Item</th>
+                  <th class="w-20 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Sold</th>
+                  <th class="w-24 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Returned</th>
+                  <th class="w-32 px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Return qty</th>
+                  <th class="w-28 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Refund</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <tr v-for="item in detailSale.items" :key="item.id">
+                  <td class="px-3 py-3">
+                    <p class="font-medium text-foreground">{{ item.product_name }}</p>
+                    <p v-if="item.manufacturer" class="mt-0.5 text-xs text-muted-foreground">{{ item.manufacturer }}</p>
+                  </td>
+                  <td class="px-3 py-3 text-right text-muted-foreground">{{ item.quantity }}</td>
+                  <td class="px-3 py-3 text-right text-muted-foreground">{{ item.returned_quantity || 0 }}</td>
+                  <td class="px-3 py-2 text-center">
+                    <input
+                      v-model.number="returnQuantities[item.id]"
+                      type="number"
+                      min="0"
+                      :max="Math.max(0, item.quantity - (item.returned_quantity || 0))"
+                      :disabled="Math.max(0, item.quantity - (item.returned_quantity || 0)) === 0 || returnSubmitting"
+                      :aria-label="`Quantity to return for ${item.product_name}`"
+                      class="no-spinners h-9 w-20 rounded-md border border-border bg-background px-2 text-right text-sm text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                    />
+                  </td>
+                  <td class="px-3 py-3 text-right font-medium text-foreground">₦{{ returnRefundAmount(item, Number(returnQuantities[item.id] || 0)).toLocaleString() }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <label class="mt-4 block">
+            <span class="text-xs font-medium text-foreground">Return note <span class="font-normal text-muted-foreground">(optional)</span></span>
+            <textarea
+              v-model="returnNotes"
+              rows="2"
+              maxlength="500"
+              placeholder="Add a reason or note for the transaction"
+              class="mt-1.5 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+            ></textarea>
+          </label>
+
+          <p v-if="returnError" role="alert" class="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ returnError }}</p>
+        </div>
+
+        <footer class="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Refund total</p>
+            <p class="text-xl font-bold text-foreground">₦{{ returnRefundTotal.toLocaleString() }}</p>
+          </div>
+          <div class="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" :disabled="returnSubmitting" @click="closeReturnDialog">Cancel</Button>
+            <Button :disabled="!hasSelectedReturnItems || returnSubmitting" @click="submitReturn">
+              <RotateCw v-if="returnSubmitting" :size="15" class="mr-2 animate-spin" />
+              {{ returnSubmitting ? 'Processing return…' : 'Confirm return' }}
+            </Button>
+          </div>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="toast" class="fixed bottom-5 right-5 z-[80] rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-xl" role="status">
+      {{ toast }}
+    </div>
+>>>>>>> Stashed changes
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
+<<<<<<< Updated upstream
 import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+=======
+import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X, Undo2 } from "lucide-vue-next";
+import { Button } from "@/components/ui/button";
+import { csrfFetch } from "../lib/csrf.js";
+>>>>>>> Stashed changes
 import {
   Table,
   TableBody,
@@ -307,10 +436,30 @@ const perPage = ref(20);
 
 const rowRefs = ref([]);
 const tableContainerRef = ref(null);
+<<<<<<< Updated upstream
+=======
+const returnDialogOpen = ref(false);
+const returnSubmitting = ref(false);
+const returnQuantities = ref({});
+const returnNotes = ref("");
+const returnError = ref("");
+const toast = ref("");
+let toastTimer = null;
+>>>>>>> Stashed changes
 
 const totalCount = ref(0);
 const totalItems = computed(() => totalCount.value);
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / perPage.value)));
+<<<<<<< Updated upstream
+=======
+const hasReturnableItems = computed(() => detailSale.value?.items?.some((item) => Number(item.returned_quantity || 0) < Number(item.quantity)) ?? false);
+const selectedReturnItems = computed(() => detailSale.value?.items?.filter((item) => Number(returnQuantities.value[item.id] || 0) > 0) ?? []);
+const hasSelectedReturnItems = computed(() => selectedReturnItems.value.length > 0 && selectedReturnItems.value.every((item) => {
+  const quantity = Number(returnQuantities.value[item.id]);
+  return Number.isInteger(quantity) && quantity > 0 && quantity <= Number(item.quantity) - Number(item.returned_quantity || 0);
+}));
+const returnRefundTotal = computed(() => selectedReturnItems.value.reduce((sum, item) => sum + returnRefundAmount(item, Number(returnQuantities.value[item.id] || 0)), 0));
+>>>>>>> Stashed changes
 
 // Backend returns already-paginated data; client-side search filters within current page
 const filteredSales = computed(() => {
@@ -350,6 +499,23 @@ function lineTotal(item) {
   return Math.max(0, (item.unit_price * item.quantity) - (item.discount || 0));
 }
 
+<<<<<<< Updated upstream
+=======
+function returnRefundAmount(item, quantity, previouslyReturned = Number(item.returned_quantity || 0)) {
+  if (!item || item.quantity <= 0 || quantity <= 0) return 0;
+  const lineTotalKobo = Math.max(0, Math.round((Number(item.unit_price) * Number(item.quantity) - Number(item.discount || 0)) * 100));
+  const soldQuantity = Number(item.quantity);
+  const before = Math.floor(lineTotalKobo * previouslyReturned / soldQuantity);
+  const after = Math.floor(lineTotalKobo * (previouslyReturned + quantity) / soldQuantity);
+  return (after - before) / 100;
+}
+
+function returnedRefund(returnedItem) {
+  const item = detailSale.value?.items?.find((saleItem) => saleItem.id === returnedItem.sale_item_id);
+  return item ? returnRefundAmount(item, Number(returnedItem.quantity), 0) : 0;
+}
+
+>>>>>>> Stashed changes
 function rowClass(i) {
   return [
     "hover:bg-muted/20 focus:ring-1 focus:ring-ring focus:ring-inset",
@@ -488,6 +654,67 @@ function closeDetail() {
   detailSale.value = null;
 }
 
+<<<<<<< Updated upstream
+=======
+function openReturnDialog() {
+  if (!detailSale.value) return;
+  returnQuantities.value = Object.fromEntries(
+    detailSale.value.items.map((item) => [item.id, 0]),
+  );
+  returnNotes.value = "";
+  returnError.value = "";
+  returnDialogOpen.value = true;
+}
+
+function closeReturnDialog() {
+  if (returnSubmitting.value) return;
+  returnDialogOpen.value = false;
+  returnError.value = "";
+}
+
+async function submitReturn() {
+  if (!detailSale.value || !hasSelectedReturnItems.value || returnSubmitting.value) return;
+
+  returnSubmitting.value = true;
+  returnError.value = "";
+  const saleID = detailSale.value.id;
+  const page = currentPage.value;
+  const payload = {
+    sale_id: saleID,
+    notes: returnNotes.value.trim(),
+    return_items: selectedReturnItems.value.map((item) => ({
+      sale_item_id: item.id,
+      quantity: Number(returnQuantities.value[item.id]),
+    })),
+  };
+
+  try {
+    const response = await csrfFetch(`${API}/sales/returns`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `Could not process return (${response.status})`);
+    }
+
+    returnDialogOpen.value = false;
+    await goPage(page);
+    const refreshedIndex = sales.value.findIndex((sale) => sale.id === saleID);
+    detailSale.value = refreshedIndex >= 0 ? sales.value[refreshedIndex] : null;
+    selectedIndex.value = refreshedIndex;
+    toast.value = `Return processed · ₦${returnRefundTotal.value.toLocaleString()}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.value = ""; }, 3500);
+  } catch (e) {
+    returnError.value = e.message || "Failed to process return";
+  } finally {
+    returnSubmitting.value = false;
+  }
+}
+
+>>>>>>> Stashed changes
 function formatDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -550,4 +777,18 @@ onMounted(() => {
 .slide-panel-leave-to {
   opacity: 0;
 }
+<<<<<<< Updated upstream
 </style>
+=======
+
+input.no-spinners::-webkit-outer-spin-button,
+input.no-spinners::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input.no-spinners[type="number"] {
+  -moz-appearance: textfield;
+}
+</style>
+>>>>>>> Stashed changes

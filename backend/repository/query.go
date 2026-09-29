@@ -152,16 +152,16 @@ const createSaleQuery = `
 	RETURNING id;
 `
 const createSaleItemQuery = `
-	INSERT INTO sales_item (sale_id, product_id, quantity, unit_price, discount, total_price)
-	VALUES ($1, $2, $3, $4, $5, $6);
+	INSERT INTO sales_item (sale_id, product_id, quantity, stock_quantity_per_unit, unit_price, discount, total_price)
+	VALUES ($1, $2, $3, $4, $5, $6, $7);
 `
 const createSalePaymentQuery = `
 	INSERT INTO sales_payment (sale_id, amount, payment_method)
 	VALUES ($1, $2, $3);
 `
 const bulkCreateSaleItemQuery = `
-	INSERT INTO sales_item (sale_id, product_id, quantity, unit_price, discount, total_price)
-	VALUES (:sale_id, :product_id, :quantity, :unit_price, :discount, :total_price);
+	INSERT INTO sales_item (sale_id, product_id, quantity, stock_quantity_per_unit, unit_price, discount, total_price)
+	VALUES (:sale_id, :product_id, :quantity, :stock_quantity_per_unit, :unit_price, :discount, :total_price);
 `
 const bulkCreateSalePaymentQuery = `
 	INSERT INTO sales_payment (sale_id, amount, payment_method)
@@ -203,16 +203,16 @@ const sumReturnTotalQuery = `
 `
 const fetchSalesByIDQuery = `
 	SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
-	FROM sales WHERE id = $1;
+	FROM sales WHERE id = $1 FOR UPDATE;
 `
 const fetchSaleItemsBySaleIDQuery = `
-	SELECT id, product_id, quantity, unit_price, discount, total_price
+	SELECT id, product_id, quantity, stock_quantity_per_unit, unit_price, discount, total_price
 	FROM sales_item
 	WHERE sale_id = $1
 	ORDER BY created_at
 `
 const bulkFetchSaleItemsQuery = `
-	SELECT id, sale_id, product_id, quantity, unit_price, discount, total_price
+	SELECT id, sale_id, product_id, quantity, stock_quantity_per_unit, unit_price, discount, total_price
 	FROM sales_item WHERE sale_id = ANY($1)
 	ORDER BY created_at DESC
 `

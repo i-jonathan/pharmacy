@@ -38,12 +38,13 @@ type Sale struct {
 }
 
 type SaleItemResponse struct {
-	ID           int     `json:"id"`
-	ProductName  string  `json:"product_name"`
-	Manufacturer string  `json:"manufacturer"`
-	Quantity     int     `json:"quantity"`
-	UnitPrice    float64 `json:"unit_price"`
-	Discount     float64 `json:"discount"`
+	ID               int     `json:"id"`
+	ProductName      string  `json:"product_name"`
+	Manufacturer     string  `json:"manufacturer"`
+	Quantity         int     `json:"quantity"`
+	ReturnedQuantity int     `json:"returned_quantity"`
+	UnitPrice        float64 `json:"unit_price"`
+	Discount         float64 `json:"discount"`
 }
 
 type SalePaymentResponse struct {
@@ -52,6 +53,7 @@ type SalePaymentResponse struct {
 }
 
 type ReturnItemResponse struct {
+	SaleItemID   int     `json:"sale_item_id"`
 	Name         string  `json:"product_name"`
 	Manufacturer string  `json:"manufacturer"`
 	UnitPrice    float64 `json:"unit_price"`

@@ -78,6 +78,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 			log.Println(err)
 			return httperror.ServerError("failed to fetch product price", err)
 		}
+		saleItems[i].StockQuantityPerUnit = selectedPrice.QuantityPerUnit
 
 		stockMovement[i] = model.StockMovement{
 			ProductID:    v.ProductID,
@@ -196,8 +197,10 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 
 	// group return items by sale_id
 	returnsBySaleID := make(map[int][]model.ReturnItemWithSale)
+	returnedQuantityBySaleItemID := make(map[int]int)
 	for _, r := range returns {
 		returnsBySaleID[r.SaleID] = append(returnsBySaleID[r.SaleID], r)
+		returnedQuantityBySaleItemID[r.SaleItemID] += r.Quantity
 	}
 
 	// fetch & index products to prepare for final structuring
@@ -257,12 +260,13 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		for _, item := range s.SaleItems {
 			p := productsByID[item.ProductID]
 			items = append(items, types.SaleItemResponse{
-				ID:           item.ID,
-				ProductName:  p.Name,
-				Manufacturer: *p.Manufacturer,
-				Quantity:     item.Quantity,
-				UnitPrice:    float64(item.UnitPrice) / 100,
-				Discount:     float64(item.Discount) / 100,
+				ID:               item.ID,
+				ProductName:      p.Name,
+				Manufacturer:     *p.Manufacturer,
+				Quantity:         item.Quantity,
+				ReturnedQuantity: returnedQuantityBySaleItemID[item.ID],
+				UnitPrice:        float64(item.UnitPrice) / 100,
+				Discount:         float64(item.Discount) / 100,
 			})
 
 			saleItemsByID[item.ID] = item
@@ -283,13 +287,14 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			item := saleItemsByID[r.SaleItemID]
 			p := productsByID[item.ProductID]
 			returnsResp = append(returnsResp, types.ReturnItemResponse{
+				SaleItemID:   r.SaleItemID,
 				Name:         p.Name,
 				Manufacturer: *p.Manufacturer,
 				UnitPrice:    float64(item.UnitPrice) / 100,
 				Quantity:     r.Quantity,
 			})
 
-			}
+		}
 
 		// build the final response
 		resp := types.SaleResponse{
@@ -313,10 +318,10 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	history := types.SaleHistory{
-		Data:        responses,
-		Page:        filter.Page,
-		PerPage:     filter.PerPage,
-		TotalCount:  totalCount,
+		Data:       responses,
+		Page:       filter.Page,
+		PerPage:    filter.PerPage,
+		TotalCount: totalCount,
 	}
 
 	if canViewTotal {
@@ -402,19 +407,28 @@ func (s *saleService) DeleteHeldTransaction(ctx context.Context, reference strin
 }
 
 func (s *saleService) ReturnItems(ctx context.Context, returnParams types.ReturnSale) error {
+	if returnParams.SaleID <= 0 {
+		return httperror.BadRequest("sale id must be positive", nil)
+	}
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("could not begin transcation", err)
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.repo.RollbackTx(tx)
+		}
+	}()
 
-	sale, err := s.repo.FetchSaleByID(ctx, returnParams.SaleID)
+	sale, err := s.repo.FetchSaleByID(ctx, tx, returnParams.SaleID)
 	if err != nil {
 		log.Println("fetching sale failed: ", err)
 		return httperror.ServerError("failed to fetch sale by id", err)
 	}
 
-	returnRecord, err := s.repo.FetchAllSaleReturns(ctx, returnParams.SaleID)
+	returnRecord, err := s.repo.FetchAllSaleReturns(ctx, tx, returnParams.SaleID)
 	if err != nil {
 		log.Println("fetching return record failed: ", err)
 		return httperror.ServerError("failed to fetch return records by sale id", err)
@@ -432,45 +446,53 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 	refundTotal := 0
 	var returnItems []model.ReturnItems
 	var stockMovement []model.StockMovement
+	requestedBySaleItemID := make(map[int]int)
+	if len(returnParams.ReturnItems) == 0 {
+		return httperror.BadRequest("select at least one item to return", nil)
+	}
 
-	// validate return
-	// Check quantity is valid
-	// Check quantity to return + previously returned < sale quantity
-	// prepare stock movement
 	for _, r := range returnParams.ReturnItems {
-		saleItem, exists := validItems[r.SaleItemID]
-		if !exists {
+		if _, exists := validItems[r.SaleItemID]; !exists {
 			return httperror.BadRequest("invalid sale item id passed in", fmt.Errorf("bad sale item id: %d", r.SaleItemID))
 		}
-
 		if r.Quantity <= 0 {
 			return httperror.BadRequest(
 				"return quantity must be > 0",
 				fmt.Errorf("invalid return quantity for sale item: %d. quantity: %d", r.SaleItemID, r.Quantity),
 			)
 		}
+		requestedBySaleItemID[r.SaleItemID] += r.Quantity
+	}
 
-		if (r.Quantity + returnMap[r.SaleItemID]) > saleItem.Quantity {
+	for saleItemID, quantity := range requestedBySaleItemID {
+		saleItem := validItems[saleItemID]
+		if quantity+returnMap[saleItemID] > saleItem.Quantity {
 			err = fmt.Errorf(
 				"cannot return %d (already returned %d of %d sold)",
-				r.Quantity, returnMap[r.SaleItemID], saleItem.Quantity,
+				quantity, returnMap[saleItemID], saleItem.Quantity,
 			)
 			return httperror.BadRequest(err.Error(), err)
 		}
 
 		returnItems = append(returnItems, model.ReturnItems{
-			SaleItemID: r.SaleItemID,
-			Quantity:   r.Quantity,
+			SaleItemID: saleItemID,
+			Quantity:   quantity,
 		})
 
 		stockMovement = append(stockMovement, model.StockMovement{
 			ProductID:    saleItem.ProductID,
-			Quantity:     r.Quantity,
+			Quantity:     quantity * saleItem.StockQuantityPerUnit,
 			ReferenceID:  returnParams.SaleID,
 			MovementType: model.MovementTypeInSaleReturn,
 		})
 
-		refundTotal += saleItem.UnitPrice * r.Quantity
+		previouslyReturned := returnMap[saleItemID]
+		if saleItem.Quantity <= 0 {
+			return httperror.BadRequest("sale item has an invalid quantity", nil)
+		}
+		refundBefore := saleItem.TotalPrice * previouslyReturned / saleItem.Quantity
+		refundAfter := saleItem.TotalPrice * (previouslyReturned + quantity) / saleItem.Quantity
+		refundTotal += refundAfter - refundBefore
 	}
 
 	rtn := model.Return{
@@ -508,5 +530,6 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 		log.Println(err)
 		return httperror.ServerError("failed to commit transaction", err)
 	}
+	committed = true
 	return nil
 }

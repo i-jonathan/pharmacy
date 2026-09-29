@@ -26,10 +26,19 @@ func csrfErrorHandler(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.Header.Get("Accept"), "application/json") {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Your session expired. Refresh the page and try again."})
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"code":  "csrf_failed",
+			"error": "Your session token expired. Try the request again.",
+		})
 		return
 	}
 	http.Error(w, "Forbidden - CSRF token validation failed", http.StatusForbidden)
+}
+
+func CSRFTokenHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(map[string]string{"token": csrf.Token(r)})
 }
 
 var csrfProtection = csrf.Protect(

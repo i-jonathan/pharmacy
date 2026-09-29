@@ -64,6 +64,7 @@ func main() {
 	}
 
 	r := router.InitRouter()
+	r.HandleFunc("GET /csrf-token", middleware.CSRFTokenHandler)
 	staticHandler := http.FileServer(http.FS(subFS))
 	r.Handle("/static/", http.StripPrefix("/static/", staticHandler))
 

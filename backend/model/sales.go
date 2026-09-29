@@ -22,12 +22,13 @@ type Sale struct {
 
 type SaleItem struct {
 	baseModel
-	SaleID     int `db:"sale_id"`
-	ProductID  int `db:"product_id"`
-	Quantity   int `db:"quantity"`
-	UnitPrice  int `db:"unit_price"`
-	Discount   int `db:"discount"`
-	TotalPrice int `db:"total_price"`
+	SaleID               int `db:"sale_id"`
+	ProductID            int `db:"product_id"`
+	Quantity             int `db:"quantity"`
+	StockQuantityPerUnit int `db:"stock_quantity_per_unit"`
+	UnitPrice            int `db:"unit_price"`
+	Discount             int `db:"discount"`
+	TotalPrice           int `db:"total_price"`
 
 	Product Product
 }

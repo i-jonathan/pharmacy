@@ -181,16 +181,16 @@ func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnI
 	return nil
 }
 
-func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error) {
+func (r *repo) FetchSaleByID(ctx context.Context, tx *sqlx.Tx, saleID int) (model.Sale, error) {
 	var sale model.Sale
 
-	err := r.Data.GetContext(ctx, &sale, fetchSalesByIDQuery, saleID)
+	err := tx.GetContext(ctx, &sale, fetchSalesByIDQuery, saleID)
 	if err != nil {
 		return model.Sale{}, err
 	}
 
 	var items []model.SaleItem
-	err = r.Data.SelectContext(ctx, &items, fetchSaleItemsBySaleIDQuery, saleID)
+	err = tx.SelectContext(ctx, &items, fetchSaleItemsBySaleIDQuery, saleID)
 	if err != nil {
 		return model.Sale{}, err
 	}
@@ -199,9 +199,9 @@ func (r *repo) FetchSaleByID(ctx context.Context, saleID int) (model.Sale, error
 	return sale, nil
 }
 
-func (r *repo) FetchAllSaleReturns(ctx context.Context, saleID int) ([]model.ReturnItems, error) {
+func (r *repo) FetchAllSaleReturns(ctx context.Context, tx *sqlx.Tx, saleID int) ([]model.ReturnItems, error) {
 	var returnItems []model.ReturnItems
-	err := r.Data.SelectContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
+	err := tx.SelectContext(ctx, &returnItems, fetchReturnsForSaleBySaleIDQuery, saleID)
 	if err != nil {
 		return nil, err
 	}
