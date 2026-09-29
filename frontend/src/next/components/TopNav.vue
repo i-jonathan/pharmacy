@@ -1,33 +1,28 @@
 <template>
-  <div class="flex items-center justify-between px-6 h-14 border-b border-border bg-background">
+  <header class="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
     <!-- Left: Breadcrumbs + Title -->
-    <div>
-      <h1 class="text-lg font-semibold leading-tight">{{ route.meta.title }}</h1>
-      <p v-if="route.meta.subtitle" class="text-xs text-muted-foreground">
-        {{ route.meta.subtitle }}
-      </p>
-      <nav v-if="breadcrumbs.length > 1" class="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5">
-        <template v-for="(crumb, i) in breadcrumbs" :key="i">
-          <router-link
-            v-if="crumb.to"
-            :to="crumb.to"
-            class="hover:text-foreground transition-colors"
-          >
-            {{ crumb.label }}
-          </router-link>
-          <span v-else class="text-foreground font-medium">{{ crumb.label }}</span>
-          <ChevronRight :stroke-width="1.5" v-if="i < breadcrumbs.length - 1" :size="12" />
+    <div class="flex min-w-0 items-center gap-3">
+      <Button variant="ghost" size="icon" class="shrink-0 lg:hidden" aria-label="Open navigation" @click="$emit('toggle-navigation')">
+        <Menu :size="19" />
+      </Button>
+      <div class="min-w-0">
+        <template v-if="route.meta.parent">
+          <nav class="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Breadcrumb">
+            <router-link v-if="route.meta.parentRoute" :to="{ name: route.meta.parentRoute }" class="transition-colors hover:text-foreground">{{ route.meta.parent }}</router-link>
+            <span v-else>{{ route.meta.parent }}</span>
+            <ChevronRight :size="12" :stroke-width="1.5" aria-hidden="true" />
+            <span class="truncate font-medium text-foreground">{{ route.meta.title }}</span>
+          </nav>
         </template>
-      </nav>
+        <template v-else>
+          <h1 class="truncate text-base font-semibold leading-tight sm:text-lg">{{ route.meta.title }}</h1>
+          <p v-if="route.meta.subtitle" class="text-xs text-muted-foreground">{{ route.meta.subtitle }}</p>
+        </template>
+      </div>
     </div>
 
     <!-- Right: Actions -->
     <div class="flex items-center gap-3">
-      <!-- Notification Bell -->
-      <Button variant="ghost" size="icon" class="relative">
-        <Bell :size="18" :stroke-width="1.5" />
-      </Button>
-
       <!-- User Dropdown -->
       <div class="relative">
         <Button
@@ -57,6 +52,7 @@
           <a
             href="/user/logout"
             class="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            @click.prevent="logout"
           >
             <LogOut :size="14" :stroke-width="1.5" />
             Logout
@@ -67,26 +63,36 @@
       <!-- Backdrop -->
       <div v-if="open" class="fixed inset-0 z-40" @click="open = false" />
     </div>
-  </div>
+  </header>
 </template>
 
 <script setup>
-import { ref, computed, inject } from "vue";
+import { ref, inject } from "vue";
 import { useRoute } from "vue-router";
-import { Bell, User as UserIcon, ChevronDown, LogOut, ChevronRight } from "lucide-vue-next";
+import { Menu, User as UserIcon, ChevronDown, LogOut, ChevronRight } from "lucide-vue-next";
 import { UserKey } from "../composables/usePermissions.js";
+import { discardPersistedPosState } from "../composables/usePos.js";
 import { Button } from "@/components/ui/button";
 
+defineEmits(["toggle-navigation"]);
 const route = useRoute();
 const user = inject(UserKey, { id: 0, username: "User", role: "" });
 const open = ref(false);
 
-const breadcrumbs = computed(() => {
-  const crumbs = [];
-  if (route.meta.parent) {
-    crumbs.push({ label: route.meta.parent, to: { name: "dashboard" } });
-  }
-  crumbs.push({ label: route.meta.title });
-  return crumbs;
-});
+function logout() {
+  let intercepted = false;
+  const request = new CustomEvent("pharmacy:logout-request", {
+    detail: {
+      intercept() { intercepted = true; },
+      proceed: completeLogout,
+    },
+  });
+  window.dispatchEvent(request);
+  if (!intercepted) completeLogout();
+}
+
+function completeLogout() {
+  discardPersistedPosState();
+  window.location.assign("/user/logout");
+}
 </script>

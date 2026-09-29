@@ -1,15 +1,15 @@
 <template>
   <div
-    class="flex flex-col p-3 rounded-lg border border-border bg-card hover:shadow-sm transition-shadow cursor-pointer"
+    class="flex h-full min-h-[6.5rem] flex-col rounded-md border border-border bg-card p-3 transition-colors hover:border-primary/35 hover:bg-primary/[0.025] cursor-pointer"
     @click="$emit('add')"
   >
     <div class="text-sm font-semibold truncate">{{ product.name }}</div>
     <div class="text-xs text-muted-foreground truncate mt-0.5">
       {{ product.manufacturer || product.category }}
     </div>
-    <div class="mt-5 flex items-center justify-between">
-      <span class="text-sm font-bold">&#8358;{{ (product.price || 0).toLocaleString() }}</span>
-      <span class="text-xs text-emerald-600">Stock: {{ product.stock }}</span>
+    <div class="mt-auto flex flex-col items-start gap-1.5 pt-3 xl:flex-row xl:items-center xl:justify-between xl:gap-2">
+      <span class="text-sm font-semibold tabular-nums">&#8358;{{ (product.price || 0).toLocaleString() }}</span>
+      <span class="whitespace-nowrap text-xs tabular-nums text-emerald-700 dark:text-emerald-400">Stock · {{ product.stock }}</span>
     </div>
   </div>
 </template>

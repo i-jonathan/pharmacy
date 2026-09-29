@@ -14,15 +14,13 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 	saleMux := http.NewServeMux()
 
 	saleMux.HandleFunc(http.MethodPost+" /", saleController.CreateSale)
-	saleMux.HandleFunc(http.MethodGet+" /", saleController.RenderSalesReceipt)
-	saleMux.Handle(http.MethodGet+" /history", middleware.AddPermissionsToContext(
-		http.HandlerFunc(saleController.RenderSalesHistory),
-	))
+	saleMux.HandleFunc(http.MethodGet+" /", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/sales-history", http.StatusSeeOther) })
+	saleMux.HandleFunc(http.MethodGet+" /history", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/sales-history", http.StatusSeeOther) })
 	saleMux.Handle(http.MethodGet+" /filter", middleware.AddPermissionsToContext(
 		http.HandlerFunc(saleController.FilterSales),
 	))
 	saleMux.HandleFunc(http.MethodPost+" /hold", saleController.HoldSaleTransaction)
-	saleMux.HandleFunc(http.MethodGet+" /held", saleController.RenderHeldSaleReceipts)
+	saleMux.HandleFunc(http.MethodGet+" /held", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/held-sales", http.StatusSeeOther) })
 	saleMux.HandleFunc(http.MethodDelete+" /held/{reference}", saleController.DeleteHeldSale)
 	saleMux.HandleFunc(http.MethodPost+" /returns", saleController.ReturnItems)
 	saleMux.HandleFunc(http.MethodGet+" /api/held", saleController.FetchHeldTransactionsJSON)

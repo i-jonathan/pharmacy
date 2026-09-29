@@ -12,12 +12,8 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
-        dashboard: "./src/main.js",
         next: "./src/next/main.js",
-        stockCounting: "./src/stock-taking/counting/main.js",
-        stockDashboard: "./src/stock-taking/dashboard/main.js",
-        receivedItemsHistory: "./src/inventory/received-items-history/main.js",
-        admin: "./src/admin/main.js",
+        login: "./src/login/main.js",
       },
     },
   },

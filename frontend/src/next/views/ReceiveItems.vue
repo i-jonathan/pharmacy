@@ -1,18 +1,18 @@
 <template>
-  <div class="p-6 lg:p-8">
+  <div class="p-4 sm:p-6 lg:p-8">
     <!-- ===== DASHBOARD ===== -->
     <template v-if="view === 'dashboard'">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-foreground">Receive Items</h1>
+          <h1 class="text-2xl font-semibold tabular-nums tracking-tight text-foreground">Receive Items</h1>
           <p class="text-sm text-muted-foreground mt-1">Record incoming inventory from suppliers</p>
         </div>
         <Button size="lg" @click="startNewReceipt"><Plus :size="16" class="mr-2" />New Receipt</Button>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-sky-100 dark:bg-sky-900/20 flex items-center justify-center"><CalendarCheck :size="20" class="text-sky-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Received Today</div><div class="text-2xl font-bold text-foreground">{{ todayCount }}</div></div></div></div>
-        <div class="rounded-lg border border-border bg-card p-5 cursor-pointer hover:bg-muted/20 transition-colors" @click="$router.push('/held-receive-items')"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center"><PauseCircle :size="20" class="text-amber-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Held Drafts</div><div class="text-2xl font-bold text-foreground">{{ heldCount > 0 ? heldCount : '—' }}</div></div></div></div>
-        <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center"><Package :size="20" class="text-emerald-600" /></div><div><div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">This Month</div><div class="text-2xl font-bold text-foreground">{{ monthCount }}</div></div></div></div>
+        <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><CalendarCheck :size="20" class="text-primary" /></div><div><div class="text-xs text-muted-foreground font-medium tracking-wide">Received Today</div><div class="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{{ todayCount }}</div></div></div></div>
+        <div class="rounded-lg border border-border bg-card p-5 cursor-pointer hover:bg-muted/20 transition-colors" @click="$router.push('/held-receive-items')"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center"><PauseCircle :size="20" class="text-amber-600" /></div><div><div class="text-xs text-muted-foreground font-medium tracking-wide">Held Drafts</div><div class="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{{ heldCount > 0 ? heldCount : '—' }}</div></div></div></div>
+        <div class="rounded-lg border border-border bg-card p-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Package :size="20" class="text-primary" /></div><div><div class="text-xs text-muted-foreground font-medium tracking-wide">This Month</div><div class="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{{ monthCount }}</div></div></div></div>
       </div>
       <!-- Filters -->
       <div class="flex flex-col sm:flex-row gap-3 mb-4">
@@ -363,6 +363,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, ClipboardList, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+import { csrfFetch } from "../lib/csrf.js";
 import {
   Table,
   TableBody,
@@ -657,7 +658,7 @@ async function saveNewProduct() {
   if (newProduct.value.duplicateMsg) { showToast("A product with this name and manufacturer already exists", "error"); return; }
   newProductSaving.value = true;
   try {
-    const r = await fetch(`${API}/inventory/add-item`, {
+    const r = await csrfFetch(`${API}/inventory/add-item`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: newProduct.value.name.trim(), manufacturer: newProduct.value.manufacturer.trim(),
@@ -686,7 +687,7 @@ async function holdReceipt() {
   submitting.value = true;
   try {
     const p = { reference: heldReference.value, payload: { supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) } };
-    const r = await fetch(`${API}/inventory/receive-items/hold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+    const r = await csrfFetch(`${API}/inventory/receive-items/hold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) throw new Error("Failed to hold");
     view.value = VIEW_DASHBOARD; showToast("Receipt saved as draft"); fetchDashboard();
   } catch (e) { showToast(e.message || "Failed to hold", "error"); }
@@ -718,7 +719,7 @@ async function receiveItems() {
   submitting.value = true;
   try {
     const p = { supplier: supplier.value.trim(), held_receiving_reference: heldReference.value, idempotency_key: (() => { try { return crypto.randomUUID(); } catch { return Date.now() + "-" + Math.random().toString(36).slice(2); } })(), products: items.value.map(i => ({ id: i.id, barcode: i.barcode || "", cost_price: num(i.cost_price), selling_price: num(i.selling_price), quantity: Math.max(1, num(i.quantity)), expiry: i.expiry && i.expiry.trim() ? i.expiry.split("T")[0] + "T00:00:00Z" : new Date().toISOString().split("T")[0] + "T00:00:00Z", price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name || "", selling_price: num(po.price), quantity_per_unit: Math.max(1, po.qty || 1) })) })) };
-    const r = await fetch(`${API}/inventory/receive-items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+    const r = await csrfFetch(`${API}/inventory/receive-items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `HTTP ${r.status}`); }
     view.value = VIEW_DASHBOARD; showToast("Items received successfully"); fetchDashboard();
   } catch (e) { showToast(e.message || "Failed to receive", "error"); }

@@ -88,6 +88,8 @@
 </template>
 
 <script>
+import { csrfFetch } from "../../next/lib/csrf.js";
+
 export default {
     name: "UsersManager",
     data() {
@@ -127,7 +129,7 @@ export default {
             const previousRoleId = user.role_id;
             user.role_id = parseInt(newRoleId);
             try {
-                const res = await fetch(`/admin/api/users/${user.id}/role`, {
+                const res = await csrfFetch(`/admin/api/users/${user.id}/role`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ role_id: parseInt(newRoleId) }),
@@ -147,7 +149,7 @@ export default {
             this.resetting = true;
             this.resetError = null;
             try {
-                const res = await fetch(`/admin/api/users/${this.resetUser.id}/reset-password`, {
+                const res = await csrfFetch(`/admin/api/users/${this.resetUser.id}/reset-password`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ new_password: this.newPassword }),

@@ -9,8 +9,7 @@
         <div
           v-for="(product, i) in items"
           :key="product.id"
-          class="snap-start shrink-0"
-          :style="{ width: `${100 / props.slidesPerView}%` }"
+          class="snap-start shrink-0 basis-[min(72%,17rem)] sm:basis-[calc(50%-0.375rem)] xl:basis-[calc(25%-0.5625rem)]"
         >
           <ProductCard :product="product" @add="$emit('add-item', product)" />
         </div>

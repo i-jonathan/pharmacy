@@ -1,6 +1,15 @@
 import { reactive, computed, ref, onMounted, onUnmounted } from "vue";
+import { csrfFetch } from "../lib/csrf.js";
 
 const API_BASE = "";
+export function discardPersistedPosState() {
+  try {
+    localStorage.removeItem("posState");
+    localStorage.removeItem("resumeHeldSale");
+  } catch {
+    // The in-memory cart is also cleared before logout navigation.
+  }
+}
 
 function createIdempotencyKey() {
   try {
@@ -129,6 +138,11 @@ export function usePos() {
 
   function clearCart() {
     cart.splice(0);
+    try {
+      localStorage.removeItem("posState");
+    } catch {
+      // Clearing the active in-memory cart still succeeds without storage.
+    }
     Object.keys(payments).forEach((k) => (payments[k] = 0));
     customer.value = "Walk-in Customer";
     orderNote.value = "";
@@ -152,7 +166,7 @@ export function usePos() {
       },
     };
 
-    const resp = await fetch(`${API_BASE}/sales/hold`, {
+    const resp = await csrfFetch(`${API_BASE}/sales/hold`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -188,7 +202,7 @@ export function usePos() {
       payload.held_sale_reference = holdReference.value;
     }
 
-    const resp = await fetch(`${API_BASE}/sales/`, {
+    const resp = await csrfFetch(`${API_BASE}/sales/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -253,7 +267,7 @@ export function usePos() {
   }
 
   async function deleteHeldTransaction(reference) {
-    const resp = await fetch(`${API_BASE}/sales/held/${reference}`, {
+    const resp = await csrfFetch(`${API_BASE}/sales/held/${reference}`, {
       method: "DELETE",
     });
     if (!resp.ok) throw new Error("Failed to delete held transaction");
@@ -288,42 +302,6 @@ export function usePos() {
     holdReference.value = transaction.reference;
   }
 
-  function saveToLocalStorage() {
-    const state = {
-      cart: cloneForStorage(cart),
-      payments: { ...payments },
-      customer: customer.value,
-      orderNote: orderNote.value,
-      holdReference: holdReference.value,
-      saleIdempotencyKey: saleIdempotencyKey.value,
-    };
-    localStorage.setItem("posState", JSON.stringify(state));
-  }
-
-  function restoreFromLocalStorage() {
-    try {
-      const raw = localStorage.getItem("posState");
-      if (!raw) return false;
-      const state = JSON.parse(raw);
-      if (state.cart && Array.isArray(state.cart)) {
-        state.cart.forEach((item) => cart.push(item));
-      }
-      if (state.payments) {
-        Object.keys(payments).forEach((k) => {
-          payments[k] = state.payments[k] || 0;
-        });
-      }
-      if (state.customer) customer.value = state.customer;
-      if (state.orderNote) orderNote.value = state.orderNote;
-      if (state.holdReference) holdReference.value = state.holdReference;
-      if (state.saleIdempotencyKey) saleIdempotencyKey.value = state.saleIdempotencyKey;
-      localStorage.removeItem("posState");
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   // --- Keyboard Shortcuts ---
   let searchInputRef = null;
 
@@ -346,8 +324,20 @@ export function usePos() {
     }
   }
 
+  function warnBeforeUnload(event) {
+    if (cart.length === 0) return;
+    event.preventDefault();
+    event.returnValue = "";
+  }
+
+  function clearUnheldCartOnPageHide() {
+    if (cart.length > 0) clearCart();
+  }
+
   onMounted(() => {
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    window.addEventListener("pagehide", clearUnheldCartOnPageHide);
     // Check for a held sale being resumed from the Held Sales page
     try {
       const raw = localStorage.getItem("resumeHeldSale");
@@ -359,14 +349,18 @@ export function usePos() {
     } catch {
       localStorage.removeItem("resumeHeldSale");
     }
-    if (cart.length === 0) restoreFromLocalStorage();
-    window.addEventListener("beforeunload", () => {
-      if (cart.length > 0) saveToLocalStorage();
-    });
+    // Discard drafts persisted by older builds; unfinished sales must be held explicitly.
+    try {
+      localStorage.removeItem("posState");
+    } catch {
+      // Storage may be unavailable; no draft is restored by this build.
+    }
   });
 
   onUnmounted(() => {
     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("beforeunload", warnBeforeUnload);
+    window.removeEventListener("pagehide", clearUnheldCartOnPageHide);
   });
 
   return {

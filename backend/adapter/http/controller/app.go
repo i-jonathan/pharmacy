@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"github.com/gorilla/csrf"
 	"html/template"
 	"net/http"
 	"pharmacy/config"
@@ -14,40 +15,6 @@ type appController struct {
 
 func NewAppController(tmpl *template.Template) *appController {
 	return &appController{template: tmpl}
-}
-
-func (c *appController) GetDashboard(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	perms := getPermissionsFromContext(r)
-	userID := getUserIDFromContext(r)
-
-	store := config.NewSessionStore()
-	session, _ := store.Get(r, "session")
-	userName, _ := session.Values[constant.UserNameSessionKey].(string)
-	roleName, _ := session.Values[constant.RoleNameSessionKey].(string)
-
-	data := map[string]any{
-		"Title":       "Dashboard",
-		"ActivePage":  "dashboard",
-		"Permissions": perms,
-		"User": map[string]any{
-			"id":       userID,
-			"username": userName,
-			"role":     roleName,
-		},
-	}
-
-	ui := r.URL.Query().Get("ui")
-	if ui == "v2" {
-		c.renderV2(w, r, data)
-		return
-	}
-
-	err := c.template.ExecuteTemplate(w, "dashboard.html", data)
-	if err != nil {
-		http.Error(w, "dashboard error", http.StatusInternalServerError)
-	}
 }
 
 func (c *appController) ServeV2(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +32,7 @@ func (c *appController) ServeV2(w http.ResponseWriter, r *http.Request) {
 		"Title":       "",
 		"ActivePage":  "",
 		"Permissions": perms,
+		"CSRFToken":   csrf.Token(r),
 		"User": map[string]any{
 			"id":       userID,
 			"username": userName,

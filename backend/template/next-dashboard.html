@@ -22,8 +22,7 @@
     <script>
         window.__PERMISSIONS__ = {{ toJSON .Permissions }};
         window.__USER__ = {{ toJSON .User }};
-        // Persist v2 preference
-        localStorage.setItem("ui", "v2");
+        window.__CSRF_TOKEN__ = {{ printf "%q" .CSRFToken }};
     </script>
     <script src="/static/js/theme.js"></script>
     <script type="module" src="{{ ViteAsset "src/next/main.js" }}"></script>

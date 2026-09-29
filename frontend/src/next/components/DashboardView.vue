@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 lg:p-8 space-y-6">
+  <div class="space-y-6 p-4 sm:p-6 lg:p-8">
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-24">
       <div class="text-muted-foreground">Loading dashboard data...</div>
@@ -13,7 +13,11 @@
 
     <!-- Dashboard Content -->
     <template v-else>
-      <div class="flex justify-end">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-medium text-foreground">Today at a glance</h2>
+          <p class="mt-1 text-xs text-muted-foreground">Key sales and stock signals for the selected period.</p>
+        </div>
         <DateFilterBar v-model="dateFilter" @update:model-value="onFilterChange" />
       </div>
 
@@ -24,7 +28,7 @@
           :formatted-value="formatNaira(getKPIValue('today_sales', 0))"
           :trend="getKPIValue('sales_trend', null)"
           :icon="DollarSign"
-          accent="indigo"
+          accent="emerald"
         />
         <MetricCard
           title="Total Orders"
@@ -38,7 +42,7 @@
           :formatted-value="getKPIValue('total_inventory', 0).toLocaleString()"
           subtitle="Products in inventory"
           :icon="Package"
-          accent="sky"
+          accent="emerald"
         />
         <MetricCard
           title="Low Stock Items"
@@ -54,7 +58,7 @@
           :formatted-value="getKPIValue('expiring_count', 0).toLocaleString()"
           subtitle="View All"
           :icon="Calendar"
-          accent="rose"
+          accent="amber"
           clickable
           @click="goToExpiring"
         />

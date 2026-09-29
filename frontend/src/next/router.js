@@ -16,19 +16,19 @@ const routes = [
     path: "/low-stock",
     name: "low-stock",
     component: () => import("./components/LowStockPage.vue"),
-    meta: { title: "Low Stock Items", parent: "Dashboard" },
+    meta: { title: "Low Stock Items", parent: "Dashboard", parentRoute: "dashboard" },
   },
   {
     path: "/expiring",
     name: "expiring",
     component: () => import("./components/ExpiringPage.vue"),
-    meta: { title: "Expiring Items", parent: "Dashboard" },
+    meta: { title: "Expiring Items", parent: "Dashboard", parentRoute: "dashboard" },
   },
   {
     path: "/pos",
     name: "pos",
     component: () => import("./components/PosView.vue"),
-    meta: { title: "Point of Sale", parent: "Dashboard" },
+    meta: { title: "Point of Sale", parent: "Dashboard", parentRoute: "dashboard" },
   },
   {
     path: "/sales-history",
@@ -77,12 +77,6 @@ const routes = [
     name: "stock-taking-id",
     component: () => import("./views/StockTakingDashboard.vue"),
     meta: { title: "Stock Taking", parent: "Inventory" },
-  },
-  {
-    path: "/categories",
-    name: "categories",
-    component: () => import("./views/CategoriesPage.vue"),
-    meta: { title: "Categories", parent: "Inventory" },
   },
 ];
 

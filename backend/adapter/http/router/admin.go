@@ -13,7 +13,7 @@ func InitAdminRouter(svc service.AdminService, tmpl *template.Template) http.Han
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /{$}", ctrl.GetAdminDashboard)
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/", http.StatusSeeOther) })
 	mux.HandleFunc("GET /api/modules", ctrl.ListModules)
 
 	mux.HandleFunc("GET /api/permissions", ctrl.ListPermissions)

@@ -107,11 +107,11 @@ func main() {
 			httperror.NotFound("Page Not Found", nil).Render(w, tmpl)
 			return
 		}
-		http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+		http.Redirect(w, r, "/app/", http.StatusSeeOther)
 	})
 
 	middlewareStack := middleware.CreateStack(
-		// middleware.CSRFMiddleware,
+		middleware.CSRFMiddleware,
 		middleware.Logging,
 	)
 

@@ -1,15 +1,15 @@
 <template>
-  <div class="flex h-[calc(100vh-3.5rem)]">
+  <div class="flex min-h-[calc(100dvh-3.5rem)] flex-col lg:h-[calc(100dvh-3.5rem)] lg:min-h-0 lg:flex-row">
     <!-- Main table area -->
     <div class="flex-1 flex flex-col overflow-hidden" :class="{ 'border-r border-border': detailBatch }">
       <!-- Header -->
-      <div class="p-6 pb-0">
+      <div class="px-4 pb-0 pt-5 sm:px-6">
         <h1 class="text-2xl font-bold text-foreground">Received Items History</h1>
         <p class="text-sm text-muted-foreground mt-1">Browse and search past inventory receipts</p>
       </div>
 
       <!-- Filters -->
-      <div class="p-6 pb-4 flex flex-col sm:flex-row gap-3">
+      <div class="flex flex-col gap-3 px-4 pb-4 pt-4 sm:flex-row sm:px-6">
         <div class="relative flex-1">
           <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -50,14 +50,14 @@
       </div>
 
       <!-- Summary bar -->
-      <div class="px-6 pb-3 flex items-center justify-between text-sm">
+      <div class="flex items-center justify-between px-4 pb-3 text-sm sm:px-6">
         <span class="text-muted-foreground">
           <template v-if="!loading">{{ totalItems }} receipt{{ totalItems !== 1 ? 's' : '' }}</template>
         </span>
       </div>
 
       <!-- Scrollable table area -->
-      <div class="flex-1 overflow-y-auto px-6 pb-4">
+      <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
         <!-- Loading -->
         <div v-if="loading" class="flex items-center justify-center py-24 text-muted-foreground">
           <RotateCw :size="20" class="animate-spin mr-3" />
@@ -119,7 +119,7 @@
     <Transition name="slide-panel">
       <div
         v-if="detailBatch"
-        class="flex flex-col h-full w-[40%] min-w-[360px] bg-card border-l border-border flex-shrink-0"
+        class="flex w-full max-w-full flex-col border-t border-border bg-card lg:h-full lg:w-[40%] lg:min-w-[360px] lg:border-l lg:border-t-0 lg:flex-shrink-0"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border">

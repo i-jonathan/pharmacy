@@ -127,6 +127,8 @@
 </template>
 
 <script>
+import { csrfFetch } from "../../next/lib/csrf.js";
+
 export default {
     name: "CategoriesManager",
     data() {
@@ -166,7 +168,7 @@ export default {
             this.creating = true;
             this.createError = null;
             try {
-                const res = await fetch("/admin/api/categories", {
+                const res = await csrfFetch("/admin/api/categories", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: this.newName }),
@@ -190,7 +192,7 @@ export default {
         },
         async saveEdit(id) {
             try {
-                const res = await fetch(`/admin/api/categories/${id}`, {
+                const res = await csrfFetch(`/admin/api/categories/${id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: this.editName }),
@@ -213,7 +215,7 @@ export default {
             this.deleting = true;
             this.deleteError = null;
             try {
-                const res = await fetch(`/admin/api/categories/${id}`, { method: "DELETE" });
+                const res = await csrfFetch(`/admin/api/categories/${id}`, { method: "DELETE" });
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.error || "Failed to delete");

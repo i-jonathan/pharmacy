@@ -7,8 +7,9 @@
         ref="searchInput"
         v-model="searchQuery"
         type="text"
-        placeholder="Search medicine by name, brand or generic..."
-        class="w-full pl-9 pr-14 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
+        placeholder="Search or scan barcode…"
+        aria-label="Search products by name, generic name, manufacturer, or barcode"
+        class="min-h-11 w-full rounded-md border border-input bg-background pl-9 pr-14 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
       <kbd class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground border border-border">
         F3
@@ -41,7 +42,16 @@
           <RotateCw :size="13" />
         </button>
       </div>
-      <div v-if="filteredProducts.length">
+      <div v-if="loadingProducts" class="space-y-2 py-2" role="status" aria-live="polite">
+        <div v-for="n in 5" :key="n" class="h-12 animate-pulse rounded-md bg-muted/60"></div>
+        <span class="sr-only">Loading products…</span>
+      </div>
+      <div v-else-if="productError" class="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm" role="alert">
+        <p class="font-medium text-destructive">Products could not be loaded.</p>
+        <p class="mt-1 text-muted-foreground">{{ productError }}</p>
+        <Button variant="outline" size="sm" class="mt-3" @click="refreshProducts">Try again</Button>
+      </div>
+      <div v-else-if="filteredProducts.length">
         <Table>
           <TableHeader>
             <TableRow>
@@ -82,8 +92,8 @@
           </TableBody>
         </Table>
       </div>
-      <div v-else class="text-sm text-muted-foreground text-center py-6">
-        {{ debouncedQuery ? 'No products match your search' : 'No products available' }}
+      <div v-else class="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+        {{ debouncedQuery ? 'No products match your search.' : 'No products are available yet.' }}
       </div>
     </div>
 
@@ -144,34 +154,40 @@ watch(searchQuery, (val) => {
 
 const popover = ref({ product: null, x: 0, y: 0 });
 const refreshing = ref(false);
+const loadingProducts = ref(true);
+const productError = ref("");
 
 async function loadProducts() {
+  productError.value = "";
+  loadingProducts.value = allProducts.value.length === 0;
   try {
     const [prodResp, topResp] = await Promise.all([
       fetch("/inventory/item-list"),
       fetch("/inventory/top-selling?limit=10"),
     ]);
 
-    if (prodResp.ok) {
-      const data = await prodResp.json();
-      allProducts.value = (data.items || []).map((p) => ({
-        ...p,
-        price: p.default_price / 100,
-        priceId: p.default_price_id,
-      }));
-    }
-    if (topResp.ok) {
-      topSelling.value = await topResp.json();
-    }
+    if (!prodResp.ok) throw new Error(`Server returned ${prodResp.status}.`);
+    const data = await prodResp.json();
+    allProducts.value = (data.items || []).map((p) => ({
+      ...p,
+      price: p.default_price / 100,
+      priceId: p.default_price_id,
+    }));
+    if (topResp.ok) topSelling.value = await topResp.json();
   } catch (e) {
-    console.error("Failed to load POS data:", e);
+    productError.value = e.message || "Check your connection and try again.";
+  } finally {
+    loadingProducts.value = false;
   }
 }
 
 async function refreshProducts() {
   refreshing.value = true;
-  await loadProducts();
-  refreshing.value = false;
+  try {
+    await loadProducts();
+  } finally {
+    refreshing.value = false;
+  }
 }
 
 onMounted(async () => {
@@ -247,6 +263,8 @@ const filteredProducts = computed(() => {
     items = items.filter(
       (p) =>
         p.name?.toLowerCase().includes(q) ||
+        p.generic_name?.toLowerCase().includes(q) ||
+        p.genericName?.toLowerCase().includes(q) ||
         p.manufacturer?.toLowerCase().includes(q) ||
         p.barcode?.toLowerCase().includes(q)
     );

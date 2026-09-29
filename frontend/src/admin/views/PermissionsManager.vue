@@ -161,6 +161,8 @@
 </template>
 
 <script>
+import { csrfFetch } from "../../next/lib/csrf.js";
+
 export default {
     name: "PermissionsManager",
     data() {
@@ -227,7 +229,7 @@ export default {
             this.creating = true;
             this.createError = null;
             try {
-                const res = await fetch("/admin/api/permissions", {
+                const res = await csrfFetch("/admin/api/permissions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ resource: this.newResource, action: this.newAction }),
@@ -251,7 +253,7 @@ export default {
         },
         async assignRole(permId, roleId) {
             try {
-                const res = await fetch(`/admin/api/permissions/${permId}/role/${roleId}`, { method: "POST" });
+                const res = await csrfFetch(`/admin/api/permissions/${permId}/role/${roleId}`, { method: "POST" });
                 if (!res.ok) throw new Error("Failed to assign");
                 this.assigningPerm = null;
                 await this.fetchData();
@@ -261,7 +263,7 @@ export default {
         },
         async removeRole(permId, roleId) {
             try {
-                const res = await fetch(`/admin/api/permissions/${permId}/role/${roleId}`, { method: "DELETE" });
+                const res = await csrfFetch(`/admin/api/permissions/${permId}/role/${roleId}`, { method: "DELETE" });
                 if (!res.ok) throw new Error("Failed to remove");
                 await this.fetchData();
             } catch (e) {
@@ -274,7 +276,7 @@ export default {
         async deletePermission(permId) {
             this.deleting = true;
             try {
-                const res = await fetch(`/admin/api/permissions/${permId}`, { method: "DELETE" });
+                const res = await csrfFetch(`/admin/api/permissions/${permId}`, { method: "DELETE" });
                 if (!res.ok) throw new Error("Failed to delete");
                 this.deletingPerm = null;
                 await this.fetchData();

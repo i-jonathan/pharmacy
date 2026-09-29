@@ -1,20 +1,25 @@
 <template>
   <Card
-    class="relative overflow-hidden transition-shadow hover:shadow-md"
-    :class="{ 'cursor-pointer': clickable }"
-    @click="$emit('click')"
+    class="relative overflow-hidden transition-colors hover:bg-muted/20"
+    :class="{ 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring': clickable }"
+    :role="clickable ? 'button' : undefined"
+    :tabindex="clickable ? 0 : undefined"
+    @click="clickable && $emit('click')"
+    @keydown.enter.prevent="clickable && $emit('click')"
+    @keydown.space.prevent="clickable && $emit('click')"
   >
-    <div class="absolute top-0 right-0 w-24 h-24 -mr-6 -mt-6 rounded-full opacity-10" :class="accentBgClass" />
     <CardHeader class="pb-2">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <span class="text-xs font-medium tracking-wide text-muted-foreground">
           {{ title }}
         </span>
-        <component :is="icon" :class="iconColorClass" :size="20" :stroke-width="1.5" />
+        <span class="grid h-9 w-9 place-items-center rounded-md bg-primary/8">
+          <component :is="icon" :class="iconColorClass" :size="18" :stroke-width="1.7" />
+        </span>
       </div>
     </CardHeader>
     <CardContent>
-      <div class="text-2xl font-bold mb-1">
+      <div class="mb-1 text-2xl font-semibold tabular-nums tracking-tight">
         {{ formattedValue }}
       </div>
       <div v-if="trend !== null && trend !== undefined" class="flex items-center gap-1 text-sm">
@@ -55,13 +60,13 @@ const props = defineProps({
 defineEmits(["click"]);
 
 const accentMap = {
-  blue: { color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500" },
-  indigo: { color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500" },
-  emerald: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500" },
-  amber: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500" },
-  rose: { color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500" },
+  blue: { color: "text-primary" },
+  indigo: { color: "text-primary" },
+  emerald: { color: "text-primary" },
+  amber: { color: "text-amber-700 dark:text-amber-300" },
+  rose: { color: "text-destructive" },
 };
 
 const iconColorClass = computed(() => accentMap[props.accent]?.color ?? accentMap.indigo.color);
-const accentBgClass = computed(() => accentMap[props.accent]?.bg ?? accentMap.indigo.bg);
+
 </script>

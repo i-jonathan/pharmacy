@@ -10,8 +10,10 @@ func InitAppRouter(tmpl *template.Template) http.Handler {
 	appController := controller.NewAppController(tmpl)
 	appMux := http.NewServeMux()
 
-	// Old UI dashboard (also handles ?ui=v2 redirect)
-	appMux.HandleFunc("GET /dashboard", appController.GetDashboard)
+	// Preserve the old dashboard URL as a redirect to the Vue app.
+	appMux.HandleFunc("GET /dashboard", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/app/", http.StatusSeeOther)
+	})
 
 	// V2 SPA shell: serve next-dashboard.html for /app/ and all sub-paths
 	appMux.HandleFunc("GET /{$}", appController.ServeV2)

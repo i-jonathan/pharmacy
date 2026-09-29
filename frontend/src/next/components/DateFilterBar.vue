@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-2">
+  <div class="flex max-w-full items-center gap-1 overflow-x-auto rounded-md bg-muted/50 p-1">
     <Button
       v-for="option in options"
       :key="option.value"

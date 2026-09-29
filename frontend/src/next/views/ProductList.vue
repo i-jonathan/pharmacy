@@ -302,6 +302,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { Search, RotateCw, AlertCircle, Package, ChevronLeft, ChevronRight, X, Pencil, Check, Plus } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+import { csrfFetch } from "../lib/csrf.js";
 
 const API = "";
 
@@ -457,7 +458,7 @@ async function saveProduct() {
         is_default: idx === editForm.value.defaultPriceIdx,
       })),
     };
-    const res = await fetch(`${API}/inventory/product/${detailProduct.value.id}`, {
+    const res = await csrfFetch(`${API}/inventory/product/${detailProduct.value.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

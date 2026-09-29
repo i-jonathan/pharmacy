@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 lg:p-8">
+  <div class="p-4 sm:p-6 lg:p-8">
     <!-- ===== DASHBOARD ===== -->
     <template v-if="view === 'dashboard'">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
@@ -105,7 +105,7 @@
           </Button>
           <Button v-if="completeStockPermission" size="sm" class="flex-1 sm:flex-none gap-1.5" :disabled="countingStatus === 'Completed'" @click="completeStockTaking">
             <CircleCheck :size="12" class="shrink-0" />
-            <span>{{ countingStatus === 'Completed' ? 'Complete' : 'Complete' }}</span>
+            <span>{{ countingStatus === 'Completed' ? 'Count completed' : 'Complete count' }}</span>
           </Button>
         </div>
       </div>
@@ -268,6 +268,7 @@ import {
   ChevronLeft, Search, ListFilter, CircleCheck,
 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+import { csrfFetch } from "../lib/csrf.js";
 
 const API = "";
 
@@ -424,7 +425,7 @@ async function handleCreate() {
   creating.value = true;
   createError.value = null;
   try {
-    const res = await fetch(`${API}/stock-taking/api/create`, {
+    const res = await csrfFetch(`${API}/stock-taking/api/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -506,7 +507,7 @@ function queueUpdate(item) {
 
 async function sendUpdate(item) {
   try {
-    const res = await fetch(`${API}/stock-taking/api/${countingId.value}/item/${item.product_id}`, {
+    const res = await csrfFetch(`${API}/stock-taking/api/${countingId.value}/item/${item.product_id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -540,7 +541,7 @@ async function sendUpdate(item) {
 async function completeStockTaking() {
   if (countingStatus.value === "Completed") return;
   try {
-    const res = await fetch(`${API}/stock-taking/api/${countingId.value}`, { method: "POST" });
+    const res = await csrfFetch(`${API}/stock-taking/api/${countingId.value}`, { method: "POST" });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || "Failed to complete");

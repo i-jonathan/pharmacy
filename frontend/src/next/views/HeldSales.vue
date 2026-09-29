@@ -1,12 +1,12 @@
 <template>
-  <div class="flex h-[calc(100vh-3.5rem)]">
+  <div class="flex min-h-[calc(100dvh-3.5rem)] flex-col lg:h-[calc(100dvh-3.5rem)] lg:min-h-0 lg:flex-row">
     <!-- Main table area -->
     <div
       class="flex-1 flex flex-col overflow-hidden"
       :class="{ 'border-r border-border': detailHeld }"
     >
       <!-- Header -->
-      <div class="p-6 pb-0">
+      <div class="px-4 pb-0 pt-5 sm:px-6">
         <h1 class="text-2xl font-bold text-foreground">Held Sales</h1>
         <p class="text-sm text-muted-foreground mt-1">Resume or void temporarily paused transactions</p>
       </div>
@@ -23,7 +23,7 @@
       </div>
 
       <!-- Content area -->
-      <div class="flex-1 overflow-y-auto px-6 pb-4">
+      <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
         <!-- Loading -->
         <div v-if="loading" class="flex items-center justify-center py-24 text-muted-foreground">
           <RotateCw :size="20" class="animate-spin mr-3" />
@@ -98,7 +98,7 @@
     <Transition name="slide-panel">
       <div
         v-if="detailHeld"
-        class="flex flex-col h-full w-[40%] min-w-[360px] max-w-[600px] bg-card border-l border-border flex-shrink-0"
+        class="flex w-full max-w-full flex-col border-t border-border bg-card lg:h-full lg:w-[40%] lg:min-w-[360px] lg:max-w-[600px] lg:border-l lg:border-t-0 lg:flex-shrink-0"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -216,6 +216,7 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { PauseCircle, ShoppingCart, Play, Trash2, RotateCw, AlertCircle, AlertTriangle, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+import { csrfFetch } from "../lib/csrf.js";
 import {
   Table,
   TableBody,
@@ -296,7 +297,7 @@ async function executeVoid() {
   const ref = confirmVoid.value;
   confirmVoid.value = "__loading__";
   try {
-    const res = await fetch(`${API}/sales/held/${ref}`, { method: "DELETE" });
+    const res = await csrfFetch(`${API}/sales/held/${ref}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to void held sale");
     heldSales.value = heldSales.value.filter((h) => h.reference !== ref);
     if (detailHeld.value?.reference === ref) closeDetail();

@@ -63,8 +63,9 @@ func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err = c.template.ExecuteTemplate(w, "login.html", map[string]any{
-		"CSRFField": csrf.TemplateField(r),
+	err = c.template.ExecuteTemplate(w, "login-v2.html", map[string]any{
+		"CSRFToken":  csrf.Token(r),
+		"LoginError": r.URL.Query().Has("error"),
 	})
 	if err != nil {
 		http.Error(w, "render error", http.StatusInternalServerError)
@@ -72,20 +73,19 @@ func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "failed to parse form", http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json")
+	var u model.User
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16*1024)).Decode(&u); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid login request."})
 		return
-	}
-
-	u := model.User{
-		UserName: r.FormValue("username"),
-		Password: r.FormValue("password"),
 	}
 
 	// actually authenticate user
 	err := c.service.AuthenticateUser(r.Context(), &u)
 	if err != nil {
-		http.Redirect(w, r, "/user/login?error="+err.Error(), http.StatusSeeOther)
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid username or password."})
 		return
 	}
 
@@ -110,16 +110,17 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	permJSON, _ := json.Marshal(permMap)
 	session.Values[constant.PermissionsSessionKey] = string(permJSON)
 
-	_ = session.Save(r, w)
-
 	nextURL, _ := session.Values["next"].(string)
 	delete(session.Values, "next")
-	session.Save(r, w)
-	if nextURL == "" {
-		nextURL = "/app/dashboard"
+	if nextURL == "" || !strings.HasPrefix(nextURL, "/") || strings.HasPrefix(nextURL, "//") {
+		nextURL = "/app/"
+	}
+	if err := session.Save(r, w); err != nil {
+		http.Error(w, `{"error":"Unable to start your session."}`, http.StatusInternalServerError)
+		return
 	}
 
-	http.Redirect(w, r, nextURL, http.StatusSeeOther)
+	_ = json.NewEncoder(w).Encode(map[string]string{"redirect": nextURL})
 }
 
 func (c *userController) GetRegisterPage(w http.ResponseWriter, r *http.Request) {
