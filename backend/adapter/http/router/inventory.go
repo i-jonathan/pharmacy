@@ -11,24 +11,20 @@ import (
 )
 
 func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) http.Handler {
-	inventoryController := controller.NewInventoryController(svc, tmpl)
+	inventoryController := controller.NewInventoryController(svc)
 	inventoryMux := http.NewServeMux()
 
 	inventoryMux.HandleFunc(http.MethodPost+" /add-item", inventoryController.CreateProduct)
-	inventoryMux.HandleFunc(http.MethodGet+" /receive-items", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/receive-items", http.StatusSeeOther) })
 	inventoryMux.HandleFunc(http.MethodPost+" /receive-items/hold", inventoryController.HoldReceivingItems)
-	inventoryMux.HandleFunc(http.MethodGet+" /receive-items/held", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/held-receive-items", http.StatusSeeOther) })
 	inventoryMux.HandleFunc(http.MethodGet+" /receive-items/held/api", inventoryController.FetchHeldReceivingItemsJSON)
 	inventoryMux.HandleFunc(http.MethodDelete+" /receive-items/held/{reference}", inventoryController.DeleteHeldReceivingItems)
 	inventoryMux.HandleFunc(http.MethodGet+" /search", inventoryController.SearchForProduct)
 	inventoryMux.HandleFunc(http.MethodGet+" /suppliers/search", inventoryController.SearchForSuppliers)
 	inventoryMux.HandleFunc(http.MethodPost+" /receive-items", inventoryController.ReceiveSupply)
-	inventoryMux.HandleFunc(http.MethodGet+" /items", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/products", http.StatusSeeOther) })
 	inventoryMux.HandleFunc(http.MethodGet+" /report/stock", inventoryController.DownloadInventoryReport)
 	inventoryMux.HandleFunc(http.MethodGet+" /item-list", inventoryController.FetchInventory)
 	inventoryMux.HandleFunc(http.MethodGet+" /top-selling", inventoryController.GetTopSellingProducts)
 	inventoryMux.HandleFunc(http.MethodGet+" /product/{id}", inventoryController.GetProductDetails)
-	inventoryMux.HandleFunc(http.MethodGet+" /received-items-history", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/received-items-history", http.StatusSeeOther) })
 	inventoryMux.HandleFunc(http.MethodGet+" /received-items-history/api", inventoryController.FetchReceivedItemsHistory)
 	inventoryMux.Handle(http.MethodPut+" /product/{id}",
 		middleware.RequirePermissions(constant.RequireAllPermissions, constant.EditInventoryPermissionKey)(

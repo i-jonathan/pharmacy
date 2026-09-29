@@ -47,7 +47,7 @@ func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+	http.Redirect(w, r, "/app/", http.StatusSeeOther)
 }
 
 func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +58,7 @@ func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userID, ok := session.Values[constant.UserSessionKey]; ok && userID != nil {
-		http.Redirect(w, r, "/app/dashboard", http.StatusSeeOther)
+		http.Redirect(w, r, "/app/", http.StatusSeeOther)
 		return
 	}
 
@@ -121,18 +121,6 @@ func (c *userController) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = json.NewEncoder(w).Encode(map[string]string{"redirect": nextURL})
-}
-
-func (c *userController) GetRegisterPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := c.template.ExecuteTemplate(w, "register.html", map[string]any{
-		"Title":      "Register",
-		"ActivePage": "",
-		"CSRFField":  csrf.TemplateField(r),
-	})
-	if err != nil {
-		http.Error(w, "render error", http.StatusInternalServerError)
-	}
 }
 
 func (c *userController) LogoutHandler(w http.ResponseWriter, r *http.Request) {

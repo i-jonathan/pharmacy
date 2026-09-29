@@ -9,11 +9,10 @@ import (
 )
 
 func InitAdminRouter(svc service.AdminService, tmpl *template.Template) http.Handler {
-	ctrl := controller.NewAdminController(svc, tmpl)
+	ctrl := controller.NewAdminController(svc)
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/", http.StatusSeeOther) })
 	mux.HandleFunc("GET /api/modules", ctrl.ListModules)
 
 	mux.HandleFunc("GET /api/permissions", ctrl.ListPermissions)

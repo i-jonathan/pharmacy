@@ -127,7 +127,7 @@
 </template>
 
 <script>
-import { csrfFetch } from "../../next/lib/csrf.js";
+import { csrfFetch } from "../../lib/csrf.js";
 
 export default {
     name: "CategoriesManager",

@@ -1,4 +1,0 @@
-@import "tailwindcss";
-
-/* Make dark: variants respond to the .dark class, not OS preference */
-@variant dark (&:where(.dark, .dark *));

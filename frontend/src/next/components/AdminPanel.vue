@@ -60,10 +60,10 @@ import { ref, watch } from "vue";
 import { X, ArrowLeft, Shield, Users, UserCog, Tags } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import PermissionsManager from "../../admin/views/PermissionsManager.vue";
-import RolesViewer from "../../admin/views/RolesViewer.vue";
-import UsersManager from "../../admin/views/UsersManager.vue";
-import CategoriesManager from "../../admin/views/CategoriesManager.vue";
+import PermissionsManager from "./admin/PermissionsManager.vue";
+import RolesViewer from "./admin/RolesViewer.vue";
+import UsersManager from "./admin/UsersManager.vue";
+import CategoriesManager from "./admin/CategoriesManager.vue";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
