@@ -96,9 +96,13 @@
                   <Minus :size="12" />
                 </button>
                 <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
                   :value="item.qty"
                   @input="$emit('update-qty', index, Number($event.target.value) || 0)"
-                  class="h-7 w-10 text-center text-sm bg-transparent border-x border-border outline-none"
+                  class="no-spinners h-7 w-10 text-center text-sm bg-transparent border-x border-border outline-none"
                 />
                 <button
                   class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-r-sm transition-colors"
