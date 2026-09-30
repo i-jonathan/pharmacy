@@ -1,4 +1,6 @@
 -- Add cost_price to inventory_view
+DROP VIEW inventory_view;
+
 CREATE OR REPLACE VIEW inventory_view AS
 SELECT
     p.id,

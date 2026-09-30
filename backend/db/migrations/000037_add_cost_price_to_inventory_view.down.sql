@@ -1,4 +1,6 @@
 -- Revert: restore the original view without cost_price
+DROP VIEW inventory_view;
+
 CREATE OR REPLACE VIEW inventory_view AS
 SELECT
     p.id,
