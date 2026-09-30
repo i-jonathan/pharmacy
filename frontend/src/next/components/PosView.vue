@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { AlertTriangle, PackageSearch, Pause, ShoppingCart } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
@@ -209,6 +209,12 @@ async function runAction(action, successMessage) {
   }
 }
 
+async function returnToSearch() {
+  mobilePane.value = "products";
+  await nextTick();
+  pos.focusSearch();
+}
+
 async function handleHold() {
   await runAction(() => pos.holdCart(), "Sale held. You can resume it from Held Sales.");
 }
@@ -217,6 +223,7 @@ async function handleComplete() {
   await runAction(async () => {
     await pos.completeSale();
     pos.clearCart();
+    await returnToSearch();
   }, "Sale completed.");
 }
 
@@ -225,6 +232,7 @@ async function handleCompleteAndPrint() {
     await pos.completeSale();
     pos.printReceipt();
     pos.clearCart();
+    await returnToSearch();
   }, "Sale completed. Receipt sent to print.");
 }
 </script>

@@ -210,6 +210,7 @@ function onAddItem(product, priceId, price) {
   emit("add-item", product, priceId, price);
   searchQuery.value = "";
   debouncedQuery.value = "";
+  requestAnimationFrame(() => searchInput.value?.focus());
 }
 
 function onPlusClick(event, product) {

@@ -309,14 +309,21 @@ export function usePos() {
     searchInputRef = el;
   }
 
+  function focusSearch() {
+    requestAnimationFrame(() => searchInputRef?.focus());
+  }
+
   function onKeyDown(e) {
     if (e.key === "F3") {
       e.preventDefault();
-      searchInputRef?.focus();
+      focusSearch();
     }
     if (e.key === "F5") {
       e.preventDefault();
-      if (cart.length > 0) completeSale().then(() => clearCart());
+      if (cart.length > 0) completeSale().then(() => {
+        clearCart();
+        focusSearch();
+      });
     }
     if (e.key === "F6") {
       e.preventDefault();
@@ -393,5 +400,6 @@ export function usePos() {
     deleteHeldTransaction,
     restoreHeld,
     setSearchRef,
+    focusSearch,
   };
 }
