@@ -19,7 +19,6 @@
         :cart="pos.cart"
         :payments="pos.payments"
         :customer="pos.customer.value"
-        :order-note="pos.orderNote.value"
         :subtotal="pos.subtotal.value"
         :total-discount="pos.totalDiscount.value"
         :total="pos.total.value"
@@ -40,7 +39,6 @@
         @complete-and-print="handleCompleteAndPrint"
         @clear-message="clearActionMessage"
         @update:customer="pos.customer.value = $event"
-        @update:order-note="pos.orderNote.value = $event"
       />
     </div>
 

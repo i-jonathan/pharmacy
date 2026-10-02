@@ -27,7 +27,6 @@ export function usePos() {
   const cart = reactive([]);
   const payments = reactive({ Cash: 0, Card: 0, Transfer: 0 });
   const customer = ref("Walk-in Customer");
-  const orderNote = ref("");
   const holdReference = ref(null);
   const saleIdempotencyKey = ref(createIdempotencyKey());
   const selectedPaymentMethod = ref("Cash");
@@ -149,7 +148,6 @@ export function usePos() {
     }
     Object.keys(payments).forEach((k) => (payments[k] = 0));
     customer.value = "Walk-in Customer";
-    orderNote.value = "";
     holdReference.value = null;
     saleIdempotencyKey.value = createIdempotencyKey();
     amountTendered.value = 0;
@@ -165,7 +163,6 @@ export function usePos() {
         cart: cloneForStorage(cart),
         payments: { ...payments },
         customer: customer.value,
-        orderNote: orderNote.value,
         saleIdempotencyKey: saleIdempotencyKey.value,
       },
     };
@@ -296,7 +293,6 @@ export function usePos() {
         <p style="text-align:right">Paid: &#8358;${amountPaid.value.toLocaleString()}</p>
         <p style="text-align:right">Change: &#8358;${change.value.toLocaleString()}</p>
         <p style="text-align:center;font-size:11px;">${customer.value}</p>
-        ${orderNote.value ? `<p style="text-align:center;font-size:11px;">Note: ${orderNote.value}</p>` : ""}
         <script>window.onload=function(){window.print();window.close();}</` + `script>
       </body>
       </html>`;
@@ -336,7 +332,6 @@ export function usePos() {
       });
     }
     if (payload.customer) customer.value = payload.customer;
-    if (payload.orderNote) orderNote.value = payload.orderNote;
     if (payload.saleIdempotencyKey) saleIdempotencyKey.value = payload.saleIdempotencyKey;
 
     holdReference.value = transaction.reference;
@@ -414,7 +409,6 @@ export function usePos() {
     cart,
     payments,
     customer,
-    orderNote,
     holdReference,
     saleIdempotencyKey,
     selectedPaymentMethod,

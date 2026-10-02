@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full flex-col border-l border-border bg-card p-3 sm:p-4">
     <!-- Header -->
-    <div class="flex items-center justify-between px-4 py-3 border-border">
+    <div class="flex items-center justify-between px-4 py-2 border-border">
       <div>
         <h2 class="text-base font-semibold tracking-tight">Current sale</h2>
         <p class="mt-0.5 text-xs text-muted-foreground">{{ cart.length }} {{ cart.length === 1 ? 'item' : 'items' }}</p>
@@ -25,7 +25,7 @@
     </div>
 
     <!-- Customer -->
-    <div class="px-4 py-2 border-border space-y-1.5">
+    <div class="px-4 py-1.5 border-border">
       <div class="flex items-center gap-2">
         <div class="flex items-center gap-2 flex-1">
           <User :size="14" class="text-muted-foreground shrink-0" />
@@ -38,19 +38,10 @@
         </div>
         <Button variant="outline" size="sm" class="text-xs h-7">+ New</Button>
       </div>
-      <div class="flex items-center gap-2">
-        <Pencil :size="12" class="text-muted-foreground shrink-0" />
-        <input
-          :value="orderNote"
-          @input="$emit('update:orderNote', $event.target.value)"
-          class="flex-1 text-xs text-muted-foreground bg-transparent border border-border rounded-sm px-2 py-1.5 outline-none focus:ring-1 focus:ring-ring"
-          placeholder="Add order note..."
-        />
-      </div>
     </div>
 
     <!-- Cart Items -->
-    <div class="flex-1 overflow-auto">
+    <div class="min-h-0 flex-1 overflow-auto">
       <div v-if="cart.length === 0" class="flex h-full min-h-36 flex-col items-center justify-center px-5 text-center text-sm text-muted-foreground">
         <ShoppingCart :size="22" class="mb-2 text-muted-foreground/60" aria-hidden="true" />
         <p class="font-medium text-foreground">Your sale is ready</p>
@@ -243,7 +234,7 @@
 
 <script setup>
 import { reactive, computed, onMounted, onUnmounted } from "vue";
-import { Pause, Trash2, User, Minus, Plus, X, Pencil, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank, History, ShoppingCart } from "lucide-vue-next";
+import { Pause, Trash2, User, Minus, Plus, X, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank, History, ShoppingCart } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -258,7 +249,6 @@ const props = defineProps({
   cart: { type: Array, required: true },
   payments: { type: Object, default: () => ({ Cash: 0, Card: 0, Transfer: 0 }) },
   customer: { type: String, default: "Walk-in Customer" },
-  orderNote: { type: String, default: "" },
   subtotal: { type: Number, default: 0 },
   totalDiscount: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
@@ -335,6 +325,5 @@ const emit = defineEmits([
   "complete",
   "complete-and-print",
   "update:customer",
-  "update:orderNote",
 ]);
 </script>
