@@ -27,7 +27,6 @@ export function usePos() {
   const cart = reactive([]);
   const payments = reactive({ Cash: 0, Card: 0, Transfer: 0 });
   const customer = ref("Walk-in Customer");
-  const orderNote = ref("");
   const holdReference = ref(null);
   const saleIdempotencyKey = ref(createIdempotencyKey());
   const selectedPaymentMethod = ref("Cash");
@@ -90,8 +89,11 @@ export function usePos() {
 
   // --- Cart Methods ---
   function addItem(product, priceId, price) {
-    const pid = priceId || product.priceId || 0;
-    const pprice = price ?? product.price ?? 0;
+    const productOptions = product.priceOptions || product.price_options || [];
+    const defaultOption = productOptions.find((option) => Number(option.id) === Number(product.default_price_id))
+      || productOptions.find((option) => Number.isInteger(Number(option.id)) && Number(option.id) > 0);
+    const pid = Number(priceId || product.priceId || product.default_price_id || defaultOption?.id) || 0;
+    const pprice = price ?? product.price ?? (Number(defaultOption?.selling_price) / 100 || 0);
     const existing = cart.find(
       (item) => item.id === product.id && item.priceId === pid
     );
@@ -116,6 +118,7 @@ export function usePos() {
   }
 
   function updateQty(index, qty) {
+    qty = Math.trunc(Number(qty) || 0);
     if (qty <= 0) {
       cart.splice(index, 1);
     } else {
@@ -145,7 +148,6 @@ export function usePos() {
     }
     Object.keys(payments).forEach((k) => (payments[k] = 0));
     customer.value = "Walk-in Customer";
-    orderNote.value = "";
     holdReference.value = null;
     saleIdempotencyKey.value = createIdempotencyKey();
     amountTendered.value = 0;
@@ -161,7 +163,6 @@ export function usePos() {
         cart: cloneForStorage(cart),
         payments: { ...payments },
         customer: customer.value,
-        orderNote: orderNote.value,
         saleIdempotencyKey: saleIdempotencyKey.value,
       },
     };
@@ -177,19 +178,55 @@ export function usePos() {
   }
 
   async function completeSale() {
+    const hasMissingPriceID = cart.some((item) => {
+      const options = item.priceOptions || item.price_options || [];
+      const itemPriceID = Number(item.priceId ?? item.price_id);
+      return !(Number.isInteger(itemPriceID) && itemPriceID > 0)
+        && !options.some((option) => Number.isInteger(Number(option.id)) && Number(option.id) > 0);
+    });
+    let defaultPriceIDs = new Map();
+    if (hasMissingPriceID) {
+      const inventoryResponse = await fetch(`${API_BASE}/inventory/item-list`);
+      if (!inventoryResponse.ok) throw new Error("Could not verify product prices. Refresh the POS and try again.");
+      const inventory = await inventoryResponse.json();
+      defaultPriceIDs = new Map((inventory.items || []).map((product) => [
+        Number(product.id),
+        Number(product.default_price_id),
+      ]));
+    }
+
+    const items = cart.map((item) => {
+      const options = item.priceOptions || item.price_options || [];
+      const validOptions = options.filter((option) => Number.isInteger(Number(option.id)) && Number(option.id) > 0);
+      const selectedOption = validOptions.find((option) => Number(option.id) === Number(item.priceId ?? item.price_id))
+        || validOptions.find((option) => Number(option.price ?? Number(option.selling_price) / 100) === Number(item.price ?? item.unit_price))
+        || validOptions[0];
+      const currentPriceId = Number(item.priceId ?? item.price_id);
+      const priceId = Number.isInteger(currentPriceId) && currentPriceId > 0
+        ? currentPriceId
+        : Number(selectedOption?.id) || defaultPriceIDs.get(Number(item.id ?? item.product_id));
+      if (!Number.isInteger(priceId) || priceId <= 0) {
+        throw new Error(`Select a valid price for ${item.name} before completing the sale.`);
+      }
+
+      const quantity = Math.trunc(Number(item.qty ?? item.quantity) || 0);
+      const unitPrice = Number(item.price ?? item.unit_price) || 0;
+      const discount = Number(item.discount) || 0;
+      return {
+        product_id: Number(item.id ?? item.product_id),
+        quantity,
+        price_id: priceId,
+        unit_price: unitPrice,
+        discount,
+        total: unitPrice * quantity - discount,
+      };
+    });
     const payload = {
       idempotency_key: saleIdempotencyKey.value,
-      subtotal: subtotal.value,
-      discount: totalDiscount.value,
-      total: total.value,
-      items: cloneForStorage(cart).map((item) => ({
-        product_id: item.id,
-        quantity: item.qty,
-        price_id: item.priceId,
-        unit_price: item.price,
-        discount: item.discount || 0,
-        total: item.price * item.qty - (item.discount || 0),
-      })),
+      subtotal: Number(subtotal.value) || 0,
+      discount: Number(totalDiscount.value) || 0,
+      total: Number(total.value) || 0,
+      items,
       payments: Object.entries(payments)
         .filter(([, amount]) => Number(amount) > 0)
         .map(([method, amount]) => ({
@@ -256,7 +293,6 @@ export function usePos() {
         <p style="text-align:right">Paid: &#8358;${amountPaid.value.toLocaleString()}</p>
         <p style="text-align:right">Change: &#8358;${change.value.toLocaleString()}</p>
         <p style="text-align:center;font-size:11px;">${customer.value}</p>
-        ${orderNote.value ? `<p style="text-align:center;font-size:11px;">Note: ${orderNote.value}</p>` : ""}
         <script>window.onload=function(){window.print();window.close();}</` + `script>
       </body>
       </html>`;
@@ -296,7 +332,6 @@ export function usePos() {
       });
     }
     if (payload.customer) customer.value = payload.customer;
-    if (payload.orderNote) orderNote.value = payload.orderNote;
     if (payload.saleIdempotencyKey) saleIdempotencyKey.value = payload.saleIdempotencyKey;
 
     holdReference.value = transaction.reference;
@@ -374,7 +409,6 @@ export function usePos() {
     cart,
     payments,
     customer,
-    orderNote,
     holdReference,
     saleIdempotencyKey,
     selectedPaymentMethod,

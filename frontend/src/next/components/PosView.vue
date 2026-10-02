@@ -6,7 +6,7 @@
       :class="mobilePane === 'products' ? 'block' : 'hidden xl:block'"
     >
       <ProductPanel
-        @add-item="pos.addItem"
+        @add-item="handleAddItem"
         @search-ref="pos.setSearchRef"
       />
     </div>
@@ -19,7 +19,6 @@
         :cart="pos.cart"
         :payments="pos.payments"
         :customer="pos.customer.value"
-        :order-note="pos.orderNote.value"
         :subtotal="pos.subtotal.value"
         :total-discount="pos.totalDiscount.value"
         :total="pos.total.value"
@@ -29,7 +28,7 @@
         :processing="processing"
         :action-error="actionError"
         :action-message="actionMessage"
-        @remove="pos.removeItem"
+        @remove="handleRemoveItem"
         @update-qty="pos.updateQty"
         @update-discount="pos.updateDiscount"
         @update-price="pos.updatePrice"
@@ -38,9 +37,8 @@
         @clear="pos.clearCart"
         @complete="handleComplete"
         @complete-and-print="handleCompleteAndPrint"
-        @clear-message="actionError = ''; actionMessage = ''"
+        @clear-message="clearActionMessage"
         @update:customer="pos.customer.value = $event"
-        @update:order-note="pos.orderNote.value = $event"
       />
     </div>
 
@@ -72,6 +70,22 @@
     </nav>
 
     <Transition name="fade">
+      <div
+        v-if="addedItemName"
+        class="fixed inset-x-3 z-30 flex items-center gap-3 rounded-lg border border-primary/20 bg-card px-4 py-3 shadow-lg xl:hidden"
+        :style="{ bottom: addedItemToastBottom }"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+          <Check :size="17" aria-hidden="true" />
+        </span>
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ addedItemName }} added to cart</span>
+        <button type="button" class="shrink-0 text-sm font-semibold text-primary" @click="openCart">View cart</button>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
       <div v-if="showLeaveWarning" class="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-950/55 p-4 backdrop-blur-sm" role="presentation" @click.self="stayOnPage">
         <section class="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl sm:p-6" role="alertdialog" aria-modal="true" aria-labelledby="leave-sale-title" aria-describedby="leave-sale-description">
           <div class="mb-4 flex items-start gap-3">
@@ -101,9 +115,9 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { AlertTriangle, PackageSearch, Pause, ShoppingCart } from "lucide-vue-next";
+import { AlertTriangle, Check, PackageSearch, Pause, ShoppingCart } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { usePos } from "../composables/usePos.js";
 import ProductPanel from "./pos/ProductPanel.vue";
@@ -115,12 +129,17 @@ const mobilePane = ref("products");
 const processing = ref(false);
 const actionError = ref("");
 const actionMessage = ref("");
+const addedItemName = ref("");
+const keyboardOffset = ref(0);
+const addedItemToastBottom = computed(() => `calc(${keyboardOffset.value}px + 4.5rem + env(safe-area-inset-bottom))`);
 const showLeaveWarning = ref(false);
 const leaveError = ref("");
 const leaving = ref(false);
 const pendingRoute = ref(null);
 const pendingLogout = ref(null);
 let allowNavigationOnce = false;
+let addedItemTimer = null;
+let actionMessageTimer = null;
 
 const removeNavigationGuard = router.beforeEach((to, from) => {
   if (allowNavigationOnce) {
@@ -188,20 +207,62 @@ async function holdAndContinue() {
   }
 }
 
-onMounted(() => window.addEventListener("pharmacy:logout-request", onLogoutRequest));
+function updateKeyboardOffset() {
+  const viewport = window.visualViewport;
+  keyboardOffset.value = viewport
+    ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+    : 0;
+}
+
+onMounted(() => {
+  window.addEventListener("pharmacy:logout-request", onLogoutRequest);
+  window.addEventListener("resize", updateKeyboardOffset);
+  window.visualViewport?.addEventListener("resize", updateKeyboardOffset);
+  window.visualViewport?.addEventListener("scroll", updateKeyboardOffset);
+  updateKeyboardOffset();
+});
 onUnmounted(() => {
   window.removeEventListener("pharmacy:logout-request", onLogoutRequest);
+  window.removeEventListener("resize", updateKeyboardOffset);
+  window.visualViewport?.removeEventListener("resize", updateKeyboardOffset);
+  window.visualViewport?.removeEventListener("scroll", updateKeyboardOffset);
   removeNavigationGuard();
+  clearTimeout(addedItemTimer);
+  clearTimeout(actionMessageTimer);
 });
+
+function handleAddItem(product, priceId, price) {
+  pos.addItem(product, priceId, price);
+  addedItemName.value = product.name;
+  clearTimeout(addedItemTimer);
+  addedItemTimer = setTimeout(() => {
+    addedItemName.value = "";
+  }, 3000);
+}
+
+function openCart() {
+  mobilePane.value = "cart";
+  addedItemName.value = "";
+}
+
+function clearActionMessage() {
+  clearTimeout(actionMessageTimer);
+  actionError.value = "";
+  actionMessage.value = "";
+}
 
 async function runAction(action, successMessage) {
   if (processing.value) return;
   processing.value = true;
+  clearTimeout(actionMessageTimer);
   actionError.value = "";
   actionMessage.value = "";
   try {
     await action();
     actionMessage.value = successMessage;
+    actionMessageTimer = setTimeout(() => {
+      actionMessage.value = "";
+    }, 5000);
   } catch (e) {
     actionError.value = e.message || "The action could not be completed. Check your connection and try again.";
   } finally {
@@ -213,6 +274,13 @@ async function returnToSearch() {
   mobilePane.value = "products";
   await nextTick();
   pos.focusSearch();
+}
+
+function handleRemoveItem(index) {
+  pos.removeItem(index);
+  if (window.matchMedia("(min-width: 1280px)").matches) {
+    pos.focusSearch();
+  }
 }
 
 async function handleHold() {
