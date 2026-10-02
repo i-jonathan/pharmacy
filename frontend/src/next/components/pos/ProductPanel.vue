@@ -257,20 +257,27 @@ const frequentlySold = computed(() => {
 });
 
 const filteredProducts = computed(() => {
-  let items = allProducts.value;
+  const query = debouncedQuery.value.trim().toLocaleLowerCase();
+  return allProducts.value
+    .map((product, index) => ({ product, index }))
+    .filter(({ product }) => {
+      if (!query) return true;
+      return [product.name, product.generic_name, product.genericName, product.manufacturer, product.barcode]
+        .some((field) => field?.toLocaleLowerCase().includes(query));
+    })
+    .sort((a, b) => {
+      const stockRankA = Number(a.product.stock) > 0 ? 0 : 1;
+      const stockRankB = Number(b.product.stock) > 0 ? 0 : 1;
+      if (stockRankA !== stockRankB) return stockRankA - stockRankB;
 
-  if (debouncedQuery.value.trim()) {
-    const q = debouncedQuery.value.toLowerCase();
-    items = items.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(q) ||
-        p.generic_name?.toLowerCase().includes(q) ||
-        p.genericName?.toLowerCase().includes(q) ||
-        p.manufacturer?.toLowerCase().includes(q) ||
-        p.barcode?.toLowerCase().includes(q)
-    );
-  }
+      if (query) {
+        const startsWithRankA = a.product.name?.toLocaleLowerCase().startsWith(query) ? 0 : 1;
+        const startsWithRankB = b.product.name?.toLocaleLowerCase().startsWith(query) ? 0 : 1;
+        if (startsWithRankA !== startsWithRankB) return startsWithRankA - startsWithRankB;
+      }
 
-  return items;
+      return a.index - b.index;
+    })
+    .map(({ product }) => product);
 });
 </script>
