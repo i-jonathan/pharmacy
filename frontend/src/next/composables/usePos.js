@@ -29,7 +29,6 @@ export function usePos() {
   const customer = ref("Walk-in Customer");
   const holdReference = ref(null);
   const saleIdempotencyKey = ref(createIdempotencyKey());
-  const selectedPaymentMethod = ref("Cash");
   const amountTendered = ref(0);
 
   // --- Computed ---
@@ -411,7 +410,6 @@ export function usePos() {
     customer,
     holdReference,
     saleIdempotencyKey,
-    selectedPaymentMethod,
     amountTendered,
     subtotal,
     totalDiscount,

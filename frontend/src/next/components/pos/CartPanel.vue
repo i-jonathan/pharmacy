@@ -48,75 +48,75 @@
         <p class="mt-1">Search or scan a product to add it here.</p>
       </div>
 
-      <Table v-else>
+      <Table v-else class="text-xs">
         <TableHeader>
           <TableRow>
-            <TableHead>Item</TableHead>
-            <TableHead class="w-16">Price</TableHead>
-            <TableHead class="w-24 text-center">Qty</TableHead>
-            <TableHead class="w-16">Disc.</TableHead>
-            <TableHead class="w-20 text-right">Total</TableHead>
-            <TableHead class="w-8"></TableHead>
+            <TableHead class="h-8 px-2 text-[10px]">Item</TableHead>
+            <TableHead class="h-8 w-[4.5rem] px-1.5 text-[10px]">Price</TableHead>
+            <TableHead class="h-8 w-[5rem] px-1 text-center text-[10px]">Qty</TableHead>
+            <TableHead class="h-8 w-[3.5rem] px-1 text-[10px]">Disc.</TableHead>
+            <TableHead class="h-8 w-[4.5rem] px-1.5 text-right text-[10px]">Total</TableHead>
+            <TableHead class="h-8 w-7 px-0"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow v-for="(item, index) in cart" :key="index">
-            <TableCell>
-              <div class="text-sm font-medium">{{ item.name }}</div>
-              <div v-if="item.manufacturer" class="text-xs text-muted-foreground">{{ item.manufacturer }}</div>
+            <TableCell class="max-w-0 px-2 py-1.5">
+              <div class="truncate text-xs font-medium leading-4">{{ item.name }}</div>
+              <div v-if="item.manufacturer" class="truncate text-[10px] leading-3 text-muted-foreground">{{ item.manufacturer }}</div>
             </TableCell>
             <TableCell
-              class="text-sm text-muted-foreground price-trigger"
+              class="price-trigger px-1.5 py-1.5 text-[11px] text-muted-foreground"
               :class="{ 'cursor-pointer hover:text-foreground': hasPriceOptions(item) }"
               @click="hasPriceOptions(item) && togglePricePopover($event, index)"
             >
-              <div>
-                <div class="flex items-center gap-1">
-                  <span>&#8358;{{ item.price.toLocaleString() }}</span>
-                  <ChevronDown v-if="hasPriceOptions(item)" :size="10" class="text-muted-foreground" />
-                </div>
-                <div class="text-[10px] text-muted-foreground">{{ currentPriceName(item) }}</div>
+              <div class="flex items-center gap-0.5">
+                <span class="whitespace-nowrap">&#8358;{{ item.price.toLocaleString() }}</span>
+                <ChevronDown v-if="hasPriceOptions(item)" :size="9" class="shrink-0" />
               </div>
+              <div class="truncate text-[9px] leading-3">{{ currentPriceName(item) }}</div>
             </TableCell>
-            <TableCell>
-              <div class="inline-flex items-center border border-border rounded-sm">
+            <TableCell class="px-1 py-1.5">
+              <div class="inline-flex items-center rounded-sm border border-border">
                 <button
-                  class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-l-sm transition-colors"
+                  type="button"
+                  aria-label="Decrease quantity"
+                  class="flex h-6 w-5 items-center justify-center rounded-l-sm text-muted-foreground hover:bg-accent hover:text-foreground"
                   @click="$emit('update-qty', index, item.qty - 1)"
-                >
-                  <Minus :size="12" />
-                </button>
+                ><Minus :size="11" /></button>
                 <input
                   type="number"
                   min="1"
                   step="1"
                   inputmode="numeric"
+                  :aria-label="`Quantity of ${item.name}`"
                   :value="item.qty"
                   @input="$emit('update-qty', index, Number($event.target.value) || 0)"
-                  class="no-spinners h-7 w-10 text-center text-sm bg-transparent border-x border-border outline-none"
+                  class="no-spinners h-6 w-7 border-x border-border bg-transparent text-center text-xs outline-none"
                 />
                 <button
-                  class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-r-sm transition-colors"
+                  type="button"
+                  aria-label="Increase quantity"
+                  class="flex h-6 w-5 items-center justify-center rounded-r-sm text-muted-foreground hover:bg-accent hover:text-foreground"
                   @click="$emit('update-qty', index, item.qty + 1)"
-                >
-                  <Plus :size="12" />
-                </button>
+                ><Plus :size="11" /></button>
               </div>
             </TableCell>
-            <TableCell>
+            <TableCell class="px-1 py-1.5">
               <input
                 :value="item.discount || 0"
+                :aria-label="`Discount for ${item.name}`"
                 @input="$emit('update-discount', index, Number($event.target.value) || 0)"
-                class="w-14 text-center text-xs border border-border rounded px-1 py-0.5 bg-transparent"
+                class="w-10 rounded border border-border bg-transparent px-0.5 py-1 text-center text-[10px]"
                 placeholder="0"
               />
             </TableCell>
-            <TableCell class="text-right text-sm font-semibold tabular-nums">
+            <TableCell class="whitespace-nowrap px-1.5 py-1.5 text-right text-xs font-semibold tabular-nums">
               &#8358;{{ ((item.price * item.qty) - (item.discount || 0)).toLocaleString() }}
             </TableCell>
-            <TableCell>
-              <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" :aria-label="`Remove ${item.name}`" @click="$emit('remove', index)">
-                <X :size="14" />
+            <TableCell class="px-0 py-1">
+              <Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground hover:text-destructive" :aria-label="`Remove ${item.name}`" @click="$emit('remove', index)">
+                <X :size="13" />
               </Button>
             </TableCell>
           </TableRow>
