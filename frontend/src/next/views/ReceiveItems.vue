@@ -195,13 +195,7 @@
           <span class="text-sm font-semibold text-foreground">Supplier</span>
           <span v-if="supplier" class="text-xs text-emerald-600 ml-2">✓ {{ supplier }}</span>
         </div>
-        <div class="relative">
-          <Building :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input v-model="supplier" type="text" placeholder="Enter supplier name..." ref="supplierInputRef" class="no-spinners w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring" :class="{ 'border-red-500': validationErrors.supplier }" @input="onSupplierInput" />
-        </div>
-        <ul v-if="supplierSuggestions.length" class="mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-          <li v-for="s in supplierSuggestions" :key="s" class="flex items-center gap-2 px-4 py-2.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors" @click="selectSupplier(s)"><Building :size="14" class="text-muted-foreground" /><span>{{ s }}</span></li>
-        </ul>
+        <SupplierInput v-model="supplier" :invalid="validationErrors.supplier" @update:model-value="validationErrors.supplier = false" />
       </div>
 
       <!-- Step 2: Add Products -->
@@ -361,30 +355,6 @@
       </div>
     </template>
 
-    <!-- Nav Guard Modal -->
-    <Transition name="fade">
-      <div v-if="showNavGuardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="cancelDiscard">
-        <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
-              <AlertTriangle :size="20" class="text-amber-600" />
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold">Unsaved Receipt</h3>
-              <p class="text-xs text-muted-foreground">You have items that haven't been received yet.</p>
-            </div>
-          </div>
-          <p class="text-sm text-foreground mb-5">Navigate away and discard these items, or cancel and hold them first.</p>
-          <div class="flex items-center gap-2 justify-end">
-            <Button variant="outline" size="sm" @click="cancelDiscard">Cancel</Button>
-            <Button size="sm" class="gap-2" @click="confirmDiscard">
-              <X :size="13" class="shrink-0" />
-              Discard
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Transition>
 
     <!-- Toast -->
     <Transition name="fade">
@@ -396,9 +366,11 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, ClipboardList, Truck, RotateCw, Settings2 } from "lucide-vue-next";
+import { Search, X, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, ClipboardList, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
+import SupplierInput from "../components/SupplierInput.vue";
+import { useConfirm } from "../composables/useConfirm.js";
 import {
   Table,
   TableBody,
@@ -415,7 +387,6 @@ const VIEW_RECEIPT = "receipt";
 
 const view = ref(VIEW_DASHBOARD);
 const supplier = ref("");
-const supplierSuggestions = ref([]);
 const productQuery = ref("");
 const productSuggestions = ref([]);
 const showNewProductModal = ref(false);
@@ -444,8 +415,6 @@ const toast = ref(null);
 const toastType = ref("success");
 const priceOptionsTarget = ref(null);
 const searchInputRef = ref(null);
-const showNavGuardModal = ref(false);
-const pendingNav = ref(null);
 const purchaseOrder = ref(null);
 const pendingPurchaseOrderItems = ref([]);
 const purchaseOrderProductTarget = ref(null);
@@ -605,17 +574,6 @@ async function fetchCategories() {
 }
 
 // === Supplier search (starts from 1 char) ===
-function onSupplierInput() { validationErrors.value.supplier = false; debouncedSupplierSearch(); }
-function selectSupplier(s) { supplier.value = s; supplierSuggestions.value = []; validationErrors.value.supplier = false; }
-let ssTimer = null;
-function debouncedSupplierSearch() {
-  const q = supplier.value.trim();
-  if (q.length < 1) { supplierSuggestions.value = []; return; }
-  clearTimeout(ssTimer);
-  ssTimer = setTimeout(async () => {
-    try { const r = await fetch(`${API}/inventory/suppliers/search?query=${encodeURIComponent(q)}`); if (r.ok) { const d = await r.json(); supplierSuggestions.value = d.data || []; } } catch {}
-  }, 200);
-}
 
 // === Product Search ===
 function onProductSearch() { debouncedProductSearch(); }
@@ -902,29 +860,20 @@ function onBeforeUnload(e) {
 
 const router = useRouter();
 const route = useRoute();
+const { confirm } = useConfirm();
 let navConfirmed = false;
 
 const navGuard = router.beforeEach((to) => {
   if (navConfirmed) { navConfirmed = false; return true; }
   if (view.value === VIEW_RECEIPT && items.value.length > 0 && to.name !== undefined) {
-    pendingNav.value = to;
-    showNavGuardModal.value = true;
-    return false;
+    return confirm({
+      title: "Unsaved receipt",
+      message: "You have items that haven't been received yet. Discard them and leave, or cancel and hold them first.",
+      confirmLabel: "Discard and leave",
+    });
   }
   return true;
 });
-
-function confirmDiscard() {
-  showNavGuardModal.value = false;
-  const target = pendingNav.value;
-  pendingNav.value = null;
-  if (target) { navConfirmed = true; router.push(target); }
-}
-
-function cancelDiscard() {
-  showNavGuardModal.value = false;
-  pendingNav.value = null;
-}
 
 function restoreHeldData() {
   const data = localStorage.getItem("heldReceiveItems");
@@ -980,7 +929,8 @@ async function loadPurchaseOrder(id, { restore = false } = {}) {
     order = await r.json();
   } catch (e) { showToast(e.message, "error"); if (restore) unlinkPurchaseOrderRows(); return; }
   if (order.status !== "open" && order.status !== "partial") {
-    showToast("PO-" + String(order.id).padStart(5, "0") + " is already " + order.status + (restore ? ", so these items will be received without it" : ""), "error");
+    const awaiting = order.status === "draft" || order.status === "pending_approval";
+    showToast("PO-" + String(order.id).padStart(5, "0") + (awaiting ? " has not been approved yet" : " is already " + order.status) + (restore ? ", so these items will be received without it" : ""), "error");
     if (restore) unlinkPurchaseOrderRows();
     return;
   }
@@ -1037,12 +987,20 @@ async function reportPurchaseOrderProgress(id) {
 }
 
 // The order id arrives as ?purchase_order=; strip it once read so a refresh does not reload it.
-function openPurchaseOrderFromRoute() {
+async function openPurchaseOrderFromRoute() {
   const id = Number(route.query.purchase_order);
   if (!id) return;
   navConfirmed = true;
   router.replace({ path: route.path });
-  if (view.value === VIEW_RECEIPT && items.value.length && !window.confirm("Replace the receipt in progress with this purchase order?")) return;
+  if (view.value === VIEW_RECEIPT && items.value.length) {
+    const replace = await confirm({
+      title: "Replace the receipt in progress?",
+      message: "Loading this purchase order will clear the items you have entered so far.",
+      confirmLabel: "Replace receipt",
+      cancelLabel: "Keep current receipt",
+    });
+    if (!replace) return;
+  }
   loadPurchaseOrder(id);
 }
 

@@ -56,9 +56,9 @@
         <div v-if="!collapsed || mobileOpen" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.inventory || isInSection(inventoryPaths)" class="space-y-0.5">
           <router-link to="/products" :class="linkClasses('/products')" @click="$emit('close-mobile')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Products</span></router-link>
-          <PermissionGate permission="purchaseorder:create">
-            <router-link to="/purchase-orders" :class="linkClasses('/purchase-orders')" @click="$emit('close-mobile')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Purchase Orders</span></router-link>
-          </PermissionGate>
+          <template v-if="canUsePurchaseOrders">
+            <router-link to="/purchase-orders" :class="linkClasses('/purchase-orders')" @click="$emit('close-mobile')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Purchase Orders</span><span v-if="pendingCounts.pending && (!collapsed || mobileOpen)" class="ml-auto rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white" :title="`${pendingCounts.pending} waiting for approval`">{{ pendingCounts.pending }}</span></router-link>
+          </template>
           <router-link to="/receive-items" :class="linkClasses('/receive-items')" @click="$emit('close-mobile')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Receive Items</span></router-link>
           <router-link to="/received-items-history" :class="linkClasses('/received-items-history')" @click="$emit('close-mobile')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Received History</span></router-link>
           <router-link to="/held-receive-items" :class="linkClasses('/held-receive-items')" @click="$emit('close-mobile')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Held Receipts</span></router-link>
@@ -100,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
@@ -109,6 +109,8 @@ import {
   ChevronDown,
 } from "lucide-vue-next";
 import PermissionGate from "./PermissionGate.vue";
+import { usePermissions } from "../composables/usePermissions.js";
+import { usePendingPurchaseOrders } from "../composables/usePendingPurchaseOrders.js";
 
 defineProps({
   collapsed: { type: Boolean, default: false },
@@ -119,6 +121,13 @@ defineProps({
 defineEmits(["toggle-collapse", "toggle-theme", "open-admin", "close-mobile"]);
 
 const route = useRoute();
+const { hasPermission } = usePermissions();
+const canUsePurchaseOrders = computed(
+  () => hasPermission("purchaseorder:draft") || hasPermission("purchaseorder:approve"),
+);
+const { counts: pendingCounts, start: watchPending, stop: stopWatchingPending } = usePendingPurchaseOrders();
+onMounted(watchPending);
+onUnmounted(stopWatchingPending);
 
 const salesPaths = ["/pos", "/sales-history", "/held-sales"];
 const inventoryPaths = ["/products", "/purchase-orders", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking"];

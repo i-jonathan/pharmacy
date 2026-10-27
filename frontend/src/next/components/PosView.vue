@@ -85,45 +85,21 @@
       </div>
     </Transition>
 
-    <Transition name="fade">
-      <div v-if="showLeaveWarning" class="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-950/55 p-4 backdrop-blur-sm" role="presentation" @click.self="stayOnPage">
-        <section class="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl sm:p-6" role="alertdialog" aria-modal="true" aria-labelledby="leave-sale-title" aria-describedby="leave-sale-description">
-          <div class="mb-4 flex items-start gap-3">
-            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-              <AlertTriangle :size="20" class="text-amber-700 dark:text-amber-300" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 id="leave-sale-title" class="text-base font-semibold">Unfinished sale</h2>
-              <p class="mt-1 text-sm leading-5 text-muted-foreground">Leaving the POS will empty the current cart. Hold the sale to resume it later.</p>
-            </div>
-          </div>
-          <p id="leave-sale-description" class="mb-5 text-sm text-foreground">{{ pos.cartCount.value }} items · ₦{{ pos.total.value.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</p>
-          <p v-if="leaveError" class="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">{{ leaveError }}</p>
-          <div class="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            <Button variant="ghost" :disabled="leaving" @click="discardAndContinue">Discard and continue</Button>
-            <Button variant="outline" :disabled="leaving" @click="stayOnPage">Stay on POS</Button>
-            <Button :disabled="leaving" @click="holdAndContinue">
-              <Pause v-if="!leaving" :size="15" class="mr-2" aria-hidden="true" />
-              <span v-else class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"></span>
-              {{ leaving ? 'Holding sale…' : 'Hold sale and continue' }}
-            </Button>
-          </div>
-        </section>
-      </div>
-    </Transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { AlertTriangle, Check, PackageSearch, Pause, ShoppingCart } from "lucide-vue-next";
+import { Check, PackageSearch, ShoppingCart } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { usePos } from "../composables/usePos.js";
+import { useConfirm } from "../composables/useConfirm.js";
 import ProductPanel from "./pos/ProductPanel.vue";
 import CartPanel from "./pos/CartPanel.vue";
 
 const pos = usePos();
+const { confirm } = useConfirm();
 const router = useRouter();
 const mobilePane = ref("products");
 const processing = ref(false);
@@ -132,79 +108,39 @@ const actionMessage = ref("");
 const addedItemName = ref("");
 const keyboardOffset = ref(0);
 const addedItemToastBottom = computed(() => `calc(${keyboardOffset.value}px + 4.5rem + env(safe-area-inset-bottom))`);
-const showLeaveWarning = ref(false);
-const leaveError = ref("");
-const leaving = ref(false);
-const pendingRoute = ref(null);
-const pendingLogout = ref(null);
-let allowNavigationOnce = false;
 let addedItemTimer = null;
 let actionMessageTimer = null;
 
+// Resolves true when the user may leave: after holding the sale, or after discarding the cart.
+async function mayLeave() {
+  const answer = await confirm({
+    title: "Unfinished sale",
+    message: "Leaving the POS will empty the current cart. Hold the sale to resume it later.",
+    detail: `${pos.cartCount.value} items · ₦${pos.total.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    confirmLabel: "Hold sale and continue",
+    busyLabel: "Holding sale…",
+    cancelLabel: "Stay on POS",
+    alternate: { label: "Discard and continue", danger: true, run: async () => pos.clearCart() },
+    run: async () => {
+      try {
+        await pos.holdCart();
+      } catch (e) {
+        throw new Error(e.message || "The sale could not be held. Please try again.");
+      }
+    },
+  });
+  return answer !== false;
+}
+
 const removeNavigationGuard = router.beforeEach((to, from) => {
-  if (allowNavigationOnce) {
-    allowNavigationOnce = false;
-    return true;
-  }
-  if (from.name === "pos" && pos.cart.length > 0) {
-    pendingRoute.value = to;
-    pendingLogout.value = null;
-    leaveError.value = "";
-    showLeaveWarning.value = true;
-    return false;
-  }
+  if (from.name === "pos" && pos.cart.length > 0) return mayLeave();
   return true;
 });
 
-function onLogoutRequest(event) {
+async function onLogoutRequest(event) {
   if (pos.cart.length === 0) return;
   event.detail.intercept();
-  pendingRoute.value = null;
-  pendingLogout.value = event.detail.proceed;
-  leaveError.value = "";
-  showLeaveWarning.value = true;
-}
-
-function stayOnPage() {
-  if (leaving.value) return;
-  showLeaveWarning.value = false;
-  pendingRoute.value = null;
-  pendingLogout.value = null;
-  leaveError.value = "";
-}
-
-function continueLeaving() {
-  const logout = pendingLogout.value;
-  const target = pendingRoute.value;
-  showLeaveWarning.value = false;
-  pendingLogout.value = null;
-  pendingRoute.value = null;
-  if (logout) {
-    logout();
-  } else if (target) {
-    allowNavigationOnce = true;
-    router.push(target);
-  }
-}
-
-function discardAndContinue() {
-  if (leaving.value) return;
-  pos.clearCart();
-  continueLeaving();
-}
-
-async function holdAndContinue() {
-  if (leaving.value) return;
-  leaving.value = true;
-  leaveError.value = "";
-  try {
-    await pos.holdCart();
-    continueLeaving();
-  } catch (e) {
-    leaveError.value = e.message || "The sale could not be held. Please try again.";
-  } finally {
-    leaving.value = false;
-  }
+  if (await mayLeave()) event.detail.proceed();
 }
 
 function updateKeyboardOffset() {

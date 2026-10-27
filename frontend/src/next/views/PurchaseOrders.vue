@@ -1,8 +1,8 @@
 <template>
-  <div v-if="!canManage" class="p-4 sm:p-6 lg:p-8">
+  <div v-if="!canUse" class="p-4 sm:p-6 lg:p-8">
     <h1 class="text-2xl font-semibold tracking-tight">Purchase Orders</h1>
     <p class="mt-2 text-sm text-muted-foreground">
-      You do not have permission to manage purchase orders. Ask an administrator for access.
+      You do not have permission to use purchase orders. Ask an administrator for access.
     </p>
   </div>
   <div v-else class="space-y-5 p-4 sm:p-6 lg:p-8">
@@ -29,16 +29,12 @@
       {{ notice.text }}
     </p>
 
-    <datalist id="po-suppliers">
-      <option v-for="name in supplierSuggestions" :key="name" :value="name" />
-    </datalist>
-
     <!-- ===== EDITOR ===== -->
     <section v-if="editing" class="space-y-4 rounded-lg border border-border bg-card p-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h2 class="flex items-center gap-2 text-lg font-semibold">
           {{ editId ? `Edit ${orderNumber(editId)}` : "New purchase order" }}
-          <span v-if="editId" :class="[badgeBase, STATUS[editStatus].badge]">{{ editStatus }}</span>
+          <span v-if="editId" :class="[badgeBase, STATUS[editStatus].badge]">{{ statusLabel(editStatus) }}</span>
         </h2>
         <Button variant="outline" size="sm" @click="cancelEdit">
           <X :size="14" class="mr-1" />
@@ -56,16 +52,12 @@
       </div>
 
       <div class="grid gap-3 md:grid-cols-2">
-        <label class="block text-sm">
-          Supplier <span class="text-muted-foreground">(optional now, required when receiving)</span>
-          <input
-            v-model="supplier"
-            list="po-suppliers"
-            class="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-            placeholder="Supplier name"
-            @input="searchSuppliers($event.target.value)"
-          />
-        </label>
+        <div class="block text-sm">
+          <span id="po-supplier-label">
+            Supplier <span class="text-muted-foreground">(optional now, required when receiving)</span>
+          </span>
+          <SupplierInput v-model="supplier" class="mt-1" placeholder="Supplier name" aria-label="Supplier" />
+        </div>
         <label class="block text-sm">
           Additional notes <span class="text-muted-foreground">(optional)</span>
           <textarea
@@ -138,7 +130,8 @@
                 v-for="row in lowStockRows"
                 :key="row.id"
                 class="flex items-center gap-3 px-3 py-2 text-sm"
-                :class="{ 'opacity-60': row.added }"
+                :class="row.added ? 'opacity-60' : 'cursor-pointer hover:bg-accent'"
+                @click="onLowStockRowClick(row, $event)"
               >
                 <input
                   type="checkbox"
@@ -158,11 +151,9 @@
                     </span>
                   </div>
                 </div>
-                <QuantityStepper
-                  v-if="row.id in lowStockPick"
-                  v-model="lowStockPick[row.id]"
-                  :label="`quantity for ${row.name}`"
-                />
+                <span v-if="row.id in lowStockPick" class="cursor-default" @click.stop>
+                  <QuantityStepper v-model="lowStockPick[row.id]" :max="MAX_QUANTITY" :label="`quantity for ${row.name}`" />
+                </span>
               </div>
             </div>
             <div class="flex justify-end border-t border-border p-2">
@@ -191,7 +182,7 @@
               aria-label="New item manufacturer"
               @keydown.enter.prevent="addNewItem"
             />
-            <QuantityStepper v-model="newItem.quantity" label="new item quantity" />
+            <QuantityStepper v-model="newItem.quantity" :max="MAX_QUANTITY" label="new item quantity" />
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <input
@@ -263,6 +254,7 @@
                 <td class="p-2 text-center">
                   <QuantityStepper
                     v-model="line.quantity"
+                    :max="MAX_QUANTITY"
                     :min="Math.max(1, line.received_quantity)"
                     :label="`quantity for ${line.name}`"
                   />
@@ -290,14 +282,24 @@
       <p v-else class="text-sm text-muted-foreground">No items yet. Search, pick from low stock, or add a new item above.</p>
 
       <div class="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" :disabled="!lines.length" @click="exportDraft">
+        <Button v-if="canExportEditor" variant="outline" :disabled="!lines.length" @click="exportDraft">
           <Download :size="16" class="mr-2" />
           Export PDF
         </Button>
-        <Button :disabled="saving || !lines.length" @click="save">
-          {{ saving ? "Saving..." : editId ? "Save changes" : "Save purchase order" }}
+        <Button variant="outline" :disabled="saving || !lines.length" @click="save()">
+          {{ saving ? "Saving..." : saveLabel }}
+        </Button>
+        <Button v-if="!canApprove" :disabled="saving || !lines.length" @click="save('submit')">
+          Save and submit for approval
+        </Button>
+        <Button v-else-if="editorAwaitingApproval" :disabled="saving || !lines.length" @click="save('approve')">
+          <Check :size="16" class="mr-2" />
+          Save and approve
         </Button>
       </div>
+      <p v-if="!canApprove" class="text-right text-xs text-muted-foreground">
+        A manager has to approve this order before it can be sent to the supplier.
+      </p>
     </section>
 
     <!-- ===== ORDERS ===== -->
@@ -324,7 +326,7 @@
         v-else-if="!orders.length"
         class="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground"
       >
-        {{ tab === "active" ? "No purchase orders waiting for stock." : "No completed purchase orders yet." }}
+        {{ emptyMessage }}
       </div>
 
       <template v-else>
@@ -332,23 +334,23 @@
           v-for="o in pagedOrders"
           :key="o.id"
           class="rounded-lg border border-l-4 border-border bg-card p-4"
-          :class="STATUS[o.status].accent"
+          :class="STATUS[shownStatus(o)].accent"
         >
-          <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="flex flex-wrap items-start justify-between gap-3 xl:flex-nowrap">
             <div class="min-w-0 flex-1 basis-72">
               <div class="flex flex-wrap items-center gap-2 font-medium">
                 {{ orderNumber(o.id) }}
-                <span :class="[badgeBase, STATUS[o.status].badge]">{{ o.status }}</span>
+                <span :class="[badgeBase, STATUS[shownStatus(o)].badge]">{{ statusLabel(shownStatus(o)) }}</span>
                 <span class="font-normal text-muted-foreground">{{ o.supplier || "No supplier" }}</span>
               </div>
               <div class="mt-1 text-sm text-muted-foreground">
                 {{ o.items.length }} item{{ o.items.length === 1 ? "" : "s" }} · {{ formatDate(o.created_at) }}
               </div>
               <div class="mt-2 flex items-center gap-3">
-                <div class="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
-                  <div class="h-full rounded-full" :class="STATUS[o.status].bar" :style="{ width: progress(o) + '%' }"></div>
+                <div class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted">
+                  <div class="h-full rounded-full" :class="STATUS[shownStatus(o)].bar" :style="{ width: progress(o) + '%' }"></div>
                 </div>
-                <span class="text-xs tabular-nums text-muted-foreground">
+                <span class="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
                   {{ totals(o).received }} of {{ totals(o).ordered }} units received
                 </span>
               </div>
@@ -363,55 +365,88 @@
 
             <div v-if="closeTarget === o.id" class="w-full space-y-2 text-sm md:w-auto md:max-w-md">
               <span class="block text-muted-foreground">
-                {{ totals(o).received ? `Stop waiting for the remaining ${totals(o).outstanding} units?` : "Cancel this order?" }}
+                {{ closeQuestion(o) }}
                 Say why, so it is on record.
               </span>
-              <ReasonPicker v-model:preset="closeReason.preset" v-model:detail="closeReason.detail" />
+              <ReasonPicker
+                v-model:preset="closeReason.preset"
+                v-model:detail="closeReason.detail"
+                :reasons="isAwaitingApproval(o) ? REJECT_REASONS : REASONS"
+              />
               <div class="flex gap-2">
                 <Button variant="destructive" size="sm" :disabled="closing || !composeReason(closeReason)" @click="closeOrder(o)">
-                  {{ closing ? "Closing..." : totals(o).received ? "Yes, close" : "Yes, cancel" }}
+                  {{ closing ? "Saving..." : closeConfirm(o) }}
                 </Button>
-                <Button variant="outline" size="sm" :disabled="closing" @click="closeTarget = null">Keep open</Button>
+                <Button variant="outline" size="sm" :disabled="closing" @click="closeTarget = null">Keep it</Button>
               </div>
             </div>
-            <div v-else class="flex flex-wrap gap-2">
+            <!-- Reading and housekeeping on the left, the one action that moves the order forward last. -->
+            <div v-else class="flex w-full flex-wrap items-center justify-end gap-2 border-t border-border pt-3 xl:w-auto xl:flex-nowrap xl:border-0 xl:pt-0">
               <Button variant="outline" size="sm" @click="openDetails(o.id)">
-                <Eye :size="14" class="mr-1" />
+                <Eye :size="14" class="mr-1.5" />
                 View
               </Button>
-              <Button v-if="isEditable(o)" variant="outline" size="sm" @click="startEdit(o)">Edit</Button>
-              <Button v-if="isEditable(o)" size="sm" @click="receive(o)">Receive</Button>
-              <Button variant="outline" size="sm" @click="exportOrder(o)">
-                <Download :size="14" class="mr-1" />
+              <Button v-if="hasPdf(o)" variant="outline" size="sm" @click="exportOrder(o)">
+                <Download :size="14" class="mr-1.5" />
                 PDF
               </Button>
-              <Button v-if="isEditable(o) && totals(o).outstanding" variant="outline" size="sm" @click="startMove(o)">
-                Other supplier
+              <Button v-if="canEdit(o)" variant="outline" size="sm" @click="startEdit(o)">
+                <Pencil :size="14" class="mr-1.5" />
+                Edit
               </Button>
               <Button
-                v-if="isEditable(o)"
+                v-if="canManageActive(o) && totals(o).outstanding"
+                variant="outline"
+                size="sm"
+                :title="moveHint(o)"
+                @click="startMove(o)"
+              >
+                <ArrowRightLeft :size="14" class="mr-1.5" />
+                Move outstanding
+              </Button>
+              <Button
+                v-if="canManageActive(o) || canApproveOrder(o)"
                 variant="outline"
                 size="sm"
                 class="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
                 @click="startClose(o)"
               >
-                {{ totals(o).received ? "Close order" : "Cancel order" }}
+                <Ban :size="14" class="mr-1.5" />
+                {{ closeLabel(o) }}
+              </Button>
+              <span
+                v-if="canSubmit(o) || canApproveOrder(o) || canManageActive(o)"
+                class="hidden h-6 w-px bg-border sm:block"
+                aria-hidden="true"
+              ></span>
+              <Button v-if="canSubmit(o)" size="sm" :disabled="acting === o.id" @click="submitOrder(o)">
+                <Send :size="14" class="mr-1.5" />
+                Submit for approval
+              </Button>
+              <Button v-if="canApproveOrder(o)" size="sm" :disabled="acting === o.id" @click="approveOrder(o)">
+                <Check :size="14" class="mr-1.5" />
+                Approve
+              </Button>
+              <Button v-if="canManageActive(o)" size="sm" @click="receive(o)">
+                <PackageCheck :size="14" class="mr-1.5" />
+                Receive
               </Button>
             </div>
+            <p v-if="o.status === 'pending_approval' && !canApprove" class="w-full text-xs text-amber-700 dark:text-amber-300">
+              Submitted. A manager will review it; you cannot change it now.
+            </p>
           </div>
 
           <div v-if="moveTarget === o.id" class="mt-3 space-y-2 rounded-md border border-dashed border-border p-3 text-sm">
             <p class="text-muted-foreground">
-              Send the {{ totals(o).outstanding }} outstanding units to a different supplier. This order is closed
-              with what it already received, and a new order is created for them.
+              Send the {{ totals(o).outstanding }} outstanding units to {{ o.supplier ? "a different supplier" : "a supplier" }}.
+              This order is closed with what it already received, and a new order is created for them.
             </p>
-            <input
+            <SupplierInput
               v-model="moveSupplier"
-              list="po-suppliers"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 md:max-w-sm"
+              class="md:max-w-sm"
               placeholder="New supplier name"
               aria-label="New supplier"
-              @input="searchSuppliers($event.target.value)"
             />
             <ReasonPicker v-model:preset="moveReason.preset" v-model:detail="moveReason.detail" />
             <div class="flex gap-2">
@@ -443,7 +478,7 @@
             <div>
               <div class="flex flex-wrap items-center gap-2 text-lg font-semibold">
                 {{ orderNumber(detailOrder.id) }}
-                <span :class="[badgeBase, STATUS[detailOrder.status].badge]">{{ detailOrder.status }}</span>
+                <span :class="[badgeBase, STATUS[shownStatus(detailOrder)].badge]">{{ statusLabel(shownStatus(detailOrder)) }}</span>
               </div>
               <div class="text-sm text-muted-foreground">
                 {{ detailOrder.supplier || "No supplier" }} · {{ formatDate(detailOrder.created_at) }}
@@ -455,7 +490,7 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-              <div class="h-full rounded-full" :class="STATUS[detailOrder.status].bar" :style="{ width: progress(detailOrder) + '%' }"></div>
+              <div class="h-full rounded-full" :class="STATUS[shownStatus(detailOrder)].bar" :style="{ width: progress(detailOrder) + '%' }"></div>
             </div>
             <span class="text-xs tabular-nums text-muted-foreground">
               {{ totals(detailOrder).received }} / {{ totals(detailOrder).ordered }} units
@@ -541,7 +576,7 @@
             <Button variant="outline" size="sm" @click="showActivity = !showActivity">
               Activity ({{ history.length }})
             </Button>
-            <Button variant="outline" size="sm" @click="exportOrder(detailOrder)">
+            <Button v-if="hasPdf(detailOrder)" variant="outline" size="sm" @click="exportOrder(detailOrder)">
               <Download :size="14" class="mr-1" />
               PDF
             </Button>
@@ -556,34 +591,63 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
-import { AlertTriangle, Download, Eye, Plus, X } from "lucide-vue-next";
+import { AlertTriangle, ArrowRightLeft, Ban, Check, Download, Eye, PackageCheck, Pencil, Plus, Send, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import QuantityStepper from "../components/QuantityStepper.vue";
 import PagerBar from "../components/PagerBar.vue";
 import ReasonPicker from "../components/ReasonPicker.vue";
+import SupplierInput from "../components/SupplierInput.vue";
+import { useConfirm } from "../composables/useConfirm.js";
+import { REASONS, REJECT_REASONS } from "../components/reasons.js";
 import { csrfFetch } from "../lib/csrf.js";
-import { usePermissions } from "../composables/usePermissions.js";
+import { usePermissions, useUser } from "../composables/usePermissions.js";
+import { usePendingPurchaseOrders } from "../composables/usePendingPurchaseOrders.js";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const API = "";
 const { hasPermission } = usePermissions();
-const canManage = computed(() => hasPermission("purchaseorder:create"));
+const user = useUser();
+const canApprove = computed(() => hasPermission("purchaseorder:approve"));
+const canDraft = computed(() => hasPermission("purchaseorder:draft"));
+const { confirm } = useConfirm();
+const { refresh: refreshPending } = usePendingPurchaseOrders();
+const canUse = computed(() => canApprove.value || canDraft.value);
 const route = useRoute();
 const router = useRouter();
 
+// The database stores quantities as 32-bit integers. Anything below that is allowed, but big
+// orders ask for confirmation before they are saved.
+const MAX_QUANTITY = 2_147_483_647;
+const CONFIRM_QUANTITY = 100_000;
+const CONFIRM_LINES = 200;
 const LINES_PER_PAGE = 8;
 const DETAIL_PER_PAGE = 10;
 const ORDERS_PER_PAGE = 10;
 
-const tabs = [
+const tabs = computed(() => [
+  { key: "drafts", label: canApprove.value ? "Needs approval" : "My drafts" },
   { key: "active", label: "Waiting for stock" },
   { key: "history", label: "Completed" },
-];
+]);
 
 // Each status keeps one colour everywhere it appears: badge, card accent and progress bar.
+function statusLabel(status) {
+  return status.replace("_", " ");
+}
+
 const badgeBase = "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize";
 const STATUS = {
+  draft: {
+    badge: "border-dashed border-zinc-400 bg-zinc-50 text-zinc-600 dark:border-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300",
+    accent: "border-l-zinc-400",
+    bar: "bg-zinc-400",
+  },
+  pending_approval: {
+    badge: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+    accent: "border-l-amber-500",
+    bar: "bg-amber-500",
+  },
   open: {
     badge: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
     accent: "border-l-blue-500",
@@ -599,6 +663,9 @@ const STATUS = {
     accent: "border-l-emerald-500",
     bar: "bg-emerald-500",
   },
+  // Not a stored status: a closed order that received something (moved to another supplier, or
+  // closed while still waiting for the rest) was partly filled, so it keeps the "completed" colour.
+  partially_filled: null,
   closed: {
     badge: "border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
     accent: "border-l-slate-400",
@@ -606,14 +673,29 @@ const STATUS = {
   },
 };
 
+STATUS.partially_filled = STATUS.received;
+
+// What an order is called on screen. Closing with nothing received is a cancellation, and stays
+// "closed"; closing after something arrived is a partial fill.
+function shownStatus(o) {
+  return o.status === "closed" && o.items.some((i) => i.received_quantity > 0) ? "partially_filled" : o.status;
+}
+
 // --- list state ---
 const tab = ref("active");
+const emptyMessages = {
+  drafts: "Nothing is waiting for approval.",
+  active: "No purchase orders waiting for stock.",
+  history: "No completed purchase orders yet.",
+};
+const emptyMessage = computed(() => emptyMessages[tab.value]);
 const orders = ref([]);
 const ordersPage = ref(1);
 const loading = ref(false);
 const loadError = ref("");
 const closeTarget = ref(null);
 const closing = ref(false);
+const acting = ref(null);
 const moveTarget = ref(null);
 const moveSupplier = ref("");
 const moving = ref(false);
@@ -647,11 +729,9 @@ let lineKey = 0;
 
 const query = ref("");
 const results = ref([]);
-const supplierSuggestions = ref([]);
 const newItem = reactive({ name: "", manufacturer: "", note: "", quantity: 1 });
 const addingNew = ref(false);
 let searchTimer = null;
-let supplierTimer = null;
 
 // --- low stock picker ---
 const lowStockOpen = ref(false);
@@ -659,6 +739,15 @@ const lowStockLoading = ref(false);
 const lowStockItems = ref([]);
 const outstandingByProduct = ref({});
 const lowStockPick = reactive({});
+
+const editorAwaitingApproval = computed(
+  () => !!editId.value && (editStatus.value === "draft" || editStatus.value === "pending_approval"),
+);
+const canExportEditor = computed(() => canApprove.value);
+const saveLabel = computed(() => {
+  if (!canApprove.value) return editId.value ? "Save draft" : "Save as draft";
+  return editId.value ? "Save changes" : "Save purchase order";
+});
 
 const hasReceived = computed(() => lines.value.some((l) => l.received_quantity > 0));
 const lineUnits = computed(() => lines.value.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0));
@@ -724,6 +813,39 @@ function formatDate(d) {
   }
 }
 
+function isAwaitingApproval(o) {
+  return o.status === "draft" || o.status === "pending_approval";
+}
+
+// A draft or submitted order can be printed for review, and its PDF is stamped DRAFT. A rejected
+// draft is closed but was never approved, so it has no PDF.
+function hasPdf(o) {
+  return isAwaitingApproval(o) || !!o.approved_at;
+}
+
+function isMine(o) {
+  return o.created_by_id !== null && o.created_by_id === user.value.id;
+}
+
+// Managers change anything unfinished; a drafter only their own draft.
+function canEdit(o) {
+  if (canApprove.value) return isAwaitingApproval(o) || isEditable(o);
+  return canDraft.value && o.status === "draft" && isMine(o);
+}
+
+function canSubmit(o) {
+  return o.status === "draft" && isMine(o) && (canDraft.value || canApprove.value);
+}
+
+function canApproveOrder(o) {
+  return canApprove.value && isAwaitingApproval(o);
+}
+
+// Receive, close and move apply to approved orders that are still waiting for stock.
+function canManageActive(o) {
+  return canApprove.value && isEditable(o);
+}
+
 function isEditable(o) {
   return o.status === "open" || o.status === "partial";
 }
@@ -758,6 +880,7 @@ async function loadOrders() {
     const r = await fetch(`${API}/inventory/purchase-orders?view=${tab.value}`);
     if (!r.ok) throw new Error(await apiError(r, "Could not load purchase orders."));
     orders.value = (await r.json()) || [];
+    refreshPending();
   } catch (e) {
     loadError.value = e.message || "Could not load purchase orders.";
   } finally {
@@ -816,6 +939,12 @@ function eventLines(e) {
       lines.push(`Received ${l.item} × ${l.quantity}${l.product_linked ? " (linked to a product)" : ""} · ${l.outstanding_after} still outstanding`);
     }
     if (d.supplier) lines.push(`Delivered by ${d.supplier}`);
+  } else if (e.action === "submitted") {
+    lines.push("Submitted for approval");
+  } else if (e.action === "approved") {
+    lines.push("Approved and opened");
+  } else if (e.action === "rejected") {
+    lines.push("Rejected and closed");
   } else if (e.action === "closed") {
     const units = (d.abandoned || []).reduce((sum, i) => sum + i.quantity, 0);
     lines.push(`Closed with ${units} unit${units === 1 ? "" : "s"} outstanding`);
@@ -829,10 +958,32 @@ function closeDetails() {
   detailId.value = null;
 }
 
+// Closing an approved order and rejecting a draft are the same gesture with different words.
+function closeLabel(o) {
+  if (isAwaitingApproval(o)) return "Reject";
+  return totals(o).received ? "Close order" : "Cancel order";
+}
+
+function moveHint(o) {
+  const to = o.supplier ? "a different supplier" : "a supplier";
+  return `Close this order with what it already received, and create a new order for the ${totals(o).outstanding} outstanding units addressed to ${to}.`;
+}
+
+function closeQuestion(o) {
+  if (isAwaitingApproval(o)) return "Reject this order? It will be closed.";
+  return totals(o).received ? `Stop waiting for the remaining ${totals(o).outstanding} units?` : "Cancel this order?";
+}
+
+function closeConfirm(o) {
+  if (isAwaitingApproval(o)) return "Yes, reject";
+  return totals(o).received ? "Yes, close" : "Yes, cancel";
+}
+
 async function closeOrder(o) {
   closing.value = true;
   try {
-    const r = await csrfFetch(`${API}/inventory/purchase-orders/${o.id}/close`, {
+    const action = isAwaitingApproval(o) ? "reject" : "close";
+    const r = await csrfFetch(`${API}/inventory/purchase-orders/${o.id}/${action}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ version: o.version, reason: composeReason(closeReason) }),
@@ -843,12 +994,52 @@ async function closeOrder(o) {
       throw new Error(message);
     }
     closeTarget.value = null;
-    showNotice(`${orderNumber(o.id)} closed.`);
+    showNotice(`${orderNumber(o.id)} ${action === "reject" ? "rejected" : "closed"}.`);
     await loadOrders();
   } catch (e) {
     showNotice(e.message, true);
   } finally {
     closing.value = false;
+  }
+}
+
+// Submit and approve act on the version the user saw, so a change made meanwhile is not skipped.
+async function orderAction(o, action, version = o.version) {
+  const r = await csrfFetch(`${API}/inventory/purchase-orders/${o.id}/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version }),
+  });
+  if (!r.ok) {
+    const message = await apiError(r, `Could not ${action} the purchase order.`);
+    if (r.status === 409) await loadOrders();
+    throw new Error(message);
+  }
+}
+
+async function submitOrder(o) {
+  acting.value = o.id;
+  try {
+    await orderAction(o, "submit");
+    showNotice(`${orderNumber(o.id)} submitted for approval.`);
+    await loadOrders();
+  } catch (e) {
+    showNotice(e.message, true);
+  } finally {
+    acting.value = null;
+  }
+}
+
+async function approveOrder(o) {
+  acting.value = o.id;
+  try {
+    await orderAction(o, "approve");
+    showNotice(`${orderNumber(o.id)} approved. It is now open: export the PDF to send it, then receive against it.`);
+    await loadOrders();
+  } catch (e) {
+    showNotice(e.message, true);
+  } finally {
+    acting.value = null;
   }
 }
 
@@ -979,8 +1170,17 @@ async function reloadLatest() {
   }
 }
 
-function cancelEdit() {
-  if (isDirty.value && !window.confirm("Discard your unsaved changes?")) return;
+function confirmDiscard() {
+  return confirm({
+    title: "Discard your changes?",
+    message: "This purchase order has changes that are not saved.",
+    confirmLabel: "Discard changes",
+    cancelLabel: "Keep editing",
+  });
+}
+
+async function cancelEdit() {
+  if (isDirty.value && !(await confirmDiscard())) return;
   leaveEditor();
 }
 
@@ -1025,23 +1225,6 @@ function searchProducts() {
       if (r.ok) results.value = (await r.json()) || [];
     } catch {
       results.value = [];
-    }
-  }, 200);
-}
-
-function searchSuppliers(text) {
-  clearTimeout(supplierTimer);
-  const q = (text || "").trim();
-  if (!q) {
-    supplierSuggestions.value = [];
-    return;
-  }
-  supplierTimer = setTimeout(async () => {
-    try {
-      const r = await fetch(`${API}/inventory/suppliers/search?query=${encodeURIComponent(q)}`);
-      if (r.ok) supplierSuggestions.value = ((await r.json()).data) || [];
-    } catch {
-      supplierSuggestions.value = [];
     }
   }, 200);
 }
@@ -1131,6 +1314,12 @@ function toggleLowStockRow(row, checked) {
   else delete lowStockPick[row.id];
 }
 
+// The whole row is a target, not just the box. The box itself handles its own change event.
+function onLowStockRowClick(row, event) {
+  if (row.added || event.target.closest("input, button")) return;
+  toggleLowStockRow(row, !(row.id in lowStockPick));
+}
+
 function selectAllLowStock() {
   for (const row of lowStockRows.value) {
     if (!row.added && !(row.id in lowStockPick)) lowStockPick[row.id] = suggestedQuantity(row);
@@ -1147,6 +1336,7 @@ function addPickedLowStock() {
     addProduct(row, Math.max(1, Math.floor(Number(lowStockPick[row.id])) || 1));
   }
   clearLowStock();
+  lowStockOpen.value = false;
 }
 
 // --- save ---
@@ -1158,12 +1348,29 @@ function validateLines() {
   return "";
 }
 
-async function save() {
+// A very large order is allowed, but a stray extra zero should not slip through unnoticed.
+function confirmLargeOrder() {
+  const big = lines.value.filter((l) => l.quantity >= CONFIRM_QUANTITY);
+  const parts = big.slice(0, 3).map((l) => `${l.quantity.toLocaleString()} × ${l.name}`);
+  if (big.length > 3) parts.push(`${big.length - 3} more large lines`);
+  if (lines.value.length > CONFIRM_LINES) parts.push(`${lines.value.length} items in total`);
+  if (!parts.length) return true;
+  return confirm({
+    title: "This is a very large order",
+    message: "Check the quantities before saving.",
+    lines: parts,
+    confirmLabel: "Save anyway",
+    cancelLabel: "Go back",
+  });
+}
+
+async function save(afterSave = "") {
   const problem = validateLines();
   if (problem) {
     showNotice(problem, true);
     return;
   }
+  if (!(await confirmLargeOrder())) return;
   saving.value = true;
   try {
     const body = {
@@ -1195,8 +1402,23 @@ async function save() {
     }
     if (!r.ok) throw new Error(await apiError(r, "Could not save the purchase order."));
     const { id } = await r.json();
-    showNotice(`${orderNumber(id)} saved.`);
-    tab.value = "active";
+    let message = `${orderNumber(id)} saved.`;
+    if (afterSave) {
+      // Submitting or approving acts on the version just saved, so read it back first.
+      const fresh = await fetch(`${API}/inventory/purchase-orders/${id}`);
+      if (!fresh.ok) throw new Error(`${orderNumber(id)} was saved, but could not be ${afterSave === "submit" ? "submitted" : "approved"}. Try again from the list.`);
+      await orderAction({ id }, afterSave, (await fresh.json()).version);
+      message = afterSave === "submit"
+        ? `${orderNumber(id)} submitted for approval.`
+        : `${orderNumber(id)} approved. It is now open: export the PDF to send it, then receive against it.`;
+    } else if (!canApprove.value) {
+      message = `${orderNumber(id)} saved as a draft. Submit it for approval when you are done.`;
+    }
+    showNotice(message);
+    // Show the list the order now belongs on: approved orders wait for stock, anything else is
+    // still in the approval queue.
+    const approved = afterSave === "approve" || (canApprove.value && !editorAwaitingApproval.value);
+    tab.value = approved ? "active" : "drafts";
     ordersPage.value = 1;
     leaveEditor();
   } catch (e) {
@@ -1210,11 +1432,48 @@ async function save() {
 function exportDraft() {
   exportOrder({
     id: editId.value,
+    status: editId.value ? editStatus.value : "draft",
     supplier: supplier.value.trim(),
     note: note.value.trim(),
     created_at: new Date().toISOString(),
     items: lines.value,
   });
+}
+
+// The stamp a PDF carries so a printed copy states where the order stands: DRAFT until it is
+// approved, then RECEIVED or PARTIALLY RECEIVED once stock has arrived. An approved order that
+// is still waiting for stock, or one cancelled with nothing received, carries none.
+function watermarkText(o) {
+  if (!o.id || isAwaitingApproval(o)) return "DRAFT";
+  if (o.status === "received") return "RECEIVED";
+  const anyReceived = o.items.some((i) => i.received_quantity > 0);
+  if (anyReceived && (o.status === "partial" || o.status === "closed")) return "PARTIALLY RECEIVED";
+  return "";
+}
+
+// A faint stamp across the page, running from bottom left to top right.
+function stampWatermark(doc, text) {
+  const page = doc.internal.pageSize;
+  const angle = 45;
+  const rad = (angle * Math.PI) / 180;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(100);
+  const fontSize = (100 * 250) / doc.getTextWidth(text);
+  doc.setFontSize(fontSize);
+  const w = doc.getTextWidth(text);
+  const capHeight = fontSize * 0.3528 * 0.72;
+  // The baseline starts half the text's length back along the diagonal from the page centre, and
+  // half its height below it, so the glyphs sit centred on the page.
+  const x = page.getWidth() / 2 - (w / 2) * Math.cos(rad) + (capHeight / 2) * Math.sin(rad);
+  const y = page.getHeight() / 2 + (w / 2) * Math.sin(rad) + (capHeight / 2) * Math.cos(rad);
+  for (let n = 1; n <= doc.getNumberOfPages(); n++) {
+    doc.setPage(n);
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.2 }));
+    doc.setTextColor(120, 120, 120);
+    doc.text(text, x, y, { angle });
+    doc.restoreGraphicsState();
+  }
 }
 
 function exportOrder(o) {
@@ -1251,6 +1510,8 @@ function exportOrder(o) {
     headStyles: { fillColor: [22, 101, 82] },
     columnStyles: Object.fromEntries(numeric.map((c) => [c, { halign: "center" }])),
   });
+  const stamp = watermarkText(o);
+  if (stamp) stampWatermark(doc, stamp);
   doc.save(`purchase-order-${o.id ? String(o.id).padStart(5, "0") : "draft"}.pdf`);
 }
 
@@ -1267,19 +1528,23 @@ function warnBeforeUnload(e) {
 }
 
 onBeforeRouteLeave(() => {
-  if (isDirty.value) return window.confirm("Discard your unsaved purchase order?");
+  if (isDirty.value) return confirmDiscard();
   return true;
 });
 
 onMounted(async () => {
   window.addEventListener("beforeunload", warnBeforeUnload);
   window.addEventListener("keydown", onKeydown);
-  if (!canManage.value) return;
+  if (!canUse.value) return;
   if (route.query.lowStock) {
     startNew({ withLowStock: true });
     router.replace({ path: route.path });
     return;
   }
+  // Managers land on what is waiting for stock unless sent here to approve; drafters on their
+  // own drafts.
+  tab.value = route.query.tab === "drafts" || !canApprove.value ? "drafts" : "active";
+  if (route.query.tab) router.replace({ path: route.path });
   loadOrders();
 });
 
@@ -1288,6 +1553,5 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   clearTimeout(noticeTimer);
   clearTimeout(searchTimer);
-  clearTimeout(supplierTimer);
 });
 </script>

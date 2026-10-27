@@ -156,14 +156,25 @@ func sameProduct(a, b *int) bool {
 
 // GetPurchaseOrderHistory returns the audit records of one purchase order, newest first.
 func (s *inventoryService) GetPurchaseOrderHistory(
-	ctx context.Context, id int,
+	ctx context.Context, id, userID int,
 ) ([]types.AuditRecord, error) {
-	exists, err := s.repo.PurchaseOrderExists(ctx, id)
-	if err != nil {
-		return nil, httperror.ServerError("failed to fetch purchase order", err)
-	}
-	if !exists {
-		return nil, purchaseOrderNotFound(sql.ErrNoRows)
+	if canApprovePurchaseOrders(ctx) {
+		exists, err := s.repo.PurchaseOrderExists(ctx, id)
+		if err != nil {
+			return nil, httperror.ServerError("failed to fetch purchase order", err)
+		}
+		if !exists {
+			return nil, purchaseOrderNotFound(sql.ErrNoRows)
+		}
+	} else {
+		// Everyone else may read the activity only of orders they wrote.
+		order, err := s.GetPurchaseOrder(ctx, id, userID)
+		if err != nil {
+			return nil, err
+		}
+		if order.CreatedByID == nil || *order.CreatedByID != userID {
+			return nil, purchaseOrderNotFound(sql.ErrNoRows)
+		}
 	}
 	records, err := s.repo.FetchAuditLog(ctx, constant.AuditEntityPurchaseOrder, id)
 	if err != nil {

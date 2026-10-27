@@ -28,7 +28,10 @@ type InventoryRepository interface {
 	ReceivePurchaseOrderItemTx(ctx context.Context, tx *sqlx.Tx, orderID, itemID, productID, quantity int) error
 	RefreshPurchaseOrderStatusTx(ctx context.Context, tx *sqlx.Tx, id int) error
 	ClosePurchaseOrderTx(ctx context.Context, tx *sqlx.Tx, id int) error
-	ListPurchaseOrders(ctx context.Context, statuses []string, limit int) ([]types.PurchaseOrder, error)
+	SetPurchaseOrderStatusTx(ctx context.Context, tx *sqlx.Tx, id int, status string) error
+	ApprovePurchaseOrderTx(ctx context.Context, tx *sqlx.Tx, id, approverID int) error
+	CountPendingPurchaseOrders(ctx context.Context) (map[string]int, error)
+	ListPurchaseOrders(ctx context.Context, statuses []string, limit int, createdBy *int) ([]types.PurchaseOrder, error)
 	GetPurchaseOrder(ctx context.Context, id int) (types.PurchaseOrder, error)
 	PurchaseOrderExists(ctx context.Context, id int) (bool, error)
 	InsertAuditLogTx(ctx context.Context, tx *sqlx.Tx, entry types.AuditEntry) error
