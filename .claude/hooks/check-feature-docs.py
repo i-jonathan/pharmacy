@@ -87,10 +87,14 @@ def main():
     lines += [
         "",
         "Before opening the PR, either:",
-        "1. refresh docs/features/<slug>/ with the document-feature skill (update mode) and "
-        "commit it with the owner's approval, or",
-        "2. if the owner confirms the docs are still accurate, add a commit with the trailer "
-        "`Feature-Docs-Unchanged: <slug>` (owner approval required for the commit).",
+        (
+            "1. refresh docs/features/<slug>/ with the document-feature skill (update mode) and "
+            "commit it with the owner's approval, or"
+        ),
+        (
+            "2. if the owner confirms the docs are still accurate, add a commit with the trailer "
+            "`Feature-Docs-Unchanged: <slug>` (owner approval required for the commit)."
+        ),
         "Then run gh pr create again.",
     ]
     json.dump(
@@ -108,6 +112,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:  # never block work because the hook itself failed
+    # Never block work because the hook itself failed: bad hook input or mapping (ValueError covers
+    # JSON errors), git failing (CalledProcessError), or files that can't be read (OSError).
+    except (ValueError, KeyError, TypeError, AttributeError, OSError,
+            subprocess.CalledProcessError) as e:
         print(f"check-feature-docs hook skipped: {e}", file=sys.stderr)
     sys.exit(0)
