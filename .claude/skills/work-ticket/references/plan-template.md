@@ -16,13 +16,14 @@ One or two sentences: what changes for the user of the shop, and why now.
 
 ## What I found
 - Verified on the card: claim — `path:line`
+- Findings, each tagged `code`, `web`, `memory` or `model` (see research.md); `model` items are marked unverified
 - Wrong or stale on the card: claim — what's actually true (card will be corrected)
 - Relevant existing patterns: …
 
 ## Making it complete
 | Gap | Source | In scope? |
 |---|---|---|
-| … | link or "my recommendation" | yes / follow-up |
+| … | `code` / `web` link / `memory` / `model` (unverified) | yes / follow-up |
 
 ## Decisions for you
 For each: the options, my recommendation, and why. Only real choices; no questions the code or conventions already answer.
@@ -39,6 +40,9 @@ Unit tests, integration tests (`PHARMACY_TEST_DSN`), manual checks in the runnin
 ## Deploy notes
 Migrations to run, permissions to grant, users who must log in again, `make assets`.
 
+## Commits
+Style chosen by the owner (logical groups / after every step / end of implementation / one commit), and the planned commit points for that style.
+
 ## Follow-up cards
 Title, priority, feature, one line each. Added to the board after approval.
 
@@ -47,5 +51,7 @@ Links with one line each.
 ```
 
 ## Approval
+
+In the same message as the summary, ask which commit style to use (the options are in SKILL.md, "Commits and pushes"). Fill in the Commits section with the answer.
 
 Only the owner's explicit yes in chat counts. Approval covers this plan as written: a new migration, permission, dependency, or user-visible behaviour not in the plan needs the plan updated and approved again.

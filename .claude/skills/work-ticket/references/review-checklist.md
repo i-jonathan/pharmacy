@@ -20,6 +20,7 @@ Load at the start of phase 5. There is no second reviewer, so this review is the
 - Concurrent edits are handled (versions or row locks) where two users can touch the same record.
 - Migrations have working down files and are safe on existing data.
 - Errors reach the user in plain words; nothing silently swallowed.
+- Existing feature docs under `docs/features/` that this change makes wrong are refreshed (or listed for the ship step).
 - Each claim on the card was checked; the card's checklist matches what was built.
 
 Record the results (commands run and their outcomes, manual checks done) for the PR's Testing section.
