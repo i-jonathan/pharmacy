@@ -74,7 +74,7 @@ func (r *repo) CreateReceivingBatchTx(ctx context.Context, tx *sqlx.Tx, receivin
 	var receivingBatchID int
 
 	err := tx.QueryRowContext(
-		ctx, createReceivingBatchQuery, receivingBatch.SupplierName,
+		ctx, createReceivingBatchQuery, receivingBatch.SupplierName, receivingBatch.SupplierID,
 		receivingBatch.ReceviedByID, receivingBatch.IdempotencyKey,
 	).Scan(&receivingBatchID)
 	if err != nil {

@@ -80,6 +80,110 @@ func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Reque
 	helper.JSONResponse(w, http.StatusOK, itemResponse)
 }
 
+// respondPurchaseOrderError writes service errors that carry their own status as-is and
+// anything else as a server error.
+func respondPurchaseOrderError(w http.ResponseWriter, err error, msg string) {
+	var httperr *httperror.HTTPError
+	if errors.As(err, &httperr) {
+		httperr.JSONRespond(w)
+		return
+	}
+	httperror.ServerError(msg, err).JSONRespond(w)
+}
+
+func (c *inventoryController) SavePurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	var order types.PurchaseOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+	userID, _ := r.Context().Value(constant.UserIDKey).(int)
+	id, err := c.service.SavePurchaseOrder(r.Context(), order, userID)
+	if err != nil {
+		respondPurchaseOrderError(w, err, "could not save purchase order")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
+}
+
+func (c *inventoryController) ListPurchaseOrders(w http.ResponseWriter, r *http.Request) {
+	orders, err := c.service.ListPurchaseOrders(r.Context(), r.URL.Query().Get("view"))
+	if err != nil {
+		respondPurchaseOrderError(w, err, "could not fetch purchase orders")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, orders)
+}
+
+func (c *inventoryController) GetPurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		httperror.BadRequest("invalid purchase order id", err).JSONRespond(w)
+		return
+	}
+	order, err := c.service.GetPurchaseOrder(r.Context(), id)
+	if err != nil {
+		respondPurchaseOrderError(w, err, "could not fetch purchase order")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, order)
+}
+
+func (c *inventoryController) ClosePurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		httperror.BadRequest("invalid purchase order id", err).JSONRespond(w)
+		return
+	}
+	var req types.ClosePurchaseOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+	userID, _ := r.Context().Value(constant.UserIDKey).(int)
+	if err := c.service.ClosePurchaseOrder(r.Context(), id, req.Version, req.Reason, userID); err != nil {
+		respondPurchaseOrderError(w, err, "could not close purchase order")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
+}
+
+func (c *inventoryController) GetPurchaseOrderHistory(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		httperror.BadRequest("invalid purchase order id", err).JSONRespond(w)
+		return
+	}
+	records, err := c.service.GetPurchaseOrderHistory(r.Context(), id)
+	if err != nil {
+		respondPurchaseOrderError(w, err, "could not fetch purchase order history")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, records)
+}
+
+func (c *inventoryController) MovePurchaseOrderOutstanding(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		httperror.BadRequest("invalid purchase order id", err).JSONRespond(w)
+		return
+	}
+	var req types.MoveOutstandingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+	userID, _ := r.Context().Value(constant.UserIDKey).(int)
+	newID, err := c.service.MovePurchaseOrderOutstanding(
+		r.Context(), id, req.Version, req.Supplier, req.Reason, userID,
+	)
+	if err != nil {
+		respondPurchaseOrderError(w, err, "could not move outstanding items")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": newID})
+}
+
 func (c *inventoryController) SearchForProduct(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	if query == "" {

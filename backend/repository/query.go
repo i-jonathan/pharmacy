@@ -97,19 +97,22 @@ const searchProductsQuery = `SELECT
     p.name,
     p.barcode,
     p.manufacturer;`
-const searchSupplierQuery = `SELECT
-	DISTINCT supplier_name FROM receiving_batch
-	WHERE supplier_name ILIKE '%' || $1 || '%'`
+const searchSupplierQuery = `SELECT name FROM supplier
+	WHERE name ILIKE '%' || $1 || '%'
+	ORDER BY name
+	LIMIT 20`
 const createReceivingBatchQuery = `INSERT INTO receiving_batch
-	(supplier_name, received_by_id, idempotency_key)
-	VALUES ($1, $2, $3)
+	(supplier_name, supplier_id, received_by_id, idempotency_key)
+	VALUES ($1, $2, $3, $4)
 	ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 	RETURNING id`
 const createProductBatchQuery = `INSERT INTO product_batch (
-		product_id, price_id, receiving_batch_id, quantity, cost_price, expiry_date
+		product_id, price_id, receiving_batch_id, quantity, cost_price, expiry_date,
+		purchase_order_item_id
 	)
 	VALUES (
-		:product_id, :price_id, :receiving_batch_id, :quantity, :cost_price, :expiry_date
+		:product_id, :price_id, :receiving_batch_id, :quantity, :cost_price, :expiry_date,
+		:purchase_order_item_id
 	)
 	RETURNING id, product_id, quantity`
 const createStockMovementQuery = `
@@ -542,3 +545,119 @@ const createCategoryQuery = `INSERT INTO category (name) VALUES ($1) RETURNING i
 const updateCategoryQuery = `UPDATE category SET name = $1 WHERE id = $2`
 
 const deleteCategoryQuery = `DELETE FROM category WHERE id = $1`
+
+const insertSupplierQuery = `
+	INSERT INTO supplier (name) VALUES (btrim($1))
+	ON CONFLICT ((lower(btrim(name)))) DO NOTHING
+`
+
+const getSupplierByNameQuery = `
+	SELECT id, name FROM supplier WHERE lower(btrim(name)) = lower(btrim($1))
+`
+
+const createPurchaseOrderQuery = `
+	INSERT INTO purchase_order
+		(supplier_name, supplier_id, source_purchase_order_id, note, created_by_id)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING id
+`
+
+const purchaseOrderColumns = `
+	po.id, po.supplier_name, po.supplier_id, po.status, po.note, po.version,
+	po.source_purchase_order_id,
+	(SELECT MIN(c.id) FROM purchase_order c WHERE c.source_purchase_order_id = po.id) AS moved_to_id,
+	po.created_at
+`
+
+const lockPurchaseOrderQuery = `
+	SELECT ` + purchaseOrderColumns + ` FROM purchase_order po WHERE po.id = $1 FOR UPDATE OF po
+`
+
+const getPurchaseOrderQuery = `
+	SELECT ` + purchaseOrderColumns + ` FROM purchase_order po WHERE po.id = $1
+`
+
+const listPurchaseOrdersQuery = `
+	SELECT ` + purchaseOrderColumns + `
+	FROM purchase_order po
+	WHERE ($1::text[] IS NULL OR po.status = ANY($1))
+	ORDER BY po.created_at DESC, po.id DESC
+	LIMIT NULLIF($2::int, 0)
+`
+
+const purchaseOrderItemsQuery = `
+	SELECT id, purchase_order_id, product_id, item_name, manufacturer, note, quantity,
+		received_quantity
+	FROM purchase_order_item
+	WHERE purchase_order_id = ANY($1)
+	ORDER BY id
+`
+
+const updatePurchaseOrderHeaderQuery = `
+	UPDATE purchase_order
+	SET supplier_name = $1, supplier_id = $2, note = $3, updated_at = NOW()
+	WHERE id = $4
+`
+
+const insertPurchaseOrderItemQuery = `
+	INSERT INTO purchase_order_item
+		(purchase_order_id, product_id, item_name, manufacturer, note, quantity)
+	VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+const updatePurchaseOrderItemQuery = `
+	UPDATE purchase_order_item
+	SET product_id = $3, item_name = $4, manufacturer = $5, note = $6, quantity = $7
+	WHERE id = $1 AND purchase_order_id = $2
+`
+
+const deletePurchaseOrderItemQuery = `
+	DELETE FROM purchase_order_item WHERE id = $1 AND purchase_order_id = $2
+`
+
+// The guard keeps received_quantity within quantity and product_id consistent even under
+// concurrent receipts; the caller checks that exactly one row was changed.
+const receivePurchaseOrderItemQuery = `
+	UPDATE purchase_order_item
+	SET received_quantity = received_quantity + $1, product_id = COALESCE(product_id, $4)
+	WHERE id = $2 AND purchase_order_id = $3
+	  AND received_quantity + $1 <= quantity
+	  AND (product_id IS NULL OR product_id = $4)
+`
+
+const refreshPurchaseOrderStatusQuery = `
+	UPDATE purchase_order po
+	SET status = CASE
+		WHEN NOT EXISTS (
+			SELECT 1 FROM purchase_order_item i
+			WHERE i.purchase_order_id = po.id AND i.received_quantity < i.quantity
+		) THEN 'received'
+		WHEN EXISTS (
+			SELECT 1 FROM purchase_order_item i
+			WHERE i.purchase_order_id = po.id AND i.received_quantity > 0
+		) THEN 'partial'
+		ELSE 'open'
+	END, version = po.version + 1, updated_at = NOW()
+	WHERE id = $1 AND status <> 'closed'
+`
+
+const closePurchaseOrderQuery = `
+	UPDATE purchase_order
+	SET status = 'closed', version = version + 1, updated_at = NOW()
+	WHERE id = $1
+`
+
+const purchaseOrderExistsQuery = `SELECT EXISTS (SELECT 1 FROM purchase_order WHERE id = $1)`
+
+const insertAuditLogQuery = `
+	INSERT INTO audit_log (actor_id, entity_type, entity_id, action, reason, details)
+	VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+const fetchAuditLogQuery = `
+	SELECT a.id, a.occurred_at, COALESCE(u.username, '') AS actor, a.action, a.reason, a.details
+	FROM audit_log a
+	LEFT JOIN users u ON u.id = a.actor_id
+	WHERE a.entity_type = $1 AND a.entity_id = $2
+	ORDER BY a.occurred_at DESC, a.id DESC
+`

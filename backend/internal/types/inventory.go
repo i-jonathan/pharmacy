@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type ReceivedBatchItem struct {
 	ProductID    int        `db:"product_id" json:"product_id"`
@@ -71,6 +74,7 @@ type BatchInsertReturn struct {
 
 type ReceiveItem struct {
 	ID                  int                 `json:"id"`
+	PurchaseOrderItemID int                 `json:"purchase_order_item_id"`
 	Barcode             string              `json:"barcode"`
 	CostPrice           float64             `json:"cost_price"`
 	SellingPrice        float64             `json:"selling_price"`
@@ -92,6 +96,88 @@ type ReceiveSupplyRequest struct {
 	IdempotencyKey         string        `json:"idempotency_key"`
 	Products               []ReceiveItem `json:"products"`
 	UserID                 int
+	PurchaseOrderID        int `json:"purchase_order_id"`
+}
+
+type PurchaseOrderItem struct {
+	ID               int    `json:"id" db:"id"`
+	ProductID        *int   `json:"product_id" db:"product_id"`
+	Name             string `json:"name" db:"item_name"`
+	Manufacturer     string `json:"manufacturer" db:"manufacturer"`
+	Note             string `json:"note" db:"note"`
+	Quantity         int    `json:"quantity" db:"quantity"`
+	ReceivedQuantity int    `json:"received_quantity" db:"received_quantity"`
+}
+
+type Supplier struct {
+	ID   int    `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+}
+
+type PurchaseOrder struct {
+	ID         int    `json:"id" db:"id"`
+	Supplier   string `json:"supplier" db:"supplier_name"`
+	SupplierID *int   `json:"supplier_id" db:"supplier_id"`
+	Status     string `json:"status" db:"status"`
+	Note       string `json:"note" db:"note"`
+	// Version changes on every material change; edits must send the version they loaded.
+	Version int `json:"version" db:"version"`
+	// SourceOrderID is the order whose outstanding items were moved onto this one, and
+	// MovedToID the order that took over this one's outstanding items.
+	SourceOrderID *int                `json:"source_purchase_order_id" db:"source_purchase_order_id"`
+	MovedToID     *int                `json:"moved_to_purchase_order_id" db:"moved_to_id"`
+	CreatedAt     time.Time           `json:"created_at" db:"created_at"`
+	Items         []PurchaseOrderItem `json:"items"`
+}
+
+// NewPurchaseOrder holds the header fields of an order about to be created.
+type NewPurchaseOrder struct {
+	SupplierID    *int
+	SupplierName  string
+	SourceOrderID *int
+	Note          string
+	CreatedByID   int
+}
+
+type MoveOutstandingRequest struct {
+	Version  int    `json:"version"`
+	Supplier string `json:"supplier"`
+	Reason   string `json:"reason"`
+}
+
+type ClosePurchaseOrderRequest struct {
+	Version int    `json:"version"`
+	Reason  string `json:"reason"`
+}
+
+// AuditEntry is one fact to append to the audit log.
+type AuditEntry struct {
+	ActorID    int
+	EntityType string
+	EntityID   int
+	Action     string
+	Reason     string
+	Details    json.RawMessage
+}
+
+// AuditRecord is a stored audit entry with the actor's name resolved.
+type AuditRecord struct {
+	ID         int             `json:"id" db:"id"`
+	OccurredAt time.Time       `json:"occurred_at" db:"occurred_at"`
+	Actor      string          `json:"actor" db:"actor"`
+	Action     string          `json:"action" db:"action"`
+	Reason     string          `json:"reason" db:"reason"`
+	Details    json.RawMessage `json:"details" db:"details"`
+}
+
+// PurchaseOrderRequest creates a purchase order (ID 0) or edits an open or partial one.
+// On edit, items with ID 0 are new lines and existing lines left out are removed.
+type PurchaseOrderRequest struct {
+	ID       int                 `json:"id"`
+	Version  int                 `json:"version"`
+	Supplier string              `json:"supplier"`
+	Note     string              `json:"note"`
+	Items    []PurchaseOrderItem `json:"items"`
 }
 
 type ProductPriceUpdate struct {
@@ -109,7 +195,7 @@ type UpdateProductRequest struct {
 	Manufacturer string               `json:"manufacturer"`
 	CategoryID   int                  `json:"category_id"`
 	ReorderLevel int                  `json:"reorder_level"`
-	Stock        *int                  `json:"stock"`
+	Stock        *int                 `json:"stock"`
 	CostPrice    float64              `json:"cost_price"`
 	Prices       []ProductPriceUpdate `json:"prices"`
 }

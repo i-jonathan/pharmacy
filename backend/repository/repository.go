@@ -18,6 +18,21 @@ type UserRepository interface {
 }
 
 type InventoryRepository interface {
+	FindOrCreateSupplierTx(ctx context.Context, tx *sqlx.Tx, name string) (types.Supplier, error)
+	CreatePurchaseOrderTx(ctx context.Context, tx *sqlx.Tx, order types.NewPurchaseOrder) (int, error)
+	GetPurchaseOrderForUpdateTx(ctx context.Context, tx *sqlx.Tx, id int) (types.PurchaseOrder, error)
+	UpdatePurchaseOrderHeaderTx(ctx context.Context, tx *sqlx.Tx, id int, header types.NewPurchaseOrder) error
+	InsertPurchaseOrderItemTx(ctx context.Context, tx *sqlx.Tx, orderID int, item types.PurchaseOrderItem) error
+	UpdatePurchaseOrderItemTx(ctx context.Context, tx *sqlx.Tx, orderID int, item types.PurchaseOrderItem) error
+	DeletePurchaseOrderItemTx(ctx context.Context, tx *sqlx.Tx, orderID, itemID int) error
+	ReceivePurchaseOrderItemTx(ctx context.Context, tx *sqlx.Tx, orderID, itemID, productID, quantity int) error
+	RefreshPurchaseOrderStatusTx(ctx context.Context, tx *sqlx.Tx, id int) error
+	ClosePurchaseOrderTx(ctx context.Context, tx *sqlx.Tx, id int) error
+	ListPurchaseOrders(ctx context.Context, statuses []string, limit int) ([]types.PurchaseOrder, error)
+	GetPurchaseOrder(ctx context.Context, id int) (types.PurchaseOrder, error)
+	PurchaseOrderExists(ctx context.Context, id int) (bool, error)
+	InsertAuditLogTx(ctx context.Context, tx *sqlx.Tx, entry types.AuditEntry) error
+	FetchAuditLog(ctx context.Context, entityType string, entityID int) ([]types.AuditRecord, error)
 	CreateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) (int, error)
 	UpdateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) error
 

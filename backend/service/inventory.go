@@ -195,8 +195,16 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	log.Printf("Transaction started successfully")
 
 	idempotencyKey := strings.TrimSpace(params.IdempotencyKey)
+	supplier, err := s.resolveSupplier(ctx, tx, params.Supplier)
+	if err != nil {
+		return err
+	}
+	if supplier == nil {
+		return httperror.BadRequest("supplier is required", fmt.Errorf("empty supplier"))
+	}
 	receivingBatch := model.ReceivingBatch{
-		SupplierName:   params.Supplier,
+		SupplierName:   supplier.Name,
+		SupplierID:     &supplier.ID,
 		ReceviedByID:   params.UserID,
 		IdempotencyKey: nil,
 	}
@@ -235,6 +243,10 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 			Quantity:         value.Quantity,
 			CostPriceKobo:    int(value.CostPrice * 100),
 			ExpiryDate:       &value.Expiry,
+		}
+		if value.PurchaseOrderItemID > 0 {
+			itemID := value.PurchaseOrderItemID
+			productBatch[i].PurchaseOrderItemID = &itemID
 		}
 		updatePriceData = append(updatePriceData, map[string]any{
 			"product_id":    value.ID,
@@ -299,6 +311,10 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		return httperror.ServerError("Failed to bulk create stock movement", err)
 	}
 	log.Printf("Stock movements created successfully")
+
+	if err = s.applyPurchaseOrderReceipt(ctx, tx, params, receivingBatchID); err != nil {
+		return err
+	}
 
 	if params.HeldReceivingReference != "" {
 		err = s.repo.DeleteHeldTransactionByReferenceTx(ctx, tx, params.HeldReceivingReference)
