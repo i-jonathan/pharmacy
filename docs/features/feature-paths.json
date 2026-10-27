@@ -1,0 +1,12 @@
+{
+  "purchase-orders": [
+    "frontend/src/next/views/PurchaseOrders.vue",
+    "frontend/src/next/composables/usePendingPurchaseOrders.js",
+    "frontend/src/next/components/SupplierInput.vue",
+    "frontend/src/next/components/ReasonPicker.vue",
+    "frontend/src/next/components/reasons.js",
+    "backend/service/purchase_order*.go",
+    "backend/repository/purchase_orders.go",
+    "backend/db/migrations/*purchase_order*"
+  ]
+}

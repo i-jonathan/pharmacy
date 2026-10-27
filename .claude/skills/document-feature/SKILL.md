@@ -30,7 +30,7 @@ Then wait. In update mode, the existing doc's purpose stands unless the owner sa
 4. **Trace.** For the guide, load `references/guide-tracing.md`; for the technical doc, load `references/technical-tracing.md`. Load them every time you trace, even if you remember them.
 5. **Ask what code can't show** (one question each, skip if the owner skips): screenshots wanted?; typical volumes (sales a day, products, users); local practices (who approves, when stock is counted).
 6. **Write** the docs from the templates. Diagrams: load `references/diagrams.md` before drawing any.
-7. **Update `docs/features/README.md`**: one row per feature, in alphabetical order.
+7. **Update `docs/features/README.md`** (one row per feature, in alphabetical order) and **`docs/features/feature-paths.json`**: the feature's slug mapped to glob patterns for the code files the technical doc traced. Prefer files and patterns specific to the feature; leave out files shared by many features (e.g. `router/inventory.go`) so unrelated changes don't trigger a refresh. A PR-time hook (`.claude/hooks/check-feature-docs.py`) uses this mapping to block `gh pr create` when a documented feature's code changed but its docs didn't.
 8. **Check** against the quality list below.
 9. **Summarise** in five lines or fewer: what was traced, what was found wrong or missing, which board cards it links. Don't paste the docs.
 10. **Commit only with the owner's yes.** Show the files (the feature folder and README only, staged by name) and the message `docs(features): add|refresh <feature> docs`. Never push from this skill.
@@ -60,4 +60,4 @@ Then wait. In update mode, the existing doc's purpose stands unless the owner sa
 - [ ] Diagrams follow `references/diagrams.md` and pass its parser check.
 - [ ] No `.go:NNN` or `.vue:NNN` citations: `grep -nE '\.(go|vue|js):[0-9]+' docs/features/<slug>/*.md`.
 - [ ] Every known gap links a card or is offered as one.
-- [ ] Empty sections removed; README row present.
+- [ ] Empty sections removed; README row present; `feature-paths.json` entry present and matches the code map.
