@@ -52,7 +52,7 @@ func (r *repo) CreatePurchaseOrderTx(
 	var id int
 	err := tx.QueryRowContext(
 		ctx, createPurchaseOrderQuery, order.SupplierName, order.SupplierID,
-		order.SourceOrderID, order.Note, order.CreatedByID,
+		order.SourceOrderID, order.Note, order.CreatedByID, order.Status,
 	).Scan(&id)
 	return id, err
 }
@@ -129,6 +129,35 @@ func (r *repo) ReceivePurchaseOrderItemTx(
 	return nil
 }
 
+func (r *repo) SetPurchaseOrderStatusTx(
+	ctx context.Context, tx *sqlx.Tx, id int, status string,
+) error {
+	_, err := tx.ExecContext(ctx, setPurchaseOrderStatusQuery, id, status)
+	return err
+}
+
+func (r *repo) ApprovePurchaseOrderTx(ctx context.Context, tx *sqlx.Tx, id, approverID int) error {
+	_, err := tx.ExecContext(ctx, approvePurchaseOrderQuery, id, approverID)
+	return err
+}
+
+// CountPendingPurchaseOrders counts drafts still being written and orders submitted for
+// approval, keyed by status.
+func (r *repo) CountPendingPurchaseOrders(ctx context.Context) (map[string]int, error) {
+	var rows []struct {
+		Status string `db:"status"`
+		Count  int    `db:"count"`
+	}
+	if err := r.Data.SelectContext(ctx, &rows, countPendingPurchaseOrdersQuery); err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	for _, row := range rows {
+		counts[row.Status] = row.Count
+	}
+	return counts, nil
+}
+
 func (r *repo) RefreshPurchaseOrderStatusTx(ctx context.Context, tx *sqlx.Tx, id int) error {
 	_, err := tx.ExecContext(ctx, refreshPurchaseOrderStatusQuery, id)
 	return err
@@ -162,12 +191,12 @@ func (r *repo) readSnapshot(ctx context.Context, fn func(tx *sqlx.Tx) error) err
 // ListPurchaseOrders returns orders newest first. A nil statuses slice means every status
 // and a limit of 0 means no limit.
 func (r *repo) ListPurchaseOrders(
-	ctx context.Context, statuses []string, limit int,
+	ctx context.Context, statuses []string, limit int, createdBy *int,
 ) ([]types.PurchaseOrder, error) {
 	var orders []types.PurchaseOrder
 	err := r.readSnapshot(ctx, func(tx *sqlx.Tx) error {
 		err := tx.SelectContext(
-			ctx, &orders, listPurchaseOrdersQuery, pq.StringArray(statuses), limit,
+			ctx, &orders, listPurchaseOrdersQuery, pq.StringArray(statuses), limit, createdBy,
 		)
 		if err != nil {
 			return err

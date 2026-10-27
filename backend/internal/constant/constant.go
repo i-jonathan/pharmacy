@@ -40,6 +40,8 @@ func NormalizePaymentMethod(input string) string {
 }
 
 const (
+	PurchaseOrderDraft    = "draft"
+	PurchaseOrderPending  = "pending_approval"
 	PurchaseOrderOpen     = "open"
 	PurchaseOrderPartial  = "partial"
 	PurchaseOrderReceived = "received"
@@ -49,11 +51,14 @@ const (
 const AuditEntityPurchaseOrder = "purchase_order"
 
 const (
-	AuditCreated  = "created"
-	AuditEdited   = "edited"
-	AuditReceived = "received"
-	AuditClosed   = "closed"
-	AuditMoved    = "moved"
+	AuditCreated   = "created"
+	AuditEdited    = "edited"
+	AuditReceived  = "received"
+	AuditClosed    = "closed"
+	AuditMoved     = "moved"
+	AuditSubmitted = "submitted"
+	AuditApproved  = "approved"
+	AuditRejected  = "rejected"
 )
 
 type RequirePermissionMode string

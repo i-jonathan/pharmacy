@@ -115,11 +115,15 @@ type Supplier struct {
 }
 
 type PurchaseOrder struct {
-	ID         int    `json:"id" db:"id"`
-	Supplier   string `json:"supplier" db:"supplier_name"`
-	SupplierID *int   `json:"supplier_id" db:"supplier_id"`
-	Status     string `json:"status" db:"status"`
-	Note       string `json:"note" db:"note"`
+	ID          int        `json:"id" db:"id"`
+	Supplier    string     `json:"supplier" db:"supplier_name"`
+	SupplierID  *int       `json:"supplier_id" db:"supplier_id"`
+	Status      string     `json:"status" db:"status"`
+	Note        string     `json:"note" db:"note"`
+	CreatedByID *int       `json:"created_by_id" db:"created_by_id"`
+	CreatedBy   string     `json:"created_by" db:"created_by"`
+	ApprovedBy  string     `json:"approved_by" db:"approved_by"`
+	ApprovedAt  *time.Time `json:"approved_at" db:"approved_at"`
 	// Version changes on every material change; edits must send the version they loaded.
 	Version int `json:"version" db:"version"`
 	// SourceOrderID is the order whose outstanding items were moved onto this one, and
@@ -132,6 +136,7 @@ type PurchaseOrder struct {
 
 // NewPurchaseOrder holds the header fields of an order about to be created.
 type NewPurchaseOrder struct {
+	Status        string
 	SupplierID    *int
 	SupplierName  string
 	SourceOrderID *int
@@ -143,6 +148,17 @@ type MoveOutstandingRequest struct {
 	Version  int    `json:"version"`
 	Supplier string `json:"supplier"`
 	Reason   string `json:"reason"`
+}
+
+// PurchaseOrderActionRequest is the body of submit and approve: just the version the user saw.
+type PurchaseOrderActionRequest struct {
+	Version int `json:"version"`
+}
+
+// PendingPurchaseOrders counts the orders waiting for a manager.
+type PendingPurchaseOrders struct {
+	Pending int `json:"pending"`
+	Drafts  int `json:"drafts"`
 }
 
 type ClosePurchaseOrderRequest struct {
