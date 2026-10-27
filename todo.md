@@ -13,3 +13,16 @@
 - [x] Accept Return Feature
 - [x] Add Inventory List page
 - [ ] Stock taking
+## Purchase orders / audit follow-ups
+- [ ] Audit log for everything: extend `audit_log` beyond purchase orders to sales and returns, stock movements and adjustments, stock taking, product price and cost edits, receiving, and user/role/permission changes. Add a shared `auditEntry` helper in the service layer, write each entry inside the same transaction as the change, and add an admin screen to browse and filter it
+- [ ] Capture batch/lot numbers on receiving (`product_batch.batch_no` exists but is never written) and allow several batches (different expiry dates) for one purchase order line
+- [ ] Costs on purchase orders: expected cost per line, order total, and compare with the received cost
+- [ ] Purchase order history: search and filter by supplier, status and date (the Completed tab is capped at 100)
+- [ ] Show on-order quantities on the Products list and the Low Stock page
+- [ ] Supplier management screen: rename, merge duplicates, contact details
+- [ ] Decide whether receiving against a purchase order should need its own permission (today anyone who can receive can)
+- [ ] Seed or document the `purchaseorder:create` permission in deployment (create `PurchaseOrder`/`Create` in Administration → Permissions and assign it to roles)
+- [ ] Browser/end-to-end tests for the purchase order screens and the receive-against-order flow
+- [ ] Idempotency key for creating a purchase order (the Save button is disabled while saving, but a retry after a lost response can still create a duplicate order)
+- [ ] Share one "lock the order, check version and status" helper between edit, close, move and receive (the four copies can drift apart)
+- [ ] Pagination for the Completed purchase orders list (capped at the newest 100) and decide whether the read endpoints (list, get, history) need a permission
