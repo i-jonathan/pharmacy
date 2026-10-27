@@ -30,8 +30,11 @@ WHERE pb.receiving_batch_id = $1
 ORDER BY p.name ASC
 `
 
-const createUserQuery = `INSERT INTO users (username, password) VALUES ($1, $2)`
-const usernameExistsQuery = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`
+const createUserWithRoleQuery = `
+	INSERT INTO users (username, password, role_id) VALUES ($1, $2, $3) RETURNING id
+`
+const roleExistsQuery = `SELECT EXISTS (SELECT 1 FROM roles WHERE id = $1)`
+const roleIDByNameQuery = `SELECT id FROM roles WHERE name = $1`
 const fetchUserByNameQuery = `
 	SELECT
 	    u.id,

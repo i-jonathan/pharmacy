@@ -2,8 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log"
+	"net/http"
 	"pharmacy/httperror"
+	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/repository"
@@ -135,11 +139,11 @@ func (s *adminService) UpdateUserRole(ctx context.Context, userID, roleID int) e
 
 func (s *adminService) ResetUserPassword(ctx context.Context, userID int, newPassword string) error {
 	newPassword = strings.TrimSpace(newPassword)
-	if len(newPassword) < 8 {
-		return httperror.BadRequest("password must be at least 8 characters", nil)
+	u := model.User{Password: newPassword}
+	if err := u.ValidatePassword(); err != nil {
+		return httperror.BadRequest(err.Error(), err)
 	}
 
-	u := model.User{Password: newPassword}
 	if err := u.HashPassword(); err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to hash password", err)
@@ -210,4 +214,74 @@ func (s *adminService) DeleteCategory(ctx context.Context, id int) error {
 		return httperror.ServerError("failed to delete category", err)
 	}
 	return nil
+}
+
+// CreateUser adds a staff account with its role and starting password, and records who added
+// it. actorID is 0 when there is no signed-in user (the create-admin command).
+func (s *adminService) CreateUser(
+	ctx context.Context, req types.CreateUserRequest, actorID int,
+) (int, error) {
+	user := model.User{UserName: strings.TrimSpace(req.Username), Password: req.Password}
+	if err := user.ValidateUsername(); err != nil {
+		return 0, httperror.BadRequest(err.Error(), err)
+	}
+	if err := user.ValidatePassword(); err != nil {
+		return 0, httperror.BadRequest(err.Error(), err)
+	}
+	if req.RoleID <= 0 {
+		return 0, httperror.BadRequest("choose a role", nil)
+	}
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return 0, httperror.ServerError("failed to start transaction", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.repo.RollbackTx(tx)
+		}
+	}()
+
+	exists, err := s.repo.RoleExistsTx(ctx, tx, req.RoleID)
+	if err != nil {
+		return 0, httperror.ServerError("failed to check role", err)
+	}
+	if !exists {
+		return 0, httperror.BadRequest("that role does not exist", nil)
+	}
+
+	if err = user.HashPassword(); err != nil {
+		return 0, httperror.ServerError("failed to hash password", err)
+	}
+	user.RoleID = req.RoleID
+	id, err := s.repo.CreateUserTx(ctx, tx, user)
+	if errors.Is(err, repository.ErrUsernameTaken) {
+		return 0, httperror.NewHttpError(http.StatusConflict, "username already exists", nil)
+	}
+	if err != nil {
+		log.Println(err)
+		return 0, httperror.ServerError("failed to create user", err)
+	}
+
+	details, err := json.Marshal(map[string]any{"username": user.UserName, "role_id": req.RoleID})
+	if err != nil {
+		return 0, httperror.ServerError("failed to record audit entry", err)
+	}
+	err = s.repo.InsertAuditLogTx(ctx, tx, types.AuditEntry{
+		ActorID:    actorID,
+		EntityType: constant.AuditEntityUser,
+		EntityID:   id,
+		Action:     constant.AuditCreated,
+		Details:    details,
+	})
+	if err != nil {
+		return 0, httperror.ServerError("failed to record audit entry", err)
+	}
+
+	if err = s.repo.CommitTx(tx); err != nil {
+		return 0, httperror.ServerError("failed to create user", err)
+	}
+	committed = true
+	return id, nil
 }

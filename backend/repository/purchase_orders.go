@@ -272,8 +272,10 @@ func (r *repo) InsertAuditLogTx(ctx context.Context, tx *sqlx.Tx, entry types.Au
 	if len(details) == 0 {
 		details = []byte("{}")
 	}
+	// ActorID 0 means nobody was signed in (the create-admin command); store it as no actor.
+	actor := sql.NullInt64{Int64: int64(entry.ActorID), Valid: entry.ActorID != 0}
 	_, err := tx.ExecContext(
-		ctx, insertAuditLogQuery, entry.ActorID, entry.EntityType, entry.EntityID,
+		ctx, insertAuditLogQuery, actor, entry.EntityType, entry.EntityID,
 		entry.Action, entry.Reason, details,
 	)
 	return err

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"pharmacy/adapter/http/helper"
 	"pharmacy/httperror"
+	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/service"
 	"strconv"
@@ -154,6 +155,29 @@ func (c *adminController) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, users)
+}
+
+// CreateUser adds a staff account. The admin making the request is recorded as the actor.
+func (c *adminController) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var params types.CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+
+	actorID, _ := r.Context().Value(constant.UserIDKey).(int)
+	id, err := c.adminService.CreateUser(r.Context(), params, actorID)
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("failed to create user", err).JSONRespond(w)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusCreated, map[string]int{"id": id})
 }
 
 func (c *adminController) UpdateUserRole(w http.ResponseWriter, r *http.Request) {

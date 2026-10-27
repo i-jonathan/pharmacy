@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -106,9 +107,12 @@ func (u *User) VerifyPassword(hash string) (bool, error) {
 	return subtle.ConstantTimeCompare(decodedHash, comparisonHash) == 1, nil
 }
 
+// MinPasswordLength is the shortest password accepted when one is set, counted in characters.
+const MinPasswordLength = 10
+
 func (u *User) ValidatePassword() error {
-	if len(u.Password) < 8 {
-		return errors.New("password is too short")
+	if utf8.RuneCountInString(u.Password) < MinPasswordLength {
+		return fmt.Errorf("password must be at least %d characters", MinPasswordLength)
 	}
 	return nil
 }

@@ -9,6 +9,13 @@ type AdminModuleInfo struct {
 	Path        string `json:"path"`
 }
 
+// CreateUserRequest is an admin adding a staff account with its role and starting password.
+type CreateUserRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	RoleID   int    `json:"role_id"`
+}
+
 type PermissionInfo struct {
 	ID       int    `json:"id"`
 	Resource string `json:"resource"`
