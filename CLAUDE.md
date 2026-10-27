@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `AGENTS.md` in the repo root has the quick-start and a fuller facts list; read it too. This file covers what that one doesn't.
 
+Planned and in-flight work is tracked in `BOARD.md` (kanban columns, card format explained at the top); finished cards move to `DONE.md`.
+
 ## Commands
 
 ```sh
