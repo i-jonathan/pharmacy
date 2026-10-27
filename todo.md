@@ -28,6 +28,10 @@
 - [ ] Purchase order approval: let a drafter withdraw a submitted order back to draft, let a manager send it back for changes (instead of only rejecting), and notify the drafter when their order is approved or rejected (today they see it on their list)
 - [ ] Real notifications for approvers (stored inbox, push or email) instead of the sidebar badge and dashboard banner, which poll once a minute
 
+- [ ] Changing or clearing the supplier on an order that already has receipts is allowed silently (the receipts stay with the old supplier). Block it and point to Move outstanding
+- [ ] Show a rejected draft as "Rejected" with its reason on the order itself, not only "Closed" with the reason in the activity log
+- [ ] Migration 43 matches roles by name (Cashier, Manager, Admin); warn, or grant by a configured role, when a deployment's roles are named differently
+
 ## Make configurable (settings)
 Values that are hard-coded today and should become settings, edited by an admin in a settings screen and stored in the database (read once per session and served to the SPA, so the frontend and backend share one value).
 

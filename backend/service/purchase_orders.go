@@ -232,8 +232,18 @@ func planPurchaseOrderEdit(
 	// Lines with received stock got their stored product back, so check for duplicates again on
 	// what will actually be saved.
 	seen := make(map[int]bool)
+	seenNew := make(map[string]bool)
 	for _, item := range append(append([]types.PurchaseOrderItem{}, plan.updates...), plan.inserts...) {
 		if item.ProductID == nil {
+			// A new line typed in by name can repeat one the order already has. Kept lines were
+			// already checked against each other when the request was normalized.
+			key := strings.ToLower(item.Name + "\x00" + item.Manufacturer)
+			if seenNew[key] && item.ID == 0 {
+				return plan, purchaseOrderBadRequest(
+					fmt.Sprintf("%s is listed more than once", item.Name),
+				)
+			}
+			seenNew[key] = true
 			continue
 		}
 		if seen[*item.ProductID] {

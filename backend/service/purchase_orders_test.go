@@ -133,6 +133,14 @@ func TestPlanPurchaseOrderEdit(t *testing.T) {
 		}
 	})
 
+	t.Run("a new typed-in line cannot repeat one the order already has", func(t *testing.T) {
+		_, err := planPurchaseOrderEdit(existing, []types.PurchaseOrderItem{
+			{ID: 1, Quantity: 4}, {ID: 2, Quantity: 5}, {ID: 3, Name: "New item", Quantity: 3},
+			{Name: "new ITEM", Quantity: 1},
+		})
+		requireHTTPStatus(t, err, http.StatusBadRequest)
+	})
+
 	t.Run("quantity below received is rejected", func(t *testing.T) {
 		_, err := planPurchaseOrderEdit(existing, []types.PurchaseOrderItem{
 			{ID: 1, Quantity: 3}, {ID: 2, Quantity: 5}, {ID: 3, Quantity: 3},
