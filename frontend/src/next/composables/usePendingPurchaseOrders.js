@@ -23,8 +23,13 @@ export function usePendingPurchaseOrders() {
   const { hasPermission } = usePermissions();
   const canApprove = () => hasPermission("purchaseorder:approve");
 
+  // Only a consumer that started polling may release it; otherwise a component that never started
+  // (no permission) would lower the count for the ones that did.
+  let started = false;
+
   function start() {
-    if (!canApprove()) return;
+    if (!canApprove() || started) return;
+    started = true;
     users += 1;
     if (!timer) {
       refresh();
@@ -33,7 +38,9 @@ export function usePendingPurchaseOrders() {
   }
 
   function stop() {
-    users = Math.max(0, users - 1);
+    if (!started) return;
+    started = false;
+    users -= 1;
     if (users === 0 && timer) {
       clearInterval(timer);
       timer = null;
