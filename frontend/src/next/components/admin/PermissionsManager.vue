@@ -135,33 +135,14 @@
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
-        <div v-if="deletingPerm" class="fixed inset-0 z-50 flex items-center justify-center">
-            <div class="absolute inset-0 bg-black/40" @click="deletingPerm = null"></div>
-            <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-2">Delete Permission</h3>
-                <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
-                    Are you sure you want to delete "{{ deletingPerm.resource }}:{{ deletingPerm.action }}"?
-                    This will remove it from all assigned roles.
-                </p>
-                <div class="flex justify-end gap-3">
-                    <button
-                        @click="deletingPerm = null"
-                        class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
-                    >Cancel</button>
-                    <button
-                        @click="deletePermission(deletingPerm.id)"
-                        :disabled="deleting"
-                        class="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 transition"
-                    >{{ deleting ? "Deleting..." : "Delete" }}</button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
 <script>
 import { csrfFetch } from "../../lib/csrf.js";
+import { useConfirm } from "../../composables/useConfirm.js";
+
+const { confirm } = useConfirm();
 
 export default {
     name: "PermissionsManager",
@@ -178,8 +159,6 @@ export default {
             creating: false,
             createError: null,
             assigningPerm: null,
-            deletingPerm: null,
-            deleting: false,
         };
     },
     mounted() {
@@ -270,21 +249,20 @@ export default {
                 alert(e.message);
             }
         },
-        confirmDelete(perm) {
-            this.deletingPerm = perm;
-        },
-        async deletePermission(permId) {
-            this.deleting = true;
-            try {
-                const res = await csrfFetch(`/admin/api/permissions/${permId}`, { method: "DELETE" });
-                if (!res.ok) throw new Error("Failed to delete");
-                this.deletingPerm = null;
-                await this.fetchData();
-            } catch (e) {
-                alert(e.message);
-            } finally {
-                this.deleting = false;
-            }
+        async confirmDelete(perm) {
+            const deleted = await confirm({
+                title: "Delete permission",
+                message: "This will remove it from all assigned roles.",
+                detail: `${perm.resource}:${perm.action}`,
+                tone: "danger",
+                confirmLabel: "Delete",
+                busyLabel: "Deleting…",
+                run: async () => {
+                    const res = await csrfFetch(`/admin/api/permissions/${perm.id}`, { method: "DELETE" });
+                    if (!res.ok) throw new Error("Failed to delete");
+                },
+            });
+            if (deleted) await this.fetchData();
         },
     },
 };

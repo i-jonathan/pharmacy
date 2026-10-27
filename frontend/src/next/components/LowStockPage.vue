@@ -11,9 +11,9 @@
         </span>
       </div>
       <div class="flex gap-2">
-        <PermissionGate permission="purchaseorder:create">
-          <Button variant="outline" @click="router.push('/purchase-orders?lowStock=1')">Create purchase order</Button>
-        </PermissionGate>
+        <Button v-if="canUsePurchaseOrders" variant="outline" @click="router.push('/purchase-orders?lowStock=1')">
+          Create purchase order
+        </Button>
         <Button @click="exportPDF" :disabled="items.length === 0">
           <Download :size="16" class="mr-2" />
           Export PDF
@@ -76,13 +76,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import PermissionGate from "./PermissionGate.vue";
+import { usePermissions } from "../composables/usePermissions.js";
 import { shared } from "../store.js";
 import { useDashboard } from "../composables/useDashboard.js";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const router = useRouter();
+const { hasPermission } = usePermissions();
+const canUsePurchaseOrders = computed(
+  () => hasPermission("purchaseorder:draft") || hasPermission("purchaseorder:approve"),
+);
 const loading = ref(false);
 const items = computed(() => shared.lowStockItems);
 

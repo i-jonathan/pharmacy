@@ -4,6 +4,22 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 ## 2026-10
 
+### T-087 Purchase order approval workflow
+
+- area: purchasing
+- done: 2026-10-27
+- prs: #29
+
+Cashiers write drafts and submit them; managers approve or reject (with a reason), and their own orders skip approval. States `draft` → `pending_approval` → `open` or `closed`. Permissions `purchaseorder:draft` and `purchaseorder:approve`. Drafts are visible only to their author and approvers, can't be received against, and their PDF is stamped DRAFT. Every transition checks the order version and writes an audit entry. Approver badge and dashboard banner. Also: shared `ConfirmDialog` and `SupplierInput`, order card redesign, PDF watermarks. Migrations 000042, 000043.
+
+### T-039 Seed purchase order permissions
+
+- area: ops
+- done: 2026-10-27
+- prs: #29
+
+Migration 000043 seeds `PurchaseOrder`/`Draft` (Cashier) and `PurchaseOrder`/`Approve` (Manager, Admin), so there is no manual permission step at deploy.
+
 ### T-016 Database integration test harness
 
 - area: ops

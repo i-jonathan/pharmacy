@@ -557,8 +557,13 @@ const getSupplierByNameQuery = `
 
 const createPurchaseOrderQuery = `
 	INSERT INTO purchase_order
-		(supplier_name, supplier_id, source_purchase_order_id, note, created_by_id)
-	VALUES ($1, $2, $3, $4, $5)
+		(supplier_name, supplier_id, source_purchase_order_id, note, created_by_id, status,
+		 approved_by_id, approved_at)
+	VALUES (
+		$1, $2, $3, $4, $5, $6,
+		CASE WHEN $6 = 'open' THEN $5::int END,
+		CASE WHEN $6 = 'open' THEN NOW() END
+	)
 	RETURNING id
 `
 
@@ -566,21 +571,28 @@ const purchaseOrderColumns = `
 	po.id, po.supplier_name, po.supplier_id, po.status, po.note, po.version,
 	po.source_purchase_order_id,
 	(SELECT MIN(c.id) FROM purchase_order c WHERE c.source_purchase_order_id = po.id) AS moved_to_id,
-	po.created_at
+	po.created_at, po.created_by_id, COALESCE(cu.username, '') AS created_by,
+	COALESCE(au.username, '') AS approved_by, po.approved_at
+`
+
+const purchaseOrderFrom = `
+	FROM purchase_order po
+	LEFT JOIN users cu ON cu.id = po.created_by_id
+	LEFT JOIN users au ON au.id = po.approved_by_id
 `
 
 const lockPurchaseOrderQuery = `
-	SELECT ` + purchaseOrderColumns + ` FROM purchase_order po WHERE po.id = $1 FOR UPDATE OF po
+	SELECT ` + purchaseOrderColumns + purchaseOrderFrom + ` WHERE po.id = $1 FOR UPDATE OF po
 `
 
 const getPurchaseOrderQuery = `
-	SELECT ` + purchaseOrderColumns + ` FROM purchase_order po WHERE po.id = $1
+	SELECT ` + purchaseOrderColumns + purchaseOrderFrom + ` WHERE po.id = $1
 `
 
 const listPurchaseOrdersQuery = `
-	SELECT ` + purchaseOrderColumns + `
-	FROM purchase_order po
+	SELECT ` + purchaseOrderColumns + purchaseOrderFrom + `
 	WHERE ($1::text[] IS NULL OR po.status = ANY($1))
+	  AND ($3::int IS NULL OR po.created_by_id = $3)
 	ORDER BY po.created_at DESC, po.id DESC
 	LIMIT NULLIF($2::int, 0)
 `
@@ -595,7 +607,7 @@ const purchaseOrderItemsQuery = `
 
 const updatePurchaseOrderHeaderQuery = `
 	UPDATE purchase_order
-	SET supplier_name = $1, supplier_id = $2, note = $3, updated_at = NOW()
+	SET supplier_name = $1, supplier_id = $2, note = $3, version = version + 1, updated_at = NOW()
 	WHERE id = $4
 `
 
@@ -638,7 +650,7 @@ const refreshPurchaseOrderStatusQuery = `
 		) THEN 'partial'
 		ELSE 'open'
 	END, version = po.version + 1, updated_at = NOW()
-	WHERE id = $1 AND status <> 'closed'
+	WHERE id = $1 AND status IN ('open', 'partial', 'received')
 `
 
 const closePurchaseOrderQuery = `
@@ -660,4 +672,23 @@ const fetchAuditLogQuery = `
 	LEFT JOIN users u ON u.id = a.actor_id
 	WHERE a.entity_type = $1 AND a.entity_id = $2
 	ORDER BY a.occurred_at DESC, a.id DESC
+`
+
+const setPurchaseOrderStatusQuery = `
+	UPDATE purchase_order
+	SET status = $2, version = version + 1, updated_at = NOW()
+	WHERE id = $1
+`
+
+const approvePurchaseOrderQuery = `
+	UPDATE purchase_order
+	SET status = 'open', approved_by_id = $2, approved_at = NOW(),
+		version = version + 1, updated_at = NOW()
+	WHERE id = $1
+`
+
+const countPendingPurchaseOrdersQuery = `
+	SELECT status, count(*) FROM purchase_order
+	WHERE status IN ('draft', 'pending_approval')
+	GROUP BY status
 `

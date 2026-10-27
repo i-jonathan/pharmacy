@@ -81,7 +81,7 @@
                     <Button variant="ghost" size="icon" class="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" title="Restore receipt" @click.stop="restoreHeld(held)">
                       <Play :size="15" />
                     </Button>
-                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete held receipt" @click.stop="confirmDelete = held.reference">
+                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete held receipt" @click.stop="askDelete(held.reference)">
                       <Trash2 :size="15" />
                     </Button>
                   </div>
@@ -171,7 +171,7 @@
             <Play :size="15" />
             Restore
           </Button>
-          <Button variant="destructive" class="flex-1 gap-2" @click="confirmDelete = detailHeld.reference">
+          <Button variant="destructive" class="flex-1 gap-2" @click="askDelete(detailHeld.reference)">
             <Trash2 :size="15" />
             Delete
           </Button>
@@ -179,32 +179,6 @@
       </div>
     </Transition>
 
-    <!-- Delete Confirm Modal -->
-    <Transition name="fade">
-      <div v-if="confirmDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="confirmDelete = null">
-        <div class="bg-card border border-border rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-              <AlertTriangle :size="20" class="text-destructive" />
-            </div>
-            <div>
-              <h3 class="text-sm font-semibold">Delete Held Receipt</h3>
-              <p class="text-xs text-muted-foreground">This cannot be undone</p>
-            </div>
-          </div>
-          <p class="text-sm text-foreground mb-6">
-            Are you sure you want to delete <span class="font-mono font-medium">{{ confirmDelete }}</span>?
-          </p>
-          <div class="flex items-center gap-2 justify-end">
-            <Button variant="outline" size="sm" @click="confirmDelete = null">Cancel</Button>
-            <Button variant="destructive" size="sm" :disabled="confirmDelete === '__loading__'" @click="executeDelete">
-              <Trash2 :size="14" class="mr-1.5" />
-              Delete
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Transition>
 
     <!-- Toast -->
     <Transition name="fade">
@@ -216,9 +190,10 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { RotateCw, AlertCircle, AlertTriangle, PauseCircle, Truck, Play, Trash2, X, CircleCheck } from "lucide-vue-next";
+import { RotateCw, AlertCircle, PauseCircle, Truck, Play, Trash2, X, CircleCheck } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
+import { useConfirm } from "../composables/useConfirm.js";
 import {
   Table,
   TableBody,
@@ -237,7 +212,7 @@ const loading = ref(false);
 const error = ref(null);
 const detailHeld = ref(null);
 const selectedIndex = ref(-1);
-const confirmDelete = ref(null);
+const { confirm } = useConfirm();
 const toast = ref(null);
 let tTimer = null;
 
@@ -323,23 +298,23 @@ function restoreHeld(held) {
   router.push("/receive-items");
 }
 
-function executeDelete() {
-  if (!confirmDelete.value) return;
-  const ref = confirmDelete.value;
-  confirmDelete.value = "__loading__";
-  csrfFetch(`${API}/inventory/receive-items/held/${encodeURIComponent(ref)}`, { method: "DELETE" })
-    .then((res) => {
+async function askDelete(ref) {
+  const deleted = await confirm({
+    title: "Delete held receipt",
+    message: "This cannot be undone.",
+    detail: ref,
+    tone: "danger",
+    confirmLabel: "Delete receipt",
+    busyLabel: "Deleting…",
+    run: async () => {
+      const res = await csrfFetch(`${API}/inventory/receive-items/held/${encodeURIComponent(ref)}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete (${res.status})`);
       heldItems.value = heldItems.value.filter((h) => h.reference !== ref);
       if (detailHeld.value?.reference === ref) closeDetail();
       selectedIndex.value = -1;
-      confirmDelete.value = null;
-      showToast("Held receipt deleted");
-    })
-    .catch((e) => {
-      error.value = e.message || "Failed to delete";
-      confirmDelete.value = ref;
-    });
+    },
+  });
+  if (deleted) showToast("Held receipt deleted");
 }
 
 function formatDate(iso) {

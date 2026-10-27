@@ -17,6 +17,26 @@ import (
 
 func intPtr(v int) *int { return &v }
 
+func contextWith(keys ...string) context.Context {
+	perms := map[string]bool{}
+	for _, key := range keys {
+		perms[key] = true
+	}
+	return context.WithValue(context.Background(), constant.PermissionsSessionKey, perms)
+}
+
+// approverContext is a manager; drafterContext can only write drafts; bareContext has no
+// purchase order permission at all.
+func approverContext() context.Context {
+	return contextWith(constant.ApprovePurchaseOrderPermissionKey)
+}
+
+func drafterContext() context.Context {
+	return contextWith(constant.DraftPurchaseOrderPermissionKey)
+}
+
+func bareContext() context.Context { return contextWith() }
+
 func requireHTTPStatus(t *testing.T, err error, code int) {
 	t.Helper()
 	var httperr *httperror.HTTPError
@@ -113,6 +133,14 @@ func TestPlanPurchaseOrderEdit(t *testing.T) {
 		}
 	})
 
+	t.Run("a new typed-in line cannot repeat one the order already has", func(t *testing.T) {
+		_, err := planPurchaseOrderEdit(existing, []types.PurchaseOrderItem{
+			{ID: 1, Quantity: 4}, {ID: 2, Quantity: 5}, {ID: 3, Name: "New item", Quantity: 3},
+			{Name: "new ITEM", Quantity: 1},
+		})
+		requireHTTPStatus(t, err, http.StatusBadRequest)
+	})
+
 	t.Run("quantity below received is rejected", func(t *testing.T) {
 		_, err := planPurchaseOrderEdit(existing, []types.PurchaseOrderItem{
 			{ID: 1, Quantity: 3}, {ID: 2, Quantity: 5}, {ID: 3, Quantity: 3},
@@ -182,6 +210,43 @@ type fakePurchaseOrderRepo struct {
 	supplierSavedN string
 	noteSaved      string
 	audit          []types.AuditEntry
+
+	statusSet    string
+	approvedBy   int
+	listStatuses []string
+	listOwner    *int
+	listed       []types.PurchaseOrder
+}
+
+func (r *fakePurchaseOrderRepo) SetPurchaseOrderStatusTx(
+	_ context.Context, _ *sqlx.Tx, _ int, status string,
+) error {
+	r.statusSet = status
+	return nil
+}
+
+func (r *fakePurchaseOrderRepo) ApprovePurchaseOrderTx(
+	_ context.Context, _ *sqlx.Tx, _, approverID int,
+) error {
+	r.approvedBy = approverID
+	return nil
+}
+
+func (r *fakePurchaseOrderRepo) ListPurchaseOrders(
+	_ context.Context, statuses []string, _ int, createdBy *int,
+) ([]types.PurchaseOrder, error) {
+	r.listStatuses, r.listOwner = statuses, createdBy
+	return r.listed, nil
+}
+
+func (r *fakePurchaseOrderRepo) GetPurchaseOrder(
+	context.Context, int,
+) (types.PurchaseOrder, error) {
+	return r.order, r.lookupErr
+}
+
+func (r *fakePurchaseOrderRepo) PurchaseOrderExists(context.Context, int) (bool, error) {
+	return r.lookupErr == nil, nil
 }
 
 func (r *fakePurchaseOrderRepo) FindOrCreateSupplierTx(
@@ -290,7 +355,7 @@ func TestApplyPurchaseOrderReceipt(t *testing.T) {
 	apply := func(repo *fakePurchaseOrderRepo, params types.ReceiveSupplyRequest) error {
 		return NewInventoryService(
 			repo,
-		).applyPurchaseOrderReceipt(context.Background(), nil, params, 9)
+		).applyPurchaseOrderReceipt(approverContext(), nil, params, 9)
 	}
 
 	t.Run("partial delivery updates the line and refreshes the order", func(t *testing.T) {
@@ -390,7 +455,7 @@ func TestSaveAndClosePurchaseOrder(t *testing.T) {
 	t.Run("editing a received order conflicts and rolls back", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderReceived)}
 		_, err := NewInventoryService(repo).SavePurchaseOrder(
-			context.Background(),
+			approverContext(),
 			types.PurchaseOrderRequest{
 				ID:      1,
 				Version: 1,
@@ -406,7 +471,7 @@ func TestSaveAndClosePurchaseOrder(t *testing.T) {
 	t.Run("editing an unknown order is not found", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{lookupErr: sql.ErrNoRows}
 		_, err := NewInventoryService(repo).SavePurchaseOrder(
-			context.Background(),
+			approverContext(),
 			types.PurchaseOrderRequest{
 				ID:      9,
 				Version: 1,
@@ -419,7 +484,7 @@ func TestSaveAndClosePurchaseOrder(t *testing.T) {
 	t.Run("invalid requests never open a transaction", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{}
 		_, err := NewInventoryService(repo).SavePurchaseOrder(
-			context.Background(), types.PurchaseOrderRequest{}, 1,
+			approverContext(), types.PurchaseOrderRequest{}, 1,
 		)
 		requireHTTPStatus(t, err, http.StatusBadRequest)
 		if repo.rollbacks != 0 || repo.commits != 0 {
@@ -431,7 +496,7 @@ func TestSaveAndClosePurchaseOrder(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderPartial)}
 		if err := NewInventoryService(
 			repo,
-		).ClosePurchaseOrder(context.Background(), 1, 1, "supplier cannot deliver", 1); err != nil {
+		).ClosePurchaseOrder(approverContext(), 1, 1, "supplier cannot deliver", 1); err != nil {
 			t.Fatal(err)
 		}
 		if repo.closed != 1 || repo.commits != 1 {
@@ -441,7 +506,7 @@ func TestSaveAndClosePurchaseOrder(t *testing.T) {
 		repo = &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderReceived)}
 		err := NewInventoryService(
 			repo,
-		).ClosePurchaseOrder(context.Background(), 1, 1, "supplier cannot deliver", 1)
+		).ClosePurchaseOrder(approverContext(), 1, 1, "supplier cannot deliver", 1)
 		requireHTTPStatus(t, err, http.StatusConflict)
 		if !strings.Contains(err.Error(), "received") {
 			t.Fatalf("error should name the status: %v", err)
@@ -476,7 +541,7 @@ func TestOutstandingPurchaseOrderItems(t *testing.T) {
 }
 
 func TestMovePurchaseOrderOutstanding(t *testing.T) {
-	ctx := context.Background()
+	ctx := approverContext()
 
 	t.Run("moves unfilled items to a new order and closes the original", func(t *testing.T) {
 		order := newOrder(constant.PurchaseOrderPartial)
@@ -560,7 +625,7 @@ func TestMovePurchaseOrderOutstanding(t *testing.T) {
 }
 
 func TestSavePurchaseOrderResolvesSupplier(t *testing.T) {
-	ctx := context.Background()
+	ctx := approverContext()
 	items := []types.PurchaseOrderItem{{Name: "Thing", Quantity: 1}}
 
 	t.Run("a typed name becomes a supplier on create", func(t *testing.T) {
@@ -609,7 +674,7 @@ func TestSavePurchaseOrderResolvesSupplier(t *testing.T) {
 }
 
 func TestPurchaseOrderNote(t *testing.T) {
-	ctx := context.Background()
+	ctx := approverContext()
 	items := []types.PurchaseOrderItem{{Name: "Thing", Quantity: 1}}
 
 	t.Run("a long note is rejected", func(t *testing.T) {
@@ -709,7 +774,7 @@ func auditActions(entries []types.AuditEntry) []string {
 }
 
 func TestPurchaseOrderStaleEdits(t *testing.T) {
-	ctx := context.Background()
+	ctx := approverContext()
 	items := []types.PurchaseOrderItem{
 		{ID: 1, Name: "Known", Quantity: 10}, {ID: 2, Name: "Brand new", Quantity: 5},
 	}
@@ -747,7 +812,7 @@ func TestPurchaseOrderStaleEdits(t *testing.T) {
 }
 
 func TestPurchaseOrderAudit(t *testing.T) {
-	ctx := context.Background()
+	ctx := approverContext()
 
 	t.Run("create, edit, close and move are recorded with the actor", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{}
@@ -866,7 +931,7 @@ func TestReceiptWithoutOrderLinesIgnoresTheOrder(t *testing.T) {
 	for _, status := range []string{constant.PurchaseOrderClosed, constant.PurchaseOrderReceived} {
 		repo := &fakePurchaseOrderRepo{order: newOrder(status)}
 		err := NewInventoryService(repo).applyPurchaseOrderReceipt(
-			context.Background(), nil,
+			approverContext(), nil,
 			types.ReceiveSupplyRequest{
 				PurchaseOrderID: 1, Products: []types.ReceiveItem{{ID: 77, Quantity: 3}},
 			},
@@ -885,7 +950,7 @@ func TestSavingAnUnchangedOrderWritesNothing(t *testing.T) {
 	repo := &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderOpen)}
 	_, err := NewInventoryService(
 		repo,
-	).SavePurchaseOrder(context.Background(), types.PurchaseOrderRequest{
+	).SavePurchaseOrder(approverContext(), types.PurchaseOrderRequest{
 		ID: 1, Version: 1,
 		Items: []types.PurchaseOrderItem{
 			{ID: 1, Name: "Known", Quantity: 10}, {ID: 2, Name: "Brand new", Quantity: 5},
@@ -900,7 +965,7 @@ func TestSavingAnUnchangedOrderWritesNothing(t *testing.T) {
 }
 
 func TestCloseAndMoveRefuseAStaleVersion(t *testing.T) {
-	ctx := context.Background()
+	ctx := approverContext()
 	order := newOrder(constant.PurchaseOrderPartial)
 	order.Version = 5
 
@@ -939,7 +1004,7 @@ func TestUnchangedSupplierIsNotRecreated(t *testing.T) {
 	order.Supplier, order.SupplierID = "Emzor", intPtr(1)
 	repo := &fakePurchaseOrderRepo{order: order}
 	_, err := NewInventoryService(repo).SavePurchaseOrder(
-		context.Background(),
+		approverContext(),
 		types.PurchaseOrderRequest{
 			ID: 1, Version: 1, Supplier: "EMZOR",
 			Items: []types.PurchaseOrderItem{
@@ -973,4 +1038,153 @@ func TestPurchaseOrderLimitsCountCharactersAndKeysDoNotCollide(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("distinct items were treated as duplicates: %v", err)
 	}
+}
+
+func TestPurchaseOrderApprovalRules(t *testing.T) {
+	own := intPtr(7)
+	draft := func(status string, creator *int) types.PurchaseOrder {
+		order := newOrder(status)
+		order.CreatedByID = creator
+		return order
+	}
+	items := []types.PurchaseOrderItem{
+		{ID: 1, Name: "Known", Quantity: 11}, {ID: 2, Name: "Brand new", Quantity: 5},
+	}
+	save := func(ctx context.Context, repo *fakePurchaseOrderRepo, userID int) error {
+		_, err := NewInventoryService(repo).SavePurchaseOrder(
+			ctx, types.PurchaseOrderRequest{ID: 1, Version: 1, Items: items}, userID,
+		)
+		return err
+	}
+
+	t.Run("the author edits their own draft without touching order progress", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
+		if err := save(drafterContext(), repo, 7); err != nil {
+			t.Fatal(err)
+		}
+		if repo.refreshed != 0 {
+			t.Fatal("a draft has no received progress to recompute")
+		}
+	})
+
+	t.Run("nobody but a manager edits someone else's draft or a submitted order", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
+		requireHTTPStatus(t, save(drafterContext(), repo, 8), http.StatusForbidden)
+		repo = &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPending, own)}
+		requireHTTPStatus(t, save(drafterContext(), repo, 7), http.StatusConflict)
+		if repo.commits != 0 {
+			t.Fatal("a refused edit must write nothing")
+		}
+	})
+
+	t.Run("a manager edits drafts and submitted orders", func(t *testing.T) {
+		for _, status := range []string{constant.PurchaseOrderDraft, constant.PurchaseOrderPending} {
+			repo := &fakePurchaseOrderRepo{order: draft(status, own)}
+			if err := save(approverContext(), repo, 1); err != nil {
+				t.Fatalf("%s: %v", status, err)
+			}
+		}
+	})
+
+	t.Run("a drafter cannot edit an approved order", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderOpen, own)}
+		requireHTTPStatus(t, save(drafterContext(), repo, 7), http.StatusForbidden)
+	})
+
+	t.Run("who creates what", func(t *testing.T) {
+		req := types.PurchaseOrderRequest{Items: []types.PurchaseOrderItem{{Name: "A", Quantity: 1}}}
+		for ctx, want := range map[context.Context]string{
+			drafterContext():  constant.PurchaseOrderDraft,
+			approverContext(): constant.PurchaseOrderOpen,
+		} {
+			repo := &fakePurchaseOrderRepo{}
+			if _, err := NewInventoryService(repo).SavePurchaseOrder(ctx, req, 3); err != nil {
+				t.Fatal(err)
+			}
+			if repo.created[0].Status != want {
+				t.Fatalf("expected %s, got %s", want, repo.created[0].Status)
+			}
+		}
+		_, err := NewInventoryService(&fakePurchaseOrderRepo{}).SavePurchaseOrder(bareContext(), req, 3)
+		requireHTTPStatus(t, err, http.StatusForbidden)
+	})
+
+	t.Run("submit, approve and reject", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
+		svc := NewInventoryService(repo)
+		requireHTTPStatus(t, svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 8), http.StatusForbidden)
+		if err := svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 7); err != nil {
+			t.Fatal(err)
+		}
+		if repo.statusSet != constant.PurchaseOrderPending {
+			t.Fatalf("expected the order to become pending, got %q", repo.statusSet)
+		}
+
+		requireHTTPStatus(t, svc.ApprovePurchaseOrder(drafterContext(), 1, 1, 7), http.StatusForbidden)
+		if err := svc.ApprovePurchaseOrder(approverContext(), 1, 1, 9); err != nil || repo.approvedBy != 9 {
+			t.Fatalf("approve failed: %v (by %d)", err, repo.approvedBy)
+		}
+		requireHTTPStatus(t, svc.RejectPurchaseOrder(approverContext(), 1, 1, "", 9), http.StatusBadRequest)
+		if err := svc.RejectPurchaseOrder(approverContext(), 1, 1, "not needed", 9); err != nil || repo.closed != 1 {
+			t.Fatalf("reject failed: %v", err)
+		}
+		// Stale versions and wrong states are refused.
+		requireHTTPStatus(t, svc.ApprovePurchaseOrder(approverContext(), 1, 5, 9), http.StatusConflict)
+		repo.order = draft(constant.PurchaseOrderOpen, own)
+		requireHTTPStatus(t, svc.ApprovePurchaseOrder(approverContext(), 1, 1, 9), http.StatusConflict)
+		requireHTTPStatus(t, svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 7), http.StatusConflict)
+	})
+
+	t.Run("closing and moving belong to managers, and only for approved orders", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPartial, own)}
+		svc := NewInventoryService(repo)
+		requireHTTPStatus(t, svc.ClosePurchaseOrder(drafterContext(), 1, 1, "no longer needed", 7), http.StatusForbidden)
+		_, err := svc.MovePurchaseOrderOutstanding(drafterContext(), 1, 1, "Fidson", "no stock", 7)
+		requireHTTPStatus(t, err, http.StatusForbidden)
+
+		repo.order = draft(constant.PurchaseOrderPending, own)
+		requireHTTPStatus(t, svc.ClosePurchaseOrder(approverContext(), 1, 1, "no longer needed", 1), http.StatusConflict)
+	})
+
+	t.Run("lists are scoped to the author unless the user can approve", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{}
+		svc := NewInventoryService(repo)
+		if _, err := svc.ListPurchaseOrders(drafterContext(), "drafts", 7); err != nil {
+			t.Fatal(err)
+		}
+		if repo.listOwner == nil || *repo.listOwner != 7 {
+			t.Fatalf("a drafter should only list their own orders, got %v", repo.listOwner)
+		}
+		if strings.Join(repo.listStatuses, ",") != "draft,pending_approval" {
+			t.Fatalf("unexpected statuses %v", repo.listStatuses)
+		}
+		if _, err := svc.ListPurchaseOrders(approverContext(), "drafts", 1); err != nil || repo.listOwner != nil {
+			t.Fatalf("a manager lists everyone's orders, got %v %v", repo.listOwner, err)
+		}
+	})
+
+	t.Run("unapproved orders are hidden from other drafters but approved ones are not", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
+		svc := NewInventoryService(repo)
+		_, err := svc.GetPurchaseOrder(drafterContext(), 1, 8)
+		requireHTTPStatus(t, err, http.StatusNotFound)
+		if _, err = svc.GetPurchaseOrder(drafterContext(), 1, 7); err != nil {
+			t.Fatal(err)
+		}
+		repo.order = draft(constant.PurchaseOrderOpen, own)
+		if _, err = svc.GetPurchaseOrder(drafterContext(), 1, 8); err != nil {
+			t.Fatalf("anyone may read an approved order to receive against it: %v", err)
+		}
+	})
+
+	t.Run("receiving needs an approved order", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPending, own)}
+		err := NewInventoryService(repo).applyPurchaseOrderReceipt(
+			context.Background(), nil,
+			types.ReceiveSupplyRequest{
+				PurchaseOrderID: 1, Products: []types.ReceiveItem{{ID: 10, PurchaseOrderItemID: 1, Quantity: 1}},
+			}, 1,
+		)
+		requireHTTPStatus(t, err, http.StatusConflict)
+	})
 }

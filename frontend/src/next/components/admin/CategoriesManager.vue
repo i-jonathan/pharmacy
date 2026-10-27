@@ -100,34 +100,14 @@
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
-        <div v-if="deletingCat" class="fixed inset-0 z-50 flex items-center justify-center">
-            <div class="absolute inset-0 bg-black/40" @click="deletingCat = null"></div>
-            <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-2">Delete Category</h3>
-                <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
-                    Are you sure you want to delete "{{ deletingCat.name }}"?
-                    Categories used by products cannot be deleted.
-                </p>
-                <div v-if="deleteError" class="mb-4 text-sm text-red-500">{{ deleteError }}</div>
-                <div class="flex justify-end gap-3">
-                    <button
-                        @click="deletingCat = null"
-                        class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
-                    >Cancel</button>
-                    <button
-                        @click="deleteCategory(deletingCat.id)"
-                        :disabled="deleting"
-                        class="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 transition"
-                    >{{ deleting ? "Deleting..." : "Delete" }}</button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
 <script>
 import { csrfFetch } from "../../lib/csrf.js";
+import { useConfirm } from "../../composables/useConfirm.js";
+
+const { confirm } = useConfirm();
 
 export default {
     name: "CategoriesManager",
@@ -142,9 +122,6 @@ export default {
             createError: null,
             editingId: null,
             editName: "",
-            deletingCat: null,
-            deleting: false,
-            deleteError: null,
         };
     },
     mounted() {
@@ -207,26 +184,23 @@ export default {
                 alert(e.message);
             }
         },
-        confirmDelete(cat) {
-            this.deletingCat = cat;
-            this.deleteError = null;
-        },
-        async deleteCategory(id) {
-            this.deleting = true;
-            this.deleteError = null;
-            try {
-                const res = await csrfFetch(`/admin/api/categories/${id}`, { method: "DELETE" });
-                if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.error || "Failed to delete");
-                }
-                this.deletingCat = null;
-                await this.fetchCategories();
-            } catch (e) {
-                this.deleteError = e.message;
-            } finally {
-                this.deleting = false;
-            }
+        async confirmDelete(cat) {
+            const deleted = await confirm({
+                title: "Delete category",
+                message: "Categories used by products cannot be deleted.",
+                detail: cat.name,
+                tone: "danger",
+                confirmLabel: "Delete",
+                busyLabel: "Deleting…",
+                run: async () => {
+                    const res = await csrfFetch(`/admin/api/categories/${cat.id}`, { method: "DELETE" });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.error || "Failed to delete");
+                    }
+                },
+            });
+            if (deleted) await this.fetchCategories();
         },
         formatDate(d) {
             if (!d) return "—";

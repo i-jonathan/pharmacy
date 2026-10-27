@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-087 -->
+<!-- next-id: T-094 -->
 
 <details>
 <summary>How this board works</summary>
@@ -49,12 +49,12 @@ _Nothing in progress. Pull the top card from Up Next._
 - area: ops
 - created: 2026-10-26
 
-PR #28 is merged; production is at migration 39.
+PRs #28 and #29 are merged; production is at migration 39.
 
-- [ ] Run migrations 40 and 41 against a copy of prod data and check the suppliers the backfill creates
-- [ ] Create the `purchaseorder:create` permission and assign it to roles (or ship T-039)
-- [ ] Click through the order editor, receive-against-order, hold/resume and the move panel in a browser
-- [ ] `make assets`, build the image, deploy, have affected users log in again
+- [ ] Run migrations 40–43 against a copy of prod data and check the suppliers the backfill creates
+- [ ] Check prod's roles are named Cashier, Manager and Admin (migration 43 grants by name, see T-092)
+- [ ] Click through what #29's Playwright checks skipped: the admin category and permission delete dialogs, and the sales page "Discard and continue" path
+- [ ] `make assets`, build the image, deploy, have every user log in again to pick up the new permissions
 
 ### T-018 Lock down public user registration
 
@@ -159,7 +159,14 @@ Every table is global today; one deployment = one store. Decide the isolation mo
 - depends: T-029
 - created: 2026-10-26
 
-"Primocrest Pharmacy" is hardcoded in the receipt (`usePos.js`), `Sidebar.vue`, `next-dashboard.html`, `login-v2.html`, `error.html`. Add per-store settings: name, logo, address, phone, receipt header/footer, timezone (dashboard uses server local time), currency, and use them everywhere.
+"Primocrest Pharmacy" is hardcoded in the receipt (`composables/usePos.js`), `Sidebar.vue`, `LoginPage.vue`, `NotFoundPage.vue` and the `<title>` of `login-v2.html`, `next-dashboard.html` and `error.html`. Add per-store settings and use them everywhere:
+
+- [ ] Name, logo or icon (replacing the text-only brand mark)
+- [ ] Receipt header and footer: address, phone
+- [ ] Primary colour (brand tokens are in the Tailwind theme and `design-system/primocrest-pharmacy/MASTER.md`; status colours stay fixed so green, amber and red keep their meaning)
+- [ ] Timezone (the dashboard uses server local time) and currency
+
+Stored with the other settings from T-093.
 
 ### T-031 Bulk product import (CSV/Excel)
 
@@ -230,13 +237,27 @@ Expected cost per line, order total, and comparison with the received cost.
 
 Rename and merge duplicate suppliers, contact details (phone, email, address), payment terms.
 
-### T-039 Seed purchaseorder:create permission
+### T-088 Block supplier changes on orders with receipts
 
 - priority: P1
-- area: ops
-- created: 2026-10-26
+- area: purchasing
+- created: 2026-10-27
 
-Seed `PurchaseOrder`/`Create` via migration (like 000030/000032/000035) and assign it to Admin/Manager instead of a manual deploy step.
+Changing or clearing the supplier on an order that already has receipts is allowed silently, and the receipts stay with the old supplier. Block it and point to Move outstanding.
+
+### T-093 Settings screen for hard-coded values
+
+- priority: P1
+- area: admin
+- created: 2026-10-27
+
+Hard-coded values should become settings that an admin edits on a settings screen. Store them in the database, read them once per session and serve them to the SPA, so the frontend and backend share one value. Store branding (T-030) uses the same store.
+
+- [ ] Large purchase order confirmation: 100,000 units per line or more than 200 lines (`CONFIRM_QUANTITY`, `CONFIRM_LINES` in `views/PurchaseOrders.vue`)
+- [ ] Near-expiry alert on Receive Items: under 183 days turns amber and needs "I confirm the near-expiry dates" (`expiryClass`, `expiryTitle`, `hasNearExpiry` in `views/ReceiveItems.vue`); past dates stay red
+- [ ] Expiring-soon window on the dashboard and expiring list: 90 days (`INTERVAL '90 days'` in `repository/dashboard.go`); decide whether it shares a value with the Receive Items alert
+- [ ] Approval badge poll interval: 60 seconds (`usePendingPurchaseOrders.js`)
+- [ ] Completed purchase orders cap: 100 (`purchaseOrderHistoryMax`)
 
 ### T-040 Customer records & purchase history
 
@@ -499,13 +520,45 @@ Show quantities on open purchase orders on the Products list and Low Stock page.
 
 Today anyone who can receive can receive against a purchase order. Decide whether it needs its own permission.
 
+### T-089 Withdraw, send back and notify on approvals
+
+- priority: P2
+- area: purchasing
+- created: 2026-10-27
+
+Let a drafter withdraw a submitted order back to draft, let a manager send it back for changes instead of only rejecting, and notify the drafter when their order is approved or rejected (today they only see it on their list).
+
+### T-090 Show rejected drafts as Rejected
+
+- priority: P2
+- area: purchasing
+- created: 2026-10-27
+
+A rejected draft shows as "Closed", with the reason only in the activity log. Show "Rejected" and the reason on the order itself.
+
+### T-091 Real notifications for approvers
+
+- priority: P2
+- area: purchasing
+- created: 2026-10-27
+
+Replace the sidebar badge and dashboard banner, which poll once a minute, with a stored inbox and push or email. Could share delivery with T-078.
+
 ### T-072 E2E tests for purchase orders & receive-against-order
 
 - priority: P2
 - area: ops
 - created: 2026-10-26
 
-Browser/end-to-end tests for the purchase order screens and the receive-against-order flow.
+Committed browser/end-to-end tests for the purchase order screens, the approval flow and the receive-against-order flow. PR #29 ran Playwright checks by hand; none are in the repo.
+
+### T-092 Role-independent permission seeding
+
+- priority: P2
+- area: ops
+- created: 2026-10-27
+
+Migration 000043 grants permissions by role name (Cashier, Manager, Admin). Warn, or grant to a configured role, when a deployment's roles are named differently. Matters once tenants can rename roles.
 
 ### T-073 Barcode label printing
 

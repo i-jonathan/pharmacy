@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
@@ -19,13 +20,15 @@ import (
 )
 
 const (
-	maxPurchaseOrderLines    = 200
-	maxPurchaseOrderQuantity = 1_000_000
+	// The quantity columns are 32-bit integers, so this is the only ceiling. Large orders are
+	// the user's call; the editor asks them to confirm.
+	maxPurchaseOrderQuantity = math.MaxInt32
 	maxPurchaseOrderText     = 200
 	maxPurchaseOrderNote     = 1000
 	maxPurchaseOrderItemNote = 500
 
 	purchaseOrderViewActive  = "active"
+	purchaseOrderViewDrafts  = "drafts"
 	purchaseOrderViewHistory = "history"
 	purchaseOrderHistoryMax  = 100
 )
@@ -42,8 +45,66 @@ func purchaseOrderBadRequest(msg string) error {
 	return httperror.BadRequest(msg, errors.New(msg))
 }
 
-func purchaseOrderEditable(status string) bool {
+// purchaseOrderActive reports whether an approved order is still waiting for stock. Only those
+// can be received against, closed or moved.
+func purchaseOrderActive(status string) bool {
 	return status == constant.PurchaseOrderOpen || status == constant.PurchaseOrderPartial
+}
+
+// purchaseOrderAwaitingApproval reports whether an order is a draft or submitted for approval.
+func purchaseOrderAwaitingApproval(status string) bool {
+	return status == constant.PurchaseOrderDraft || status == constant.PurchaseOrderPending
+}
+
+// purchaseOrderStateConflict is the 409 for an action the order's status does not allow.
+func purchaseOrderStateConflict(status string) error {
+	message := fmt.Sprintf("this purchase order is already %s", status)
+	if purchaseOrderAwaitingApproval(status) {
+		message = "this purchase order has not been approved yet"
+	}
+	return httperror.NewHttpError(http.StatusConflict, message, nil)
+}
+
+func canApprovePurchaseOrders(ctx context.Context) bool {
+	return HasPermission(ctx, constant.ApprovePurchaseOrderPermissionKey)
+}
+
+func canDraftPurchaseOrders(ctx context.Context) bool {
+	return HasPermission(ctx, constant.DraftPurchaseOrderPermissionKey)
+}
+
+func requireApprover(ctx context.Context) error {
+	if !canApprovePurchaseOrders(ctx) {
+		return httperror.Forbidden("only a manager can do this", nil)
+	}
+	return nil
+}
+
+// checkPurchaseOrderEditable decides whether this user may change the order. Managers can change
+// anything that is not finished; a drafter can change only their own order while it is a draft.
+func checkPurchaseOrderEditable(ctx context.Context, order types.PurchaseOrder, userID int) error {
+	if !purchaseOrderAwaitingApproval(order.Status) && !purchaseOrderActive(order.Status) {
+		return httperror.NewHttpError(
+			http.StatusConflict,
+			fmt.Sprintf("a %s purchase order cannot be edited", order.Status),
+			nil,
+		)
+	}
+	if canApprovePurchaseOrders(ctx) {
+		return nil
+	}
+	own := order.CreatedByID != nil && *order.CreatedByID == userID
+	if order.Status == constant.PurchaseOrderDraft && own && canDraftPurchaseOrders(ctx) {
+		return nil
+	}
+	if order.Status == constant.PurchaseOrderPending && own {
+		return httperror.NewHttpError(
+			http.StatusConflict,
+			"this purchase order has been submitted; a manager will review it",
+			nil,
+		)
+	}
+	return httperror.Forbidden("you cannot change this purchase order", nil)
 }
 
 func purchaseOrderNotFound(err error) error {
@@ -67,9 +128,6 @@ func normalizePurchaseOrderRequest(
 	}
 	if len(order.Items) == 0 {
 		return order, purchaseOrderBadRequest("add at least one item")
-	}
-	if len(order.Items) > maxPurchaseOrderLines {
-		return order, purchaseOrderBadRequest("too many items on one purchase order")
 	}
 
 	items := make([]types.PurchaseOrderItem, len(order.Items))
@@ -174,8 +232,18 @@ func planPurchaseOrderEdit(
 	// Lines with received stock got their stored product back, so check for duplicates again on
 	// what will actually be saved.
 	seen := make(map[int]bool)
+	seenNew := make(map[string]bool)
 	for _, item := range append(append([]types.PurchaseOrderItem{}, plan.updates...), plan.inserts...) {
 		if item.ProductID == nil {
+			// A new line typed in by name can repeat one the order already has. Kept lines were
+			// already checked against each other when the request was normalized.
+			key := strings.ToLower(item.Name + "\x00" + item.Manufacturer)
+			if seenNew[key] && item.ID == 0 {
+				return plan, purchaseOrderBadRequest(
+					fmt.Sprintf("%s is listed more than once", item.Name),
+				)
+			}
+			seenNew[key] = true
 			continue
 		}
 		if seen[*item.ProductID] {
@@ -245,7 +313,15 @@ func (s *inventoryService) resolveSupplier(
 func (s *inventoryService) createPurchaseOrder(
 	ctx context.Context, tx *sqlx.Tx, order types.PurchaseOrderRequest, userID int,
 ) (int, error) {
-	id, err := s.insertPurchaseOrder(ctx, tx, order.Supplier, order.Note, nil, userID)
+	// A manager's order is approved by definition; anyone else writes a draft.
+	status := constant.PurchaseOrderDraft
+	switch {
+	case canApprovePurchaseOrders(ctx):
+		status = constant.PurchaseOrderOpen
+	case !canDraftPurchaseOrders(ctx):
+		return 0, httperror.Forbidden("you cannot create purchase orders", nil)
+	}
+	id, err := s.insertPurchaseOrder(ctx, tx, order.Supplier, order.Note, status, nil, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -256,7 +332,8 @@ func (s *inventoryService) createPurchaseOrder(
 		}
 	}
 	details := map[string]any{
-		"supplier": order.Supplier, "note": order.Note, "items": auditItemSummaries(order.Items),
+		"supplier": order.Supplier, "note": order.Note, "status": status,
+		"items": auditItemSummaries(order.Items),
 	}
 	if err = s.auditPurchaseOrder(
 		ctx,
@@ -273,13 +350,19 @@ func (s *inventoryService) createPurchaseOrder(
 }
 
 func (s *inventoryService) insertPurchaseOrder(
-	ctx context.Context, tx *sqlx.Tx, supplierName, note string, sourceOrderID *int, userID int,
+	ctx context.Context,
+	tx *sqlx.Tx,
+	supplierName, note, status string,
+	sourceOrderID *int,
+	userID int,
 ) (int, error) {
 	supplier, err := s.resolveSupplier(ctx, tx, supplierName)
 	if err != nil {
 		return 0, err
 	}
-	header := types.NewPurchaseOrder{SourceOrderID: sourceOrderID, Note: note, CreatedByID: userID}
+	header := types.NewPurchaseOrder{
+		Status: status, SourceOrderID: sourceOrderID, Note: note, CreatedByID: userID,
+	}
 	if supplier != nil {
 		header.SupplierID, header.SupplierName = &supplier.ID, supplier.Name
 	}
@@ -304,12 +387,8 @@ func (s *inventoryService) editPurchaseOrder(
 	if order.Version != stored.Version {
 		return 0, purchaseOrderChangedElsewhere()
 	}
-	if !purchaseOrderEditable(stored.Status) {
-		return 0, httperror.NewHttpError(
-			http.StatusConflict,
-			fmt.Sprintf("a %s purchase order cannot be edited", stored.Status),
-			nil,
-		)
+	if err = checkPurchaseOrderEditable(ctx, stored, userID); err != nil {
+		return 0, err
 	}
 
 	plan, err := planPurchaseOrderEdit(stored.Items, order.Items)
@@ -352,9 +431,12 @@ func (s *inventoryService) editPurchaseOrder(
 			return 0, purchaseOrderItemError(err)
 		}
 	}
-	// Changing quantities or adding lines can move an order between open, partial and received.
-	if err = s.repo.RefreshPurchaseOrderStatusTx(ctx, tx, order.ID); err != nil {
-		return 0, httperror.ServerError("failed to update purchase order status", err)
+	// Changing quantities or adding lines can move an approved order between open, partial and
+	// received. Drafts have no such progress.
+	if purchaseOrderActive(stored.Status) {
+		if err = s.repo.RefreshPurchaseOrderStatusTx(ctx, tx, order.ID); err != nil {
+			return 0, httperror.ServerError("failed to update purchase order status", err)
+		}
 	}
 	err = s.auditPurchaseOrder(ctx, tx, userID, order.ID, constant.AuditEdited, "", changes)
 	if err != nil {
@@ -370,20 +452,26 @@ func purchaseOrderItemError(err error) error {
 	return httperror.ServerError("failed to save purchase order item", err)
 }
 
-// ListPurchaseOrders returns the most recent "history" (received and closed) orders for the
-// "history" view and the "active" (open and partial) orders for anything else.
+// ListPurchaseOrders returns one tab of orders: "drafts" (being written or waiting for approval),
+// "history" (received and closed, the newest 100) or, for anything else, "active" (open and
+// partial). Managers see everyone's orders; everyone else sees only their own.
 func (s *inventoryService) ListPurchaseOrders(
-	ctx context.Context, view string,
+	ctx context.Context, view string, userID int,
 ) ([]types.PurchaseOrder, error) {
-	// Anything but "history" is the active list, so a missing or mistyped view can never load
-	// every order ever created.
 	statuses := []string{constant.PurchaseOrderOpen, constant.PurchaseOrderPartial}
 	limit := 0
-	if view == purchaseOrderViewHistory {
+	switch view {
+	case purchaseOrderViewDrafts:
+		statuses = []string{constant.PurchaseOrderDraft, constant.PurchaseOrderPending}
+	case purchaseOrderViewHistory:
 		statuses = []string{constant.PurchaseOrderReceived, constant.PurchaseOrderClosed}
 		limit = purchaseOrderHistoryMax
 	}
-	orders, err := s.repo.ListPurchaseOrders(ctx, statuses, limit)
+	var createdBy *int
+	if !canApprovePurchaseOrders(ctx) {
+		createdBy = &userID
+	}
+	orders, err := s.repo.ListPurchaseOrders(ctx, statuses, limit, createdBy)
 	if err != nil {
 		return nil, httperror.ServerError("failed to fetch purchase orders", err)
 	}
@@ -393,8 +481,18 @@ func (s *inventoryService) ListPurchaseOrders(
 	return orders, nil
 }
 
+// visiblePurchaseOrder hides drafts and submitted orders from people who neither wrote them nor
+// can approve them. Approved orders are visible to anyone, because anyone can receive against
+// one.
+func visiblePurchaseOrder(ctx context.Context, order types.PurchaseOrder, userID int) bool {
+	if !purchaseOrderAwaitingApproval(order.Status) || canApprovePurchaseOrders(ctx) {
+		return true
+	}
+	return order.CreatedByID != nil && *order.CreatedByID == userID
+}
+
 func (s *inventoryService) GetPurchaseOrder(
-	ctx context.Context, id int,
+	ctx context.Context, id, userID int,
 ) (types.PurchaseOrder, error) {
 	order, err := s.repo.GetPurchaseOrder(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -402,6 +500,9 @@ func (s *inventoryService) GetPurchaseOrder(
 	}
 	if err != nil {
 		return order, httperror.ServerError("failed to fetch purchase order", err)
+	}
+	if !visiblePurchaseOrder(ctx, order, userID) {
+		return types.PurchaseOrder{}, purchaseOrderNotFound(sql.ErrNoRows)
 	}
 	return order, nil
 }
@@ -411,6 +512,9 @@ func (s *inventoryService) GetPurchaseOrder(
 func (s *inventoryService) ClosePurchaseOrder(
 	ctx context.Context, id, version int, reason string, userID int,
 ) error {
+	if err := requireApprover(ctx); err != nil {
+		return err
+	}
 	reason, err := normalizeAuditReason(reason)
 	if err != nil {
 		return err
@@ -437,12 +541,8 @@ func (s *inventoryService) ClosePurchaseOrder(
 	if order.Version != version {
 		return purchaseOrderChangedElsewhere()
 	}
-	if !purchaseOrderEditable(order.Status) {
-		return httperror.NewHttpError(
-			http.StatusConflict,
-			fmt.Sprintf("this purchase order is already %s", order.Status),
-			nil,
-		)
+	if !purchaseOrderActive(order.Status) {
+		return purchaseOrderStateConflict(order.Status)
 	}
 	if err = s.repo.ClosePurchaseOrderTx(ctx, tx, id); err != nil {
 		return httperror.ServerError("failed to close purchase order", err)
@@ -493,6 +593,9 @@ func outstandingPurchaseOrderItems(items []types.PurchaseOrderItem) []types.Purc
 func (s *inventoryService) MovePurchaseOrderOutstanding(
 	ctx context.Context, id, version int, supplierName, reason string, userID int,
 ) (int, error) {
+	if err := requireApprover(ctx); err != nil {
+		return 0, err
+	}
 	if strings.TrimSpace(supplierName) == "" {
 		return 0, purchaseOrderBadRequest("choose the supplier for the outstanding items")
 	}
@@ -522,12 +625,8 @@ func (s *inventoryService) MovePurchaseOrderOutstanding(
 	if order.Version != version {
 		return 0, purchaseOrderChangedElsewhere()
 	}
-	if !purchaseOrderEditable(order.Status) {
-		return 0, httperror.NewHttpError(
-			http.StatusConflict,
-			fmt.Sprintf("this purchase order is already %s", order.Status),
-			nil,
-		)
+	if !purchaseOrderActive(order.Status) {
+		return 0, purchaseOrderStateConflict(order.Status)
 	}
 	items := outstandingPurchaseOrderItems(order.Items)
 	if len(items) == 0 {
@@ -544,7 +643,9 @@ func (s *inventoryService) MovePurchaseOrderOutstanding(
 		return 0, purchaseOrderBadRequest("choose a different supplier from the one on this order")
 	}
 
-	newID, err := s.insertPurchaseOrder(ctx, tx, supplier.Name, "", &order.ID, userID)
+	newID, err := s.insertPurchaseOrder(
+		ctx, tx, supplier.Name, "", constant.PurchaseOrderOpen, &order.ID, userID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -635,12 +736,8 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 	if err != nil {
 		return httperror.ServerError("failed to fetch purchase order", err)
 	}
-	if !purchaseOrderEditable(order.Status) {
-		return httperror.NewHttpError(
-			http.StatusConflict,
-			fmt.Sprintf("this purchase order is already %s", order.Status),
-			nil,
-		)
+	if !purchaseOrderActive(order.Status) {
+		return purchaseOrderStateConflict(order.Status)
 	}
 
 	lines := make(map[int]types.PurchaseOrderItem, len(order.Items))

@@ -20,6 +20,15 @@ import (
 
 // These run the real service and SQL against a throwaway database; see internal/testdb.
 
+// asUser is a request context carrying the given permission keys, as the middleware builds it.
+func asUser(keys ...string) context.Context {
+	perms := map[string]bool{}
+	for _, key := range keys {
+		perms[key] = true
+	}
+	return context.WithValue(context.Background(), constant.PermissionsSessionKey, perms)
+}
+
 type fixture struct {
 	db  *sqlx.DB
 	svc service.InventoryService
@@ -35,7 +44,7 @@ func newFixture(t *testing.T) *fixture {
 	f := &fixture{
 		db:  db,
 		svc: service.NewInventoryService(repository.NewStore(db)),
-		ctx: context.Background(),
+		ctx: asUser(constant.ApprovePurchaseOrderPermissionKey),
 	}
 	if err := db.Get(&f.uid, `SELECT id FROM users LIMIT 1`); err != nil {
 		t.Fatal(err)
@@ -76,7 +85,7 @@ func (f *fixture) order(
 
 func (f *fixture) get(t *testing.T, id int) types.PurchaseOrder {
 	t.Helper()
-	order, err := f.svc.GetPurchaseOrder(f.ctx, id)
+	order, err := f.svc.GetPurchaseOrder(f.ctx, id, f.uid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +500,7 @@ func TestAuditTrailOfAnOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	history, err := f.svc.GetPurchaseOrderHistory(f.ctx, po.ID)
+	history, err := f.svc.GetPurchaseOrderHistory(f.ctx, po.ID, f.uid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -516,7 +525,7 @@ func TestAuditTrailOfAnOrder(t *testing.T) {
 		t.Fatalf("the reason should be stored: %+v", history[0])
 	}
 
-	if _, err = f.svc.GetPurchaseOrderHistory(f.ctx, 9999); status(err) != http.StatusNotFound {
+	if _, err = f.svc.GetPurchaseOrderHistory(f.ctx, 9999, f.uid); status(err) != http.StatusNotFound {
 		t.Fatalf("history of an unknown order should be not found, got %v", err)
 	}
 }
@@ -560,5 +569,188 @@ func TestTransferAndAuditAreAtomic(t *testing.T) {
 	f.db.Get(&orders, `SELECT count(*) FROM purchase_order`)
 	if got.Status != "open" || got.MovedToID != nil || orders != 1 {
 		t.Fatalf("a failed transfer must leave nothing behind: %+v, %d orders", got, orders)
+	}
+}
+
+func TestApprovalWorkflow(t *testing.T) {
+	f := newFixture(t)
+	f.db.MustExec(`INSERT INTO users (username, password) VALUES ('cashier', 'x'), ('other', 'x')`)
+	var cashier, other int
+	f.db.Get(&cashier, `SELECT id FROM users WHERE username = 'cashier'`)
+	f.db.Get(&other, `SELECT id FROM users WHERE username = 'other'`)
+	alpha := f.product(t, "Alpha")
+	drafter := asUser(constant.DraftPurchaseOrderPermissionKey)
+	items := []types.PurchaseOrderItem{{ProductID: &alpha, Name: "Alpha", Quantity: 10}}
+
+	// A cashier writes a draft. It cannot be received against, and managers can already see it.
+	id, err := f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{Supplier: "Emzor", Items: items}, cashier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := f.get(t, id)
+	if draft.Status != "draft" || draft.CreatedBy != "cashier" || draft.Version != 1 {
+		t.Fatalf("unexpected draft: %+v", draft)
+	}
+	if err = f.receive("k", "Emzor", id, types.ReceiveItem{ID: alpha, PurchaseOrderItemID: draft.Items[0].ID, Quantity: 1}); status(err) != http.StatusConflict {
+		t.Fatalf("an unapproved order cannot be received against, got %v", err)
+	}
+	counts, err := f.svc.CountPendingPurchaseOrders(f.ctx)
+	if err != nil || counts.Drafts != 1 || counts.Pending != 0 {
+		t.Fatalf("the manager should see one draft: %+v %v", counts, err)
+	}
+
+	// Others cannot see or change it; the author can keep editing.
+	stranger := asUser(constant.DraftPurchaseOrderPermissionKey)
+	if _, err = f.svc.GetPurchaseOrder(stranger, id, other); status(err) != http.StatusNotFound {
+		t.Fatalf("another drafter must not see the draft, got %v", err)
+	}
+	if _, err = f.svc.SavePurchaseOrder(stranger, types.PurchaseOrderRequest{ID: id, Version: draft.Version, Items: items}, other); status(err) != http.StatusNotFound && status(err) != http.StatusForbidden {
+		t.Fatalf("another drafter must not edit the draft, got %v", err)
+	}
+	items[0].Quantity = 12
+	if _, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{
+		ID: id, Version: draft.Version, Supplier: "Emzor",
+		Items: []types.PurchaseOrderItem{{ID: draft.Items[0].ID, ProductID: &alpha, Name: "Alpha", Quantity: 12}},
+	}, cashier); err != nil {
+		t.Fatal(err)
+	}
+	draft = f.get(t, id)
+
+	// "I'm done": submit. After that only a manager can change it.
+	if err = f.svc.SubmitPurchaseOrder(stranger, id, draft.Version, other); status(err) != http.StatusForbidden {
+		t.Fatalf("only the author can submit, got %v", err)
+	}
+	if err = f.svc.SubmitPurchaseOrder(drafter, id, draft.Version, cashier); err != nil {
+		t.Fatal(err)
+	}
+	submitted := f.get(t, id)
+	if submitted.Status != "pending_approval" || submitted.Version <= draft.Version {
+		t.Fatalf("unexpected submitted order: %+v", submitted)
+	}
+	_, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{ID: id, Version: submitted.Version, Items: items}, cashier)
+	if status(err) != http.StatusConflict {
+		t.Fatalf("the author cannot change a submitted order, got %v", err)
+	}
+	counts, _ = f.svc.CountPendingPurchaseOrders(f.ctx)
+	if counts.Pending != 1 || counts.Drafts != 0 {
+		t.Fatalf("the manager should see one order waiting: %+v", counts)
+	}
+
+	// The cashier sees only their own orders; a manager sees all.
+	mine, _ := f.svc.ListPurchaseOrders(drafter, "drafts", cashier)
+	theirs, _ := f.svc.ListPurchaseOrders(stranger, "drafts", other)
+	all, _ := f.svc.ListPurchaseOrders(f.ctx, "drafts", f.uid)
+	if len(mine) != 1 || len(theirs) != 0 || len(all) != 1 {
+		t.Fatalf("visibility wrong: mine %d, other %d, manager %d", len(mine), len(theirs), len(all))
+	}
+
+	// A cashier cannot approve; the manager edits, then approves.
+	if err = f.svc.ApprovePurchaseOrder(drafter, id, submitted.Version, cashier); status(err) != http.StatusForbidden {
+		t.Fatalf("a cashier cannot approve, got %v", err)
+	}
+	_, err = f.svc.SavePurchaseOrder(f.ctx, types.PurchaseOrderRequest{
+		ID: id, Version: submitted.Version, Supplier: "Emzor", Note: "approved with changes",
+		Items: []types.PurchaseOrderItem{{ID: submitted.Items[0].ID, ProductID: &alpha, Name: "Alpha", Quantity: 8}, {Name: "Added by manager", Quantity: 2}},
+	}, f.uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := f.get(t, id)
+	if edited.Status != "pending_approval" || len(edited.Items) != 2 {
+		t.Fatalf("a manager's edit keeps the order pending: %+v", edited)
+	}
+	if err = f.svc.ApprovePurchaseOrder(f.ctx, id, submitted.Version, f.uid); status(err) != http.StatusConflict {
+		t.Fatalf("approving a stale copy should conflict, got %v", err)
+	}
+	if err = f.svc.ApprovePurchaseOrder(f.ctx, id, edited.Version, f.uid); err != nil {
+		t.Fatal(err)
+	}
+	approved := f.get(t, id)
+	if approved.Status != "open" || approved.ApprovedBy != "tester" || approved.ApprovedAt == nil {
+		t.Fatalf("unexpected approved order: %+v", approved)
+	}
+	if err = f.svc.ApprovePurchaseOrder(f.ctx, id, approved.Version, f.uid); status(err) != http.StatusConflict {
+		t.Fatalf("an open order cannot be approved again, got %v", err)
+	}
+
+	// The cashier still sees it, read-only, and can read its history.
+	if got, err := f.svc.GetPurchaseOrder(drafter, id, cashier); err != nil || got.Status != "open" {
+		t.Fatalf("the author should still see the approved order: %+v %v", got, err)
+	}
+	if _, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{ID: id, Version: approved.Version, Items: items}, cashier); status(err) != http.StatusForbidden {
+		t.Fatalf("the author cannot edit an approved order, got %v", err)
+	}
+	if err = f.svc.ClosePurchaseOrder(drafter, id, approved.Version, "no longer needed", cashier); status(err) != http.StatusForbidden {
+		t.Fatalf("a cashier cannot close an order, got %v", err)
+	}
+	history, err := f.svc.GetPurchaseOrderHistory(drafter, id, cashier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var actions []string
+	for _, record := range history {
+		actions = append(actions, record.Action)
+	}
+	want := []string{"approved", "edited", "submitted", "edited", "created"}
+	if len(actions) != len(want) {
+		t.Fatalf("expected %v, got %v", want, actions)
+	}
+	for i := range want {
+		if actions[i] != want[i] {
+			t.Fatalf("expected %v, got %v", want, actions)
+		}
+	}
+	if _, err = f.svc.GetPurchaseOrderHistory(stranger, id, other); status(err) != http.StatusNotFound {
+		t.Fatalf("another user must not read the activity, got %v", err)
+	}
+
+	// Once approved it behaves like any open order.
+	if err = f.receive("k2", "Emzor", id, types.ReceiveItem{ID: alpha, PurchaseOrderItemID: approved.Items[0].ID, Quantity: 8}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRejectingADraft(t *testing.T) {
+	f := newFixture(t)
+	f.db.MustExec(`INSERT INTO users (username, password) VALUES ('cashier', 'x')`)
+	var cashier int
+	f.db.Get(&cashier, `SELECT id FROM users WHERE username = 'cashier'`)
+	drafter := asUser(constant.DraftPurchaseOrderPermissionKey)
+
+	// Managers can reject a draft the author has not even submitted.
+	id, err := f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{Items: []types.PurchaseOrderItem{{Name: "Thing", Quantity: 1}}}, cashier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := f.get(t, id)
+	if err = f.svc.RejectPurchaseOrder(drafter, id, draft.Version, "not needed", cashier); status(err) != http.StatusForbidden {
+		t.Fatalf("a cashier cannot reject, got %v", err)
+	}
+	if err = f.svc.RejectPurchaseOrder(f.ctx, id, draft.Version, "", f.uid); status(err) != http.StatusBadRequest {
+		t.Fatalf("rejecting needs a reason, got %v", err)
+	}
+	if err = f.svc.ClosePurchaseOrder(f.ctx, id, draft.Version, "not needed", f.uid); status(err) != http.StatusConflict {
+		t.Fatalf("an unapproved order is rejected, not closed, got %v", err)
+	}
+	if err = f.svc.RejectPurchaseOrder(f.ctx, id, draft.Version, "we already have stock", f.uid); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.get(t, id); got.Status != "closed" || got.ApprovedAt != nil {
+		t.Fatalf("a rejected order is closed and was never approved, got %+v", got)
+	}
+	history, _ := f.svc.GetPurchaseOrderHistory(f.ctx, id, f.uid)
+	if history[0].Action != "rejected" || history[0].Reason != "we already have stock" || history[0].Actor != "tester" {
+		t.Fatalf("the rejection should be recorded: %+v", history[0])
+	}
+}
+
+func TestManagersCreateApprovedOrdersAndOthersNeedPermission(t *testing.T) {
+	f := newFixture(t)
+	items := []types.PurchaseOrderItem{{Name: "Thing", Quantity: 1}}
+	if po := f.order(t, "Emzor", items...); po.Status != "open" || po.ApprovedBy != "tester" || po.ApprovedAt == nil {
+		t.Fatalf("a manager's order starts open and approved by its author: %+v", po)
+	}
+	if _, err := f.svc.SavePurchaseOrder(asUser(), types.PurchaseOrderRequest{Items: items}, f.uid); status(err) != http.StatusForbidden {
+		t.Fatalf("a user with neither permission cannot create orders, got %v", err)
 	}
 }

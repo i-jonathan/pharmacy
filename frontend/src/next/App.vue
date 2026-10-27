@@ -27,6 +27,8 @@
         @close="adminOpen = false"
       />
     </PermissionGate>
+
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -37,6 +39,7 @@ import Sidebar from "./components/Sidebar.vue";
 import TopNav from "./components/TopNav.vue";
 import PermissionGate from "./components/PermissionGate.vue";
 import AdminPanel from "./components/AdminPanel.vue";
+import ConfirmDialog from "./components/ConfirmDialog.vue";
 
 const sidebarCollapsed = ref(false);
 const mobileNavOpen = ref(false);
