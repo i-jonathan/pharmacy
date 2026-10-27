@@ -15,6 +15,8 @@ import (
 const (
 	purchaseOrderMigration = 40
 	auditLogMigration      = 41
+	approvalMigration      = 42
+	permissionsMigration   = 43
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -166,4 +168,100 @@ func TestAuditLogMigrationRollsBackCleanly(t *testing.T) {
 
 	testdb.Migrate(t, db, auditLogMigration-1, auditLogMigration)
 	db.MustExec(`INSERT INTO audit_log (entity_type, entity_id, action) VALUES ('purchase_order', 2, 'created')`)
+}
+
+func TestApprovalMigrationAddsDraftStatesAndRollsBackSafely(t *testing.T) {
+	db := testdb.New(t, approvalMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('u', 'x')`)
+	mustFail(t, db, "purchase_order_status_check", `INSERT INTO purchase_order (status) VALUES ('draft')`)
+	db.MustExec(`INSERT INTO purchase_order (status, created_by_id) SELECT s, (SELECT id FROM users) FROM unnest(ARRAY['open', 'closed']) s`)
+
+	testdb.Migrate(t, db, approvalMigration-1, approvalMigration)
+	// Orders from before approval existed count as approved by their author.
+	if n := count(t, db, `SELECT count(*) FROM purchase_order WHERE approved_by_id = created_by_id AND approved_at IS NOT NULL`); n != 2 {
+		t.Fatalf("existing orders should be marked approved, got %d", n)
+	}
+	for _, status := range []string{"draft", "pending_approval", "open"} {
+		db.MustExec(`INSERT INTO purchase_order (status, created_by_id) VALUES ($1, (SELECT id FROM users))`, status)
+	}
+	mustFail(t, db, "purchase_order_status_check", `INSERT INTO purchase_order (status) VALUES ('approved')`)
+	db.MustExec(`UPDATE purchase_order SET approved_by_id = (SELECT id FROM users), approved_at = NOW() WHERE status = 'open'`)
+
+	// Rolling back closes the orders that were never approved and keeps every row.
+	testdb.Rollback(t, db, approvalMigration)
+	if n := count(t, db, `SELECT count(*) FROM purchase_order`); n != 5 {
+		t.Fatalf("no order may be lost on rollback, got %d", n)
+	}
+	if n := count(t, db, `SELECT count(*) FROM purchase_order WHERE status IN ('draft', 'pending_approval')`); n != 0 {
+		t.Fatalf("drafts cannot exist under the old rules, got %d", n)
+	}
+	if n := count(t, db, `SELECT count(*) FROM information_schema.columns WHERE table_name = 'purchase_order' AND column_name = 'approved_by_id'`); n != 0 {
+		t.Fatal("approved_by_id should be gone after rollback")
+	}
+
+	testdb.Migrate(t, db, approvalMigration-1, approvalMigration)
+	db.MustExec(`INSERT INTO purchase_order (status) VALUES ('draft')`)
+}
+
+func TestPurchaseOrderPermissionsMigration(t *testing.T) {
+	db := testdb.New(t, permissionsMigration-1)
+
+	granted := func() []string {
+		t.Helper()
+		var rows []string
+		err := db.Select(&rows, `
+			SELECT r.name || ':' || p.action
+			FROM role_permissions rp
+			JOIN roles r ON r.id = rp.role_id
+			JOIN permissions p ON p.id = rp.permission_id
+			WHERE p.resource = 'PurchaseOrder'
+			ORDER BY 1`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rows
+	}
+	if len(granted()) != 0 {
+		t.Fatal("nothing should be granted before the migration")
+	}
+
+	testdb.Migrate(t, db, permissionsMigration-1, permissionsMigration)
+	want := "Admin:Approve,Cashier:Draft,Manager:Approve"
+	if got := strings.Join(granted(), ","); got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+	// The permissions the app checks for are named exactly as it builds them at login:
+	// lowercase resource:action.
+	var keys []string
+	if err := db.Select(&keys, `SELECT lower(resource || ':' || action) FROM permissions WHERE resource = 'PurchaseOrder' ORDER BY 1`); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(keys, ",") != "purchaseorder:approve,purchaseorder:draft" {
+		t.Fatalf("unexpected permission keys %v", keys)
+	}
+
+	// Running it again, for example after an administrator already created the permissions by
+	// hand, adds nothing twice.
+	db.MustExec(`DELETE FROM role_permissions rp USING permissions p, roles r
+		WHERE rp.permission_id = p.id AND rp.role_id = r.id AND p.action = 'Approve' AND r.name = 'Admin'`)
+	run := func() {
+		testdb.Rollback(t, db, permissionsMigration)
+		testdb.Migrate(t, db, permissionsMigration-1, permissionsMigration)
+	}
+	run()
+	if got := strings.Join(granted(), ","); got != want {
+		t.Fatalf("expected %s after re-applying, got %s", want, got)
+	}
+	testdb.Migrate(t, db, permissionsMigration-1, permissionsMigration)
+	if got := strings.Join(granted(), ","); got != want {
+		t.Fatalf("applying twice must not duplicate grants: %s", got)
+	}
+
+	testdb.Rollback(t, db, permissionsMigration)
+	if len(granted()) != 0 {
+		t.Fatal("rollback should remove the grants")
+	}
+	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'PurchaseOrder'`); n != 0 {
+		t.Fatalf("rollback should remove the permissions, got %d", n)
+	}
 }
