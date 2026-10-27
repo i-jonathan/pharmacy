@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-094 -->
+<!-- next-id: T-099 -->
 
 <details>
 <summary>How this board works</summary>
@@ -126,7 +126,14 @@ GitHub Actions: `go test ./...` with Postgres (integration tests), `gofmt`/golin
 - area: ops
 - created: 2026-10-26
 
-Scheduled Postgres backups with point-in-time recovery, off-site storage, tested restore procedure, per-tenant data export.
+There are no backups today. Start with the single store, then grow into the hosted version.
+
+- [ ] Daily `pg_dump` on the store machine, kept for a set number of days, compressed
+- [ ] Copy each backup automatically to a fixed location set in config (shared folder, external drive, Google Drive / Dropbox / S3)
+- [ ] Share a backup on demand by any available means (download from the admin screen, OS share sheet, email or WhatsApp the file)
+- [ ] Last-backup status and a warning in the admin screen when a backup fails or is overdue
+- [ ] Documented, tested restore
+- [ ] Hosted: point-in-time recovery, off-site copies, per-tenant data export
 
 ### T-027 Health check, graceful shutdown & observability
 
@@ -202,6 +209,21 @@ Plans, trials, recurring billing (Paystack/Flutterwave for NGN), dunning, plan l
 - created: 2026-10-26
 
 Platform operator view: tenants, plans and billing status, usage, suspend/reactivate, support impersonation (audited).
+
+### T-047 Online-first with solid offline operation
+
+- priority: P0
+- area: pos
+- created: 2026-10-26
+
+Run against a hosted server, but losing the connection must never stall work. Today every screen stops when the network or server drops.
+
+- [ ] Local cache of products, prices and stock, refreshed in the background
+- [ ] Sales, returns, receiving and stock counts saved locally and queued while offline (idempotency keys already exist for sales and receiving)
+- [ ] Sync as soon as the connection returns, with retry and a visible pending count
+- [ ] Clear online/offline indicator; reprint and hold work offline
+- [ ] Conflict rules: stock going negative across devices, prices changed while offline, a held sale resumed on two tills
+- [ ] Decide the offline store (service worker + IndexedDB, or the desktop app in T-094)
 
 ## Backlog
 
@@ -316,14 +338,6 @@ Configurable tax rates (e.g. 7.5% VAT), tax-inclusive/exclusive pricing, exempt 
 
 Max discount per role, price override requiring permission, promotions (percentage, buy-X-get-Y, time-bound).
 
-### T-047 Offline-capable POS
-
-- priority: P1
-- area: pos
-- created: 2026-10-26
-
-The POS stops working when the network or server drops. PWA with a local product cache and a queue of sales synced later (idempotency keys already exist).
-
 ### T-048 Thermal printing & digital receipts
 
 - priority: P1
@@ -397,6 +411,22 @@ Record supplier invoices against receipts, amounts owed, payments made and balan
 
 Deactivate products without losing history; update prices in bulk (by category or percentage).
 
+### T-097 Product groups with a group reorder level
+
+- priority: P1
+- area: inventory
+- created: 2026-10-27
+
+Group interchangeable products, e.g. different brands of amoxicillin 500mg that all sell at ₦600. A group has its own reorder level and total stock, and low stock is judged on the group as well as on each product. Optional shared group price. Groups feed reorder suggestions (T-053) and substitution (T-074).
+
+### T-098 Merge duplicate products, categories and groups
+
+- priority: P1
+- area: inventory
+- created: 2026-10-27
+
+Pick a surviving record and move everything onto it: stock movements, batches, prices, sales and return lines, purchase order lines, stock-take items. Then remove or archive the duplicate. Preview what moves, require a permission and write an audit entry. Suppliers merge in T-038; groups come from T-097.
+
 ### T-057 Pharmacy product attributes
 
 - priority: P1
@@ -447,6 +477,17 @@ Sales by cashier, product, category, payment method and hour; end-of-day summary
 - created: 2026-10-26
 
 Stock value at cost and retail, slow and dead movers, value of expired / written-off stock.
+
+### T-096 More useful sales and inventory metrics
+
+- priority: P1
+- area: reports
+- created: 2026-10-27
+
+At-a-glance numbers for the dashboard; the full reports are T-060, T-061 and T-062.
+
+- [ ] Sales: gross margin %, average basket value and items per sale, sales by hour and weekday, returns rate, comparison with the same day last week
+- [ ] Inventory: stock value at cost, days of cover per product or group, stock turnover, sell-through since receipt, value at risk of expiry, fast movers next to dead stock
 
 ### T-063 Export every report to CSV/Excel
 
@@ -642,6 +683,22 @@ Tenant API keys, webhooks (sale created, low stock), integrations with e-commerc
 - created: 2026-10-26
 
 Owners check sales and stock from a phone; responsive layouts or a lightweight mobile app.
+
+### T-094 Desktop app
+
+- priority: P2
+- area: saas
+- created: 2026-10-27
+
+Run as an installed app instead of a browser tab. Options: an installable PWA first, then a native shell (Wails suits the Go backend; Tauri or Electron also work). A desktop app also helps offline storage (T-047), direct thermal printing and local backups (T-026). Needs auto-update.
+
+### T-095 What's new on login
+
+- priority: P2
+- area: admin
+- created: 2026-10-27
+
+After a release, show each user a short "What's new" panel once after they log in, then remember per user that they've seen it. Release notes live in the repo (they could be drawn from DONE.md) and can be targeted by role.
 
 ### T-083 Localisation & multi-currency
 
