@@ -56,6 +56,9 @@
         <div v-if="!collapsed || mobileOpen" class="w-full h-px bg-border mb-1" />
         <div v-show="collapsed || sectionOpen.inventory || isInSection(inventoryPaths)" class="space-y-0.5">
           <router-link to="/products" :class="linkClasses('/products')" @click="$emit('close-mobile')"><Package :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Products</span></router-link>
+          <PermissionGate permission="purchaseorder:create">
+            <router-link to="/purchase-orders" :class="linkClasses('/purchase-orders')" @click="$emit('close-mobile')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Purchase Orders</span></router-link>
+          </PermissionGate>
           <router-link to="/receive-items" :class="linkClasses('/receive-items')" @click="$emit('close-mobile')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Receive Items</span></router-link>
           <router-link to="/received-items-history" :class="linkClasses('/received-items-history')" @click="$emit('close-mobile')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Received History</span></router-link>
           <router-link to="/held-receive-items" :class="linkClasses('/held-receive-items')" @click="$emit('close-mobile')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Held Receipts</span></router-link>
@@ -118,7 +121,7 @@ defineEmits(["toggle-collapse", "toggle-theme", "open-admin", "close-mobile"]);
 const route = useRoute();
 
 const salesPaths = ["/pos", "/sales-history", "/held-sales"];
-const inventoryPaths = ["/products", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking"];
+const inventoryPaths = ["/products", "/purchase-orders", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking"];
 
 function activeSectionKeys() {
   const keys = [];
