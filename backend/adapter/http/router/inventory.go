@@ -15,6 +15,24 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 	inventoryMux := http.NewServeMux()
 
 	inventoryMux.HandleFunc(http.MethodPost+" /add-item", inventoryController.CreateProduct)
+	inventoryMux.HandleFunc(http.MethodGet+" /purchase-orders", inventoryController.ListPurchaseOrders)
+	inventoryMux.Handle(http.MethodPost+" /purchase-orders",
+		middleware.RequirePermissions(constant.RequireAllPermissions, constant.CreatePurchaseOrderPermissionKey)(
+			http.HandlerFunc(inventoryController.SavePurchaseOrder),
+		),
+	)
+	inventoryMux.HandleFunc(http.MethodGet+" /purchase-orders/{id}", inventoryController.GetPurchaseOrder)
+	inventoryMux.HandleFunc(http.MethodGet+" /purchase-orders/{id}/history", inventoryController.GetPurchaseOrderHistory)
+	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/close",
+		middleware.RequirePermissions(constant.RequireAllPermissions, constant.CreatePurchaseOrderPermissionKey)(
+			http.HandlerFunc(inventoryController.ClosePurchaseOrder),
+		),
+	)
+	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/move-outstanding",
+		middleware.RequirePermissions(constant.RequireAllPermissions, constant.CreatePurchaseOrderPermissionKey)(
+			http.HandlerFunc(inventoryController.MovePurchaseOrderOutstanding),
+		),
+	)
 	inventoryMux.HandleFunc(http.MethodPost+" /receive-items/hold", inventoryController.HoldReceivingItems)
 	inventoryMux.HandleFunc(http.MethodGet+" /receive-items/held/api", inventoryController.FetchHeldReceivingItemsJSON)
 	inventoryMux.HandleFunc(http.MethodDelete+" /receive-items/held/{reference}", inventoryController.DeleteHeldReceivingItems)

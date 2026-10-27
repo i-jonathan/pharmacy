@@ -150,6 +150,39 @@
 
     <!-- ===== NEW RECEIPT ===== -->
     <template v-if="view === 'receipt'">
+      <div v-if="purchaseOrder" class="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <div class="text-sm font-semibold">Receiving against {{ purchaseOrderNumber }}</div>
+        <p class="mt-1 text-xs text-muted-foreground">
+          Quantities are pre-filled with what is still outstanding. Change them to what actually arrived and
+          remove anything that did not come; it stays outstanding on the order.
+        </p>
+        <p v-if="purchaseOrder.note" class="mt-2 whitespace-pre-line rounded-md bg-background/60 p-2 text-xs">
+          <span class="font-medium">Order note:</span> {{ purchaseOrder.note }}
+        </p>
+        <p v-if="supplierDiffers" class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+          This order was placed with {{ purchaseOrder.supplier }}. This delivery will be recorded as coming from
+          {{ supplier.trim() }}.
+        </p>
+        <div v-if="pendingPurchaseOrderItems.length" class="mt-3 border-t border-primary/20 pt-3">
+          <div class="mb-1 text-xs font-medium">Not in your products yet</div>
+          <p class="mb-2 text-xs text-muted-foreground">
+            Register each item (or link it to a product you already have) before it can be received.
+          </p>
+          <div class="space-y-1.5">
+            <div v-for="line in pendingPurchaseOrderItems" :key="line.id" class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="min-w-0 flex-1 basis-40">
+                {{ line.name }}
+                <span class="text-xs text-muted-foreground">{{ line.manufacturer }} · {{ line.quantity - line.received_quantity }} outstanding</span>
+                <span v-if="line.note" class="block text-xs italic text-muted-foreground">{{ line.note }}</span>
+              </span>
+              <Button size="sm" variant="outline" @click="openPurchaseOrderProduct(line)"><Plus :size="13" class="mr-1" />Create product</Button>
+              <Button size="sm" :variant="linkingLine?.id === line.id ? 'default' : 'outline'" @click="toggleLinkExisting(line)">
+                {{ linkingLine?.id === line.id ? 'Pick it in the search below' : 'Link existing product' }}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground" @click="view = 'dashboard'"><ChevronLeft :size="16" /></Button>
         <div><h1 class="text-xl font-bold text-foreground">New Receipt</h1><p class="text-sm text-muted-foreground">Record incoming items from a supplier</p></div>
@@ -262,6 +295,8 @@
                   <td class="px-3 py-2.5">
                     <div class="text-sm font-medium text-foreground">{{ item.name }}</div>
                     <div class="text-[11px] text-muted-foreground">{{ item.manufacturer || '' }}</div>
+                    <div v-if="item.purchase_order_item_id" class="text-[11px] text-primary">{{ purchaseOrderNumber }} · {{ item._poOutstanding ?? '?' }} outstanding</div>
+                    <div v-if="item._poNote" class="text-[11px] italic text-muted-foreground">{{ item._poNote }}</div>
                   </td>
                   <td class="px-3 py-2.5">
                       <input :value="item.cost_price" @input="item.cost_price = num($event.target.value); suggestPrice(item)" type="number" step="0.01" min="0" class="no-spinners w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none font-medium" :class="{ 'border-red-500': item._errors?.cost }" />
@@ -359,8 +394,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Search, X, Building, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, ClipboardList, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
@@ -411,6 +446,16 @@ const priceOptionsTarget = ref(null);
 const searchInputRef = ref(null);
 const showNavGuardModal = ref(false);
 const pendingNav = ref(null);
+const purchaseOrder = ref(null);
+const pendingPurchaseOrderItems = ref([]);
+const purchaseOrderProductTarget = ref(null);
+const linkingLine = ref(null);
+const supplierDiffers = computed(() => {
+  const ordered = (purchaseOrder.value?.supplier || "").trim().toLowerCase();
+  const received = supplier.value.trim().toLowerCase();
+  return !!ordered && !!received && ordered !== received;
+});
+const purchaseOrderNumber = computed(() => purchaseOrder.value ? "PO-" + String(purchaseOrder.value.id).padStart(5, "0") : "");
 
 let tTimer = null; let keyCounter = 0; let msTimer = null;
 
@@ -548,7 +593,7 @@ async function fetchHistory() {
 function startNewReceipt() {
   view.value = VIEW_RECEIPT; supplier.value = ""; items.value.splice(0);
   productQuery.value = ""; validationErrors.value = { supplier: false, global: "" }; fetchCategories();
-  heldReference.value = ""; expiryConfirmed.value = false;
+  heldReference.value = ""; expiryConfirmed.value = false; receiptKey = ""; uncertainAttempt = ""; clearPurchaseOrder();
 }
 
 // === Categories ===
@@ -599,9 +644,30 @@ function addProduct(p) {
     // Show suggestion if using default sell price and cost-based differs (matching old UI)
     _suggestedPrice: (sell > 0 && costBasedSuggested > 0 && costBasedSuggested !== suggestedSell) ? costBasedSuggested : undefined,
   });
+  const target = linkingLine.value;
+  if (target) {
+    const added = items.value[items.value.length - 1];
+    if (!claimPurchaseOrderLine(added, target)) items.value.pop();
+  } else if (purchaseOrder.value) {
+    // Adding a product that is outstanding on the order (for example one removed by mistake)
+    // reconnects it to its line.
+    const added = items.value[items.value.length - 1];
+    const line = purchaseOrder.value.items.find((l) => l.product_id === added.id
+      && l.quantity > l.received_quantity
+      && !items.value.some((i) => i !== added && i.purchase_order_item_id === l.id));
+    if (line) claimPurchaseOrderLine(added, line);
+  }
   refocusSearch();
 }
-function removeItem(idx) { items.value.splice(idx, 1); }
+function removeItem(idx) {
+  const [row] = items.value.splice(idx, 1);
+  // An item that is not a product yet goes back to the banner so it can be registered or linked
+  // again instead of silently becoming ordinary stock.
+  const line = purchaseOrder.value?.items.find((l) => l.id === row?.purchase_order_item_id);
+  if (line && !line.product_id && !pendingPurchaseOrderItems.value.some((l) => l.id === line.id)) {
+    pendingPurchaseOrderItems.value = [...pendingPurchaseOrderItems.value, line].sort((a, b) => a.id - b.id);
+  }
+}
 function refocusSearch() { setTimeout(() => { const el = searchInputRef.value; if (el) el.focus(); }, 50); }
 
 // === Price Options Modal ===
@@ -610,9 +676,58 @@ function closePriceOptions() { priceOptionsTarget.value = null; }
 
 // === New Product Modal ===
 function openNewProductModal() {
+  purchaseOrderProductTarget.value = null;
   productSuggestions.value = []; showNewProductModal.value = true;
   newProduct.value = { name: "", manufacturer: "", barcode: "", selling_price: 0, cost_price: 0, category_id: 0, reorder_level: 1, duplicateMsg: "" };
   manufacturerSuggestions.value = [];
+}
+function openPurchaseOrderProduct(line) {
+  openNewProductModal();
+  purchaseOrderProductTarget.value = line;
+  newProduct.value.name = line.name;
+  newProduct.value.manufacturer = line.manufacturer || "";
+}
+function toggleLinkExisting(line) {
+  linkingLine.value = linkingLine.value?.id === line.id ? null : line;
+  if (linkingLine.value) refocusSearch();
+}
+
+// Attach a purchase order line to a receipt row. A line that already knows its product can
+// only be received as that product.
+function claimPurchaseOrderLine(item, line) {
+  if (line.product_id && line.product_id !== item.id) {
+    showToast(line.name + " must be received as the product it was ordered as", "error");
+    return false;
+  }
+  if (items.value.some((i) => i !== item && i.purchase_order_item_id === line.id)) {
+    showToast(line.name + " is already on this receipt", "error");
+    return false;
+  }
+  const outstanding = line.quantity - line.received_quantity;
+  item.purchase_order_item_id = line.id;
+  item._poOutstanding = outstanding;
+  item._poNote = line.note || "";
+  item.quantity = outstanding;
+  pendingPurchaseOrderItems.value = pendingPurchaseOrderItems.value.filter((l) => l.id !== line.id);
+  if (linkingLine.value?.id === line.id) linkingLine.value = null;
+  return true;
+}
+
+// A restored receipt whose order can no longer be used would otherwise keep rows pointing at it
+// and could never be submitted. Receive those rows as ordinary stock instead.
+function unlinkPurchaseOrderRows() {
+  for (const row of items.value) {
+    row.purchase_order_item_id = 0;
+    delete row._poOutstanding;
+    delete row._poNote;
+  }
+}
+
+function clearPurchaseOrder() {
+  purchaseOrder.value = null;
+  pendingPurchaseOrderItems.value = [];
+  purchaseOrderProductTarget.value = null;
+  linkingLine.value = null;
 }
 
 // === Manufacturer autocomplete ===
@@ -677,6 +792,11 @@ async function saveNewProduct() {
       cost_price: num(newProduct.value.cost_price), selling_price: suggestedSell, quantity: 1, expiry: "",
       _errors: {}, _priceOptions: [], _suggestedPrice: undefined,
     });
+    const poLine = purchaseOrderProductTarget.value;
+    if (poLine) {
+      claimPurchaseOrderLine(items.value[items.value.length - 1], poLine);
+      purchaseOrderProductTarget.value = null;
+    }
     showToast("Product created and added"); refocusSearch();
   } catch (e) { showToast(e.message || "Failed to create product", "error"); }
   finally { newProductSaving.value = false; }
@@ -686,7 +806,7 @@ async function saveNewProduct() {
 async function holdReceipt() {
   submitting.value = true;
   try {
-    const p = { reference: heldReference.value, payload: { supplier: supplier.value.trim(), products: items.value.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) } };
+    const p = { reference: heldReference.value, payload: { supplier: supplier.value.trim(), purchase_order_id: purchaseOrder.value?.id || 0, products: items.value.map(i => ({ id: i.id, purchase_order_item_id: i.purchase_order_item_id || 0, name: i.name, manufacturer: i.manufacturer, barcode: i.barcode, cost_price: i.cost_price, selling_price: i.selling_price, quantity: i.quantity, expiry: i.expiry || null, price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name, selling_price: po.price, quantity_per_unit: po.qty || 1 })) })) } };
     const r = await csrfFetch(`${API}/inventory/receive-items/hold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
     if (!r.ok) throw new Error("Failed to hold");
     view.value = VIEW_DASHBOARD; showToast("Receipt saved as draft"); fetchDashboard();
@@ -704,6 +824,10 @@ function validate() {
     if (num(item.cost_price) <= 0) { item._errors.cost = true; valid = false; }
     if (num(item.selling_price) <= 0) { item._errors.sell = true; valid = false; }
     if (num(item.quantity) <= 0) { item._errors.qty = true; valid = false; }
+    if (item.purchase_order_item_id && item._poOutstanding !== undefined && num(item.quantity) > item._poOutstanding) {
+      item._errors.qty = true; valid = false;
+      if (!validationErrors.value.global) validationErrors.value.global = item.name + ": only " + item._poOutstanding + " still outstanding on " + purchaseOrderNumber.value + ".";
+    }
     if (!item.expiry) { item._errors.expiry = true; valid = false; }
     else {
       const days = expiryDays(item.expiry);
@@ -714,15 +838,59 @@ function validate() {
   return valid;
 }
 
+// One key per receipt, kept until it is saved. A retry after a lost response reuses it, so the
+// server recognises the receipt it already stored instead of receiving the items twice.
+let receiptKey = "";
+let uncertainAttempt = ""; // fingerprint of a submit whose outcome is unknown (no response arrived)
+function receiptFingerprint() {
+  return JSON.stringify([supplier.value.trim(), purchaseOrder.value?.id || 0, items.value.map(i => [i.id, i.purchase_order_item_id || 0, num(i.quantity), num(i.cost_price), num(i.selling_price), i.expiry])]);
+}
+function currentReceiptKey() {
+  if (!receiptKey) {
+    try { receiptKey = crypto.randomUUID(); } catch { receiptKey = Date.now() + "-" + Math.random().toString(36).slice(2); }
+  }
+  return receiptKey;
+}
+
+// Thrown when the request got no answer at all, so the receipt may or may not have been saved.
+class NoResponse extends Error {}
+
 async function receiveItems() {
   if (!validate()) return;
+  // The last attempt may have been saved even though no answer came back. Resending the same
+  // key with different content would be treated as the earlier receipt and the edits dropped,
+  // so make the user look first, then send the changes as a new receipt.
+  if (uncertainAttempt && uncertainAttempt !== receiptFingerprint()) {
+    uncertainAttempt = ""; receiptKey = "";
+    showToast("Your previous attempt may have been saved. Check Received History first. If it is not there, press Receive again to save these changes as a new receipt.", "error");
+    return;
+  }
   submitting.value = true;
   try {
-    const p = { supplier: supplier.value.trim(), held_receiving_reference: heldReference.value, idempotency_key: (() => { try { return crypto.randomUUID(); } catch { return Date.now() + "-" + Math.random().toString(36).slice(2); } })(), products: items.value.map(i => ({ id: i.id, barcode: i.barcode || "", cost_price: num(i.cost_price), selling_price: num(i.selling_price), quantity: Math.max(1, num(i.quantity)), expiry: i.expiry && i.expiry.trim() ? i.expiry.split("T")[0] + "T00:00:00Z" : new Date().toISOString().split("T")[0] + "T00:00:00Z", price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name || "", selling_price: num(po.price), quantity_per_unit: Math.max(1, po.qty || 1) })) })) };
-    const r = await csrfFetch(`${API}/inventory/receive-items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+    const p = { supplier: supplier.value.trim(), purchase_order_id: items.value.some(i => i.purchase_order_item_id) ? (purchaseOrder.value?.id || 0) : 0, held_receiving_reference: heldReference.value, idempotency_key: currentReceiptKey(), products: items.value.map(i => ({ id: i.id, purchase_order_item_id: i.purchase_order_item_id || 0, barcode: i.barcode || "", cost_price: num(i.cost_price), selling_price: num(i.selling_price), quantity: Math.max(1, num(i.quantity)), expiry: i.expiry && i.expiry.trim() ? i.expiry.split("T")[0] + "T00:00:00Z" : new Date().toISOString().split("T")[0] + "T00:00:00Z", price_options_changes: (i._priceOptions || []).map(po => ({ id: po.id, name: po.name || "", selling_price: num(po.price), quantity_per_unit: Math.max(1, po.qty || 1) })) })) };
+    const r = await csrfFetch(`${API}/inventory/receive-items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }).catch(() => { throw new NoResponse(); });
     if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `HTTP ${r.status}`); }
-    view.value = VIEW_DASHBOARD; showToast("Items received successfully"); fetchDashboard();
-  } catch (e) { showToast(e.message || "Failed to receive", "error"); }
+    const orderId = p.purchase_order_id;
+    receiptKey = ""; uncertainAttempt = "";
+    view.value = VIEW_DASHBOARD; showToast("Items received successfully"); fetchDashboard(); clearPurchaseOrder();
+    if (orderId) reportPurchaseOrderProgress(orderId);
+  } catch (e) {
+    if (e instanceof NoResponse) uncertainAttempt = receiptFingerprint();
+    if (e instanceof NoResponse) showToast("Could not confirm the receipt was saved. Check Received History, or press Receive again: the same receipt is never recorded twice.", "error");
+    else {
+      // The server answered with an error, so nothing was stored. Edits made now are a new receipt.
+      receiptKey = ""; uncertainAttempt = "";
+      if (purchaseOrder.value && /purchase order is already|purchase order was not found|does not belong to this purchase order/.test(e.message || "")) {
+        // The order was closed or completed while this receipt was open. Detach the rows so the
+        // delivery can still be recorded, as ordinary stock, once the user has checked them.
+        showToast(purchaseOrderNumber.value + " is no longer open. The items were unlinked from it; check them and press Receive to record them as ordinary stock.", "error");
+        unlinkPurchaseOrderRows();
+        clearPurchaseOrder();
+      } else {
+        showToast(e.message || "Failed to receive", "error");
+      }
+    }
+  }
   finally { submitting.value = false; }
 }
 
@@ -733,6 +901,7 @@ function onBeforeUnload(e) {
 }
 
 const router = useRouter();
+const route = useRoute();
 let navConfirmed = false;
 
 const navGuard = router.beforeEach((to) => {
@@ -777,6 +946,7 @@ function restoreHeldData() {
         barcode: p.barcode || "", cost_price: Number(p.cost_price || 0),
         selling_price: Number(p.selling_price || 0), quantity: Number(p.quantity || 1),
         expiry: (p.expiry || "").split("T")[0] || "",
+        purchase_order_item_id: p.purchase_order_item_id || 0,
         _errors: {}, _priceOptions: priceOpts, _suggestedPrice: undefined,
       });
     });
@@ -784,6 +954,7 @@ function restoreHeldData() {
       view.value = VIEW_RECEIPT;
       showToast("Held receipt restored");
     }
+    if (payload.purchase_order_id) loadPurchaseOrder(payload.purchase_order_id, { restore: true });
   } catch (e) {
     console.error("Failed to restore held data:", e);
   }
@@ -793,8 +964,89 @@ onMounted(() => {
   fetchDashboard(); fetchCategories();
   window.addEventListener("beforeunload", onBeforeUnload);
   restoreHeldData();
+  if (!purchaseOrder.value) openPurchaseOrderFromRoute();
   onRangePreset();
 });
+
+// === Purchase orders ===
+// Load an order to receive against. Lines whose product is known are added with their outstanding
+// quantity; lines for items that are not products yet wait in the banner until they are registered or
+// linked. When restoring a held receipt the rows are already there, so only the banner is rebuilt.
+async function loadPurchaseOrder(id, { restore = false } = {}) {
+  let order;
+  try {
+    const r = await fetch(`${API}/inventory/purchase-orders/${id}`);
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || "Could not load the purchase order"); }
+    order = await r.json();
+  } catch (e) { showToast(e.message, "error"); if (restore) unlinkPurchaseOrderRows(); return; }
+  if (order.status !== "open" && order.status !== "partial") {
+    showToast("PO-" + String(order.id).padStart(5, "0") + " is already " + order.status + (restore ? ", so these items will be received without it" : ""), "error");
+    if (restore) unlinkPurchaseOrderRows();
+    return;
+  }
+
+  if (!restore) {
+    linkingLine.value = null; purchaseOrderProductTarget.value = null; pendingPurchaseOrderItems.value = [];
+    view.value = VIEW_RECEIPT; items.value.splice(0); heldReference.value = ""; expiryConfirmed.value = false; receiptKey = "";
+    validationErrors.value = { supplier: false, global: "" };
+    fetchCategories();
+  }
+  purchaseOrder.value = order;
+  if (order.supplier && !supplier.value.trim()) supplier.value = order.supplier;
+
+  const outstandingLines = order.items.filter((l) => l.quantity > l.received_quantity);
+  const claimed = new Set(items.value.map((i) => i.purchase_order_item_id).filter(Boolean));
+  for (const row of items.value) {
+    if (!row.purchase_order_item_id) continue;
+    const line = outstandingLines.find((l) => l.id === row.purchase_order_item_id);
+    if (line) { row._poOutstanding = line.quantity - line.received_quantity; row._poNote = line.note || ""; }
+    else row._poOutstanding = 0; // already fully received elsewhere: validation will flag the row
+  }
+
+  const pending = [];
+  const unavailable = [];
+  await Promise.all(outstandingLines.filter((l) => !claimed.has(l.id)).map(async (line) => {
+    if (!line.product_id) { pending.push(line); return; }
+    if (restore) return;
+    try {
+      const r = await fetch(`${API}/inventory/product/${line.product_id}`);
+      if (!r.ok) throw new Error();
+      line._product = await r.json();
+    } catch { unavailable.push(line.name); }
+  }));
+  pending.sort((a, b) => a.id - b.id);
+  if (!restore) {
+    for (const line of outstandingLines.filter((l) => l._product)) {
+      addProduct(line._product);
+      claimPurchaseOrderLine(items.value[items.value.length - 1], line);
+    }
+  }
+  pendingPurchaseOrderItems.value = pending;
+  if (unavailable.length) showToast("Could not load: " + unavailable.join(", "), "error");
+}
+
+async function reportPurchaseOrderProgress(id) {
+  try {
+    const r = await fetch(`${API}/inventory/purchase-orders/${id}`);
+    if (!r.ok) return;
+    const order = await r.json();
+    const outstanding = order.items.reduce((sum, l) => sum + l.quantity - l.received_quantity, 0);
+    const number = "PO-" + String(order.id).padStart(5, "0");
+    showToast(order.status === "received" ? number + " is now fully received" : number + " still has " + outstanding + " units outstanding");
+  } catch {}
+}
+
+// The order id arrives as ?purchase_order=; strip it once read so a refresh does not reload it.
+function openPurchaseOrderFromRoute() {
+  const id = Number(route.query.purchase_order);
+  if (!id) return;
+  navConfirmed = true;
+  router.replace({ path: route.path });
+  if (view.value === VIEW_RECEIPT && items.value.length && !window.confirm("Replace the receipt in progress with this purchase order?")) return;
+  loadPurchaseOrder(id);
+}
+
+watch(() => route.query.purchase_order, (id) => { if (id) openPurchaseOrderFromRoute(); });
 
 onUnmounted(() => {
   window.removeEventListener("beforeunload", onBeforeUnload);

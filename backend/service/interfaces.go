@@ -13,6 +13,12 @@ type UserService interface {
 }
 
 type InventoryService interface {
+	SavePurchaseOrder(ctx context.Context, order types.PurchaseOrderRequest, userID int) (int, error)
+	ListPurchaseOrders(ctx context.Context, view string) ([]types.PurchaseOrder, error)
+	GetPurchaseOrder(ctx context.Context, id int) (types.PurchaseOrder, error)
+	ClosePurchaseOrder(ctx context.Context, id, version int, reason string, userID int) error
+	MovePurchaseOrderOutstanding(ctx context.Context, id, version int, supplierName, reason string, userID int) (int, error)
+	GetPurchaseOrderHistory(ctx context.Context, id int) ([]types.AuditRecord, error)
 	CreateProduct(ctx context.Context, params types.CreateProductRequest) (types.AddItemResponse, error)
 	UpdateProduct(ctx context.Context, id int, params types.UpdateProductRequest) error
 	FetchCategories(ctx context.Context) ([]types.CategoriesResponse, error)

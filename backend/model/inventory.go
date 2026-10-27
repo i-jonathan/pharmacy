@@ -54,6 +54,7 @@ type ProductPrice struct {
 type ReceivingBatch struct {
 	baseModel
 	SupplierName   string  `db:"supplier_name"`
+	SupplierID     *int    `db:"supplier_id"`
 	ReceviedByID   int     `db:"received_by_id"`
 	Note           *string `db:"note"`
 	IdempotencyKey *string `db:"idempotency_key"`
@@ -67,6 +68,8 @@ type ProductBatch struct {
 	Quantity         int        `db:"quantity"`
 	CostPriceKobo    int        `db:"cost_price"`
 	ReceivingBatchID int        `db:"receiving_batch_id"`
+	// PurchaseOrderItemID is the purchase order line this batch was received against, if any.
+	PurchaseOrderItemID *int    `db:"purchase_order_item_id"`
 	BatchNo          string     `db:"batch_no"`
 	ExpiryDate       *time.Time `db:"expiry_date"`
 	Product          Product

@@ -110,6 +110,10 @@ func (r *duplicateReceiveRepo) RollbackTx(*sqlx.Tx) {
 	r.rollbackCalls++
 }
 
+func (r *duplicateReceiveRepo) FindOrCreateSupplierTx(_ context.Context, _ *sqlx.Tx, name string) (types.Supplier, error) {
+	return types.Supplier{ID: 1, Name: name}, nil
+}
+
 func (r *duplicateReceiveRepo) CreateReceivingBatchTx(_ context.Context, _ *sqlx.Tx, batch model.ReceivingBatch) (int, error) {
 	r.createBatchCalls++
 	if batch.IdempotencyKey == nil || *batch.IdempotencyKey != "receive-key-1" {

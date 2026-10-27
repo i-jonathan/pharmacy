@@ -14,7 +14,7 @@ const RoleNameSessionKey string = "role_name"
 const PermissionsSessionKey string = "permissions"
 
 const DefaultPriceName string = "Base"
- 
+
 const CompleteSaleStatus = "COMPLETED"
 
 const CashPaymentMethod = "Cash"
@@ -38,6 +38,23 @@ func NormalizePaymentMethod(input string) string {
 		return CashPaymentMethod
 	}
 }
+
+const (
+	PurchaseOrderOpen     = "open"
+	PurchaseOrderPartial  = "partial"
+	PurchaseOrderReceived = "received"
+	PurchaseOrderClosed   = "closed"
+)
+
+const AuditEntityPurchaseOrder = "purchase_order"
+
+const (
+	AuditCreated  = "created"
+	AuditEdited   = "edited"
+	AuditReceived = "received"
+	AuditClosed   = "closed"
+	AuditMoved    = "moved"
+)
 
 type RequirePermissionMode string
 

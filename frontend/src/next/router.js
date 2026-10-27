@@ -55,6 +55,12 @@ const routes = [
     meta: { title: "Receive Items", parent: "Inventory" },
   },
   {
+    path: "/purchase-orders",
+    name: "purchase-orders",
+    component: () => import("./views/PurchaseOrders.vue"),
+    meta: { title: "Purchase Orders", parent: "Inventory" },
+  },
+  {
     path: "/held-receive-items",
     name: "held-receive-items",
     component: () => import("./views/HeldReceiveItems.vue"),

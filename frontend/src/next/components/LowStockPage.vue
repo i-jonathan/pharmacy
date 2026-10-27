@@ -10,10 +10,15 @@
           {{ items.length }} items need reordering
         </span>
       </div>
-      <Button @click="exportPDF" :disabled="items.length === 0">
-        <Download :size="16" class="mr-2" />
-        Export PDF
-      </Button>
+      <div class="flex gap-2">
+        <PermissionGate permission="purchaseorder:create">
+          <Button variant="outline" @click="router.push('/purchase-orders?lowStock=1')">Create purchase order</Button>
+        </PermissionGate>
+        <Button @click="exportPDF" :disabled="items.length === 0">
+          <Download :size="16" class="mr-2" />
+          Export PDF
+        </Button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -71,6 +76,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import PermissionGate from "./PermissionGate.vue";
 import { shared } from "../store.js";
 import { useDashboard } from "../composables/useDashboard.js";
 import { jsPDF } from "jspdf";

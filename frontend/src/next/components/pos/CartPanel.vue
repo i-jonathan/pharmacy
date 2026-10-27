@@ -52,10 +52,10 @@
         <TableHeader>
           <TableRow>
             <TableHead class="h-8 px-2 text-[10px]">Item</TableHead>
-            <TableHead class="h-8 w-[4.5rem] px-1.5 text-[10px]">Price</TableHead>
-            <TableHead class="h-8 w-[5rem] px-1 text-center text-[10px]">Qty</TableHead>
-            <TableHead class="h-8 w-[3.5rem] px-1 text-[10px]">Disc.</TableHead>
-            <TableHead class="h-8 w-[4.5rem] px-1.5 text-right text-[10px]">Total</TableHead>
+            <TableHead class="h-8 w-18 px-1.5 text-[10px]">Price</TableHead>
+            <TableHead class="h-8 w-20 px-1 text-center text-[10px]">Qty</TableHead>
+            <TableHead class="h-8 w-14 px-1 text-[10px]">Disc.</TableHead>
+            <TableHead class="h-8 w-18 px-1.5 text-right text-[10px]">Total</TableHead>
             <TableHead class="h-8 w-7 px-0"></TableHead>
           </TableRow>
         </TableHeader>

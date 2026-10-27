@@ -9,9 +9,9 @@ A full-stack **pharmacy point-of-sale (POS) and inventory management system** fo
 | Layer              | Technology                                                              |
 |--------------------|-------------------------------------------------------------------------|
 | **Backend**        | Go 1.24, `net/http` (standard library), Gorilla sessions / CSRF / WebSocket |
-| **Database**       | PostgreSQL (via `pgx` + `sqlx`), 34 sequential migrations               |
+| **Database**       | PostgreSQL (via `pgx` + `sqlx`), 41 sequential migrations               |
 | **Templating**     | Go `html/template` (server-rendered HTML)                               |
-| **Frontend**       | Vue 3 + Vite (built into `static/dist/` and embedded)                   |
+| **Frontend**       | Vue 3 + vue-router + shadcn-vue, built with Vite into `static/dist/` and embedded |
 | **Styling**        | TailwindCSS v4                                                          |
 | **Auth**           | Argon2id password hashing, cookie sessions, role-based access control    |
 | **Infrastructure** | Docker Compose, Makefile                                                |
@@ -36,107 +36,112 @@ main.go                       ← wires everything, embeds templates + static as
 │   ├── middleware/            ← auth, logging, permission injection
 │   └── helper/               ← HTTP response utilities
 ├── adapter/websocket/        ← WebSocket hub for real-time stock-taking updates
-├── template/                 ← Go HTML templates (server-rendered pages)
-│   └── static/               ← CSS, JS, Vite-built Vue bundles
+├── template/                 ← Go HTML templates (SPA shell, login, error page)
+│   └── static/               ← CSS, fonts, JS, Vite-built Vue bundles
 ├── internal/                 ← shared types (request/response DTOs) & constants
 ├── httperror/                ← structured HTTP error types
-└── db/migrations/            ← 34 PostgreSQL migrations (golang-migrate)
+└── db/migrations/            ← 41 PostgreSQL migrations (golang-migrate)
 ```
 
 ### Frontend / Vue
 
 The `frontend/` directory is a Vue 3 + Vite project. It builds into `backend/template/static/dist/`. The Go server embeds and serves those assets, parsing the Vite manifest at startup so templates can reference hashed filenames via the `ViteAsset` template function.
 
-There are **three Vue entry points**:
+There are **two Vite entry points**:
 
-| Entry Point                          | Mount Point                        | Purpose                          |
-|--------------------------------------|------------------------------------|----------------------------------|
-| `src/main.js`                        | `<div id="app">` (dashboard.html)  | Dashboard with charts            |
-| `src/stock-taking/dashboard/main.js` | `<main id="stock-taking-dashboard">` | Stock-taking session list       |
-| `src/stock-taking/counting/main.js`  | `<main id="stock-taking-app">`     | Live stock counting with WebSocket |
+| Entry Point          | Served by                                   | Purpose                                                  |
+|----------------------|---------------------------------------------|----------------------------------------------------------|
+| `src/next/main.js`   | `template/next-dashboard.html` at `/app/*`  | Main single-page app (vue-router): dashboard, POS, inventory, receiving, purchase orders, stock taking, admin |
+| `src/login/main.js`  | `template/login-v2.html` at `/user/login`   | Login page                                               |
+
+The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` and `/stock-taking`. Assets are embedded in the Go binary, so rebuild (`make build-frontend`) and restart the server after frontend changes.
 
 ---
 
 ## Features
 
-### 1. Sales / POS Receipt
-- Product search (prefix-based, scrollable results with keyboard navigation)
-- Add items to cart with quantity & price-tier selection
-- Apply discounts, accept multiple payment methods (Cash, Card, Transfer)
-- Auto-generated receipt numbers
-- **Print receipt** functionality
-- **Hold / park** a sale and recall it later
-- Navigation warning when cart is non-empty
-- Idempotency keys to prevent duplicate submissions
+### 1. Sales / POS
+- Product search matches the start of the name, barcode or manufacturer (case-insensitive)
+- Cart with quantity and a selectable price option per item (e.g. tablet vs. pack)
+- Discounts, and split payments across Cash, Card and Transfer
+- Receipt numbers generated server-side on save; **print receipt** from the POS
+- **Hold** a sale and resume it later from the Held Sales page
+- Leaving the POS with a non-empty cart prompts you to hold or discard it (in-app navigation guard plus a browser `beforeunload` warning)
+- Idempotency keys prevent duplicate submissions
 
-### 2. Sales History
-- Browse completed sales with date-range filters
-- Daily / filtered totals (role-gated permission)
-- Drill into individual receipts with item and payment details
-- **Returns** displayed alongside original sale items
+### 2. Sales History & Returns
+- Browse sales by date range and search; view item and payment details
+- Period total shown only to users with `salestotal:view`
+- **Return items** from a sale's detail view; returned items and refunds are listed on the original sale
 
-### 3. Returns
-- Accept returns against previous sales
-- Quantity validation (cannot exceed sold quantity)
-- Stock automatically returned to inventory
-- Refund tracking with notes
-
-### 4. Inventory Management
+### 3. Inventory Management
 - Product catalog with categories, manufacturers, barcodes
-- **Multiple price options** per product (e.g. tablet vs. pack)
-- Default price tracking
-- Reorder level monitoring
-- Expiry date tracking (earliest expiry per product shown in views)
+- **Multiple price options** per product, one of them the default
+- Reorder level monitoring (Low Stock page, with PDF export)
+- Expiry tracking (earliest expiry per product); Expiring page lists items expiring within 90 days (PDF export)
 - **CSV export** of current stock
 - Stock movement ledger (receives, sales, returns, stock-taking adjustments)
-- Edit products (price, stock info) — requires `inventory:edit` permission
+- Edit products (prices, stock, details); requires `inventory:edit`
 
-### 5. Receiving / Supplier Deliveries
-- Record incoming product batches by supplier
-- Batch numbers and expiry dates
-- Cost price capture per batch
-- Selling price configuration per batch
-- **Hold** partially-completed receive forms for later
-- Idempotency keys to prevent duplicate receives
+### 4. Receiving / Supplier Deliveries
+- Record deliveries by supplier with quantity, cost price, selling price and expiry per item
+- Optionally link received items to a purchase order item
+- **Hold** partially completed receive forms for later
+- Received-items history
+- Idempotency keys prevent duplicate receives
+
+### 5. Purchase Orders
+- Build an order from products you stock (search), from **low stock** (pick only the rows you want; items already on another open order are flagged and the suggested quantity accounts for them), or from items **not in your product list yet** (typed by name; an exact match to an existing product is added as that product)
+- Each order has an optional **additional notes** field, and each item can carry its own note (brand, strength, pack size...). Notes show on the order, in the item dialog, on the receive screen and on the PDF, and an item's note travels with it when outstanding items are moved to another supplier
+- Orders are listed with a coloured status (open blue, partial amber, received green, closed grey) and a progress bar; **View** opens a dialog with the order's items, filterable (all / outstanding / complete), searchable and paged, so large orders do not become one long list. Long item lists in the editor are filtered and paged the same way
+- Every change is written to an append-only **audit log** in the same transaction (who, when, reason, and before/after values): creation, edits, receipts (with the stock batch and which order line it filled), closing and moving. The View dialog's **Activity** shows it; closing and moving require a reason. Edits carry the order's version, so saving a stale copy is refused instead of overwriting a newer receipt or edit
+- Orders can be exported as a PDF for the supplier, edited while open or partial, and filtered into *Waiting for stock* and *Completed*
+- **Partial supply:** click Receive on an order to open the receive screen with each line pre-filled to its outstanding quantity. Receive what arrived, drop what did not; the order becomes `partial` and the rest stays outstanding. Receiving more than is outstanding is rejected
+- New items are registered (or linked to an existing product) on the receive screen, which links the product to the order line
+- **Another supplier for the unfilled items:** *Other supplier* on a partial order closes it with what it received and creates a new open order, linked to the first, containing only the outstanding quantities for the supplier you choose. Receipts record their own supplier, so a delivery can also be recorded from a different supplier than the order was placed with (the receive screen flags this)
+- Reducing a line's quantity to what has already arrived completes it; **Close order** stops waiting for whatever is still outstanding (status `closed`, stock already received is unaffected)
+- Status is `open`, `partial`, `received` or `closed`. Received quantities are updated in the same database transaction as the stock receipt, so they cannot drift apart
 
 ### 6. Stock Taking
-- Create named stock-taking sessions (one at a time)
-- Auto-snapshot current system quantities
-- Record physical counts in **dispensary** and **store** separately
-- Track who last updated each count
-- **Real-time collaboration** via WebSocket — updates broadcast to all users viewing the same session
-- Automatic stock movement entries on completion
-- Update product expiry during counting
-- Mark sessions as completed or cancelled
-- **Complete stock taking** requires `stock:complete` permission
+- Create stock-taking sessions (only one can be in progress at a time)
+- Auto-snapshot of current system quantities
+- Record physical counts for **dispensary** and **store** separately
+- Tracks who last updated each count
+- **Real-time collaboration** via WebSocket; updates are broadcast to users viewing the same session
+- Optionally update a product's expiry while counting
+- Completing a session writes stock-movement entries for the differences; requires `stock:complete`
+- Sessions can have status `in_progress`, `completed` or `cancelled`, but no endpoint currently sets `cancelled`
 
 ### 7. Dashboard
-- **KPI cards**: Today's total sales, transaction count, inventory items, low-stock count
-- **Sales trend chart** (7-day)
-- **Category breakdown** (pie chart)
-- Low-stock items list with copy-to-clipboard
-- Expiring items list (critical ≤ 7 days, warning ≤ 30 days) with copy-to-clipboard
-- Modal views for full lists
+- **KPI cards**: Total Sales, Total Orders, Total Products, Low Stock Items, Expiring Soon (with a date filter)
+- **Sales trend chart**, top-selling products, recent transactions, and a low-stock table (top 5)
+- Low-stock and expiring cards link to their full pages
 
 ### 8. Users & Auth
-- Registration with username / password validation
+- Account registration (`POST /user/register`); usernames are 3–15 letters, digits or underscores and passwords at least 8 characters
 - **Argon2id** password hashing
 - Session-based authentication (Gorilla sessions)
-- **Role-based access control** with granular permissions
+- **Role-based access control**: users have one role (`Admin`, `Manager` or `Cashier`; new accounts default to `Cashier`), and roles are granted permissions through `role_permissions`
+- Permissions are stored as `resource`/`action` pairs and exposed as lowercase `resource:action` keys. They are computed at login and kept in the session, so a permission change takes effect after the user logs in again
 
 ### 9. Permissions
 
 | Key                          | Description                                    |
 |------------------------------|------------------------------------------------|
-| `salestotal:view`            | View daily sales totals on the history page    |
+| `salestotal:view`            | View sales totals on the history page and sales figures/trend on the dashboard |
+| `stock:view`                 | Show system quantities and variances on the stock-counting screen (checked in the UI only) |
 | `stock:complete`             | Complete / finalise a stock-taking session     |
 | `inventory:edit`             | Edit product details (prices, stock info)      |
+| `admin:access`               | Access the `/admin/` APIs (users, roles, permissions, categories) |
+| `purchaseorder:create`       | Create, edit, close and move purchase orders (hides the Purchase Orders page for everyone else; receiving against an order is not gated) |
+
+Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to `Admin` and `Manager`; `admin:access` goes to `Admin` only. `purchaseorder:create` is not seeded: create it in Administration → Permissions (resource `PurchaseOrder`, action `Create`) and assign it to the roles that should manage purchase orders; users pick it up the next time they log in. No migration seeds `salestotal:view`, so grant it to a role through the admin permissions API.
 
 ---
 
 ## Database Schema
 
-34 migrations covering:
+41 migrations covering:
 
 - `users`, `roles`, `permissions`, `role_permissions`
 - `categories`, `products`, `product_prices`
@@ -148,6 +153,8 @@ There are **three Vue entry points**:
 - `stock_takings`, `stock_taking_items`
 - `inventory_view` (aggregated stock + earliest expiry)
 - `idempotency_keys`
+- `supplier` (one row per supplier name, unique ignoring case and spaces; referenced by `receiving_batch.supplier_id` and `purchase_order.supplier_id`, which also keep the name as written on the document)
+- `purchase_order`, `purchase_order_item`
 
 ### Movement Types
 
@@ -170,6 +177,7 @@ There are **three Vue entry points**:
 - Go 1.24+
 - Docker & Docker Compose
 - Node.js 18+ (for frontend builds)
+- [`golang-migrate`](https://github.com/golang-migrate/migrate) CLI (for `make migrate-up`)
 
 ### Setup
 
@@ -177,9 +185,12 @@ There are **three Vue entry points**:
 # 1. Clone and enter the project
 git clone <repo-url> && cd pharmacy
 
-# 2. Copy environment file
-cp backend/.env.example backend/.env
-# Edit backend/.env with your database credentials
+# 2. Create the env files (there is no .env.example)
+#    - backend/config/.env is embedded into the Go binary at build time
+#      (rebuild/restart after changing it)
+#    - backend/.env is read by docker compose for the Postgres container
+#    Keys: POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD, DB_HOST, DB_PORT,
+#    CSRF_KEY, SESSION_SECRET
 
 # 3. Start PostgreSQL
 docker compose up -d data
@@ -210,6 +221,19 @@ The server listens on **port 8000**.
 | `make assets`               | Build all UI assets (Tailwind + Vue)          |
 | `make run`                  | Start the Go server                           |
 | `make dev`                  | Build assets then start the server            |
+| `make check-go-lines`       | Show a dry-run diff for Go lines over 100 chars |
+| `make format-go-lines`      | Apply `golines` formatting to Go files          |
+| `make check-go-format`      | Fail if Go files need `gofmt`                    |
+| `make format-go`            | Apply standard `gofmt` formatting                |
+
+Install `golines` before using those targets:
+
+```sh
+go install github.com/golangci/golines@latest
+```
+
+Set `GO_LINE_MAX_LEN` to change the 100-character target. The check target shows
+proposed changes without editing files; run `make format-go-lines` to apply them.
 
 ---
 
@@ -226,7 +250,7 @@ pharmacy/
 │   │   │   └── router/           # Route registration
 │   │   └── websocket/            # WebSocket hub & handlers
 │   ├── config/                   # Environment config
-│   ├── db/migrations/            # 34 SQL migrations
+│   ├── db/migrations/            # 41 SQL migrations
 │   ├── httperror/                # Structured error types
 │   ├── internal/
 │   │   ├── constant/             # App constants & permission keys
@@ -234,17 +258,15 @@ pharmacy/
 │   ├── model/                    # Domain models
 │   ├── repository/               # Database access layer
 │   ├── service/                  # Business logic
-│   ├── template/                 # Go HTML templates
-│   │   ├── partials/             # nav.html, subnav.html
-│   │   └── static/               # CSS, JS, Vite dist/
+│   ├── template/                 # next-dashboard.html, login-v2.html, error.html
+│   │   └── static/               # CSS, fonts, JS, Vite dist/ (untracked)
 │   └── main.go                   # Application entry point
 ├── frontend/
 │   └── src/
-│       ├── components/           # Vue components (Dashboard, Charts)
-│       ├── stock-taking/
-│       │   ├── counting/         # Stock counting Vue app
-│       │   └── dashboard/        # Stock-taking list Vue app
-│       └── main.js               # Dashboard entry point
+│       ├── next/                 # Main SPA (views, components, composables, router)
+│       ├── login/                # Login page entry
+│       └── components/ui/        # shadcn-vue primitives
+├── design-system/                # UI guidelines (MASTER.md)
 ├── compose.yml                   # Docker Compose (Postgres + Go server)
 ├── Dockerfile                    # Multi-stage Go build
 ├── Makefile                      # Development automation
@@ -260,56 +282,73 @@ pharmacy/
 |--------|---------------|------------------------|
 | GET    | `/login`      | Login page             |
 | POST   | `/login`      | Authenticate user      |
-| GET    | `/register`   | Registration page      |
 | POST   | `/register`   | Create user account    |
 | GET    | `/logout`     | End session            |
 
-### Dashboard (`/api/` and `/app/`)
-| Method | Path                | Description              |
-|--------|---------------------|--------------------------|
-| GET    | `/api/dashboard`    | Dashboard JSON data      |
-| GET    | `/app/dashboard`    | Dashboard HTML page      |
+All routes except `/user/*` and static assets require an authenticated session.
+
+### Dashboard and app (`/api/`, `/app/`)
+| Method | Path                    | Description                          |
+|--------|-------------------------|--------------------------------------|
+| GET    | `/api/dashboard`        | Dashboard JSON data                  |
+| GET    | `/api/permissions/me`   | Current user's permissions           |
+| GET    | `/app/*`                | SPA shell (client-side routing)      |
 
 ### Sales (`/sales/`)
-| Method | Path               | Description                |
-|--------|--------------------|----------------------------|
-| GET    | `/sales/`          | Sales receipt page         |
-| POST   | `/sales/`          | Create a new sale          |
-| GET    | `/sales/history`   | Sales history page         |
-| GET    | `/sales/filter`    | Filter sales (JSON)        |
-| POST   | `/sales/hold`      | Hold a sale                |
-| GET    | `/sales/held`      | Held receipts page         |
-| DELETE | `/sales/held/{ref}`| Delete a held receipt      |
-| POST   | `/sales/returns`   | Return items               |
+| Method | Path                | Description                |
+|--------|---------------------|----------------------------|
+| POST   | `/sales/`           | Create a new sale          |
+| GET    | `/sales/filter`     | Filter sales (JSON)        |
+| POST   | `/sales/hold`       | Hold a sale                |
+| GET    | `/sales/api/held`   | Held sales (JSON)          |
+| DELETE | `/sales/held/{ref}` | Delete a held sale         |
+| POST   | `/sales/returns`    | Return items               |
 
 ### Inventory (`/inventory/`)
-| Method | Path                                  | Description                   |
-|--------|---------------------------------------|-------------------------------|
-| POST   | `/inventory/add-item`                 | Create product                |
-| GET    | `/inventory/items`                    | Inventory list page           |
-| GET    | `/inventory/item-list`                | Inventory JSON data           |
-| GET    | `/inventory/receive-items`            | Receive items page            |
-| POST   | `/inventory/receive-items`            | Submit supplier delivery      |
-| POST   | `/inventory/receive-items/hold`       | Hold receiving form           |
-| GET    | `/inventory/receive-items/held`       | Held receipts page            |
-| DELETE | `/inventory/receive-items/held/{ref}` | Delete held receipt           |
-| GET    | `/inventory/search`                   | Product search                |
-| GET    | `/inventory/suppliers/search`         | Supplier search               |
-| GET    | `/inventory/report/stock`             | Export stock CSV               |
-| GET    | `/inventory/product/{id}`             | Product details (JSON)        |
-| PUT    | `/inventory/product/{id}`             | Update product (requires permission) |
+| Method | Path                                    | Description                   |
+|--------|-----------------------------------------|-------------------------------|
+| POST   | `/inventory/add-item`                   | Create product                |
+| GET    | `/inventory/item-list`                  | Inventory JSON data           |
+| GET    | `/inventory/search`                     | Product search                |
+| GET    | `/inventory/top-selling`                | Top-selling products          |
+| GET    | `/inventory/suppliers/search`           | Supplier search               |
+| GET    | `/inventory/report/stock`               | Export stock CSV              |
+| GET    | `/inventory/product/{id}`               | Product details (JSON)        |
+| PUT    | `/inventory/product/{id}`               | Update product (requires `inventory:edit`) |
+| POST   | `/inventory/receive-items`              | Submit supplier delivery      |
+| POST   | `/inventory/receive-items/hold`         | Hold receiving form           |
+| GET    | `/inventory/receive-items/held/api`     | Held receipts (JSON)          |
+| DELETE | `/inventory/receive-items/held/{ref}`   | Delete held receipt           |
+| GET    | `/inventory/received-items-history/api` | Received items history (JSON) |
+| GET    | `/inventory/purchase-orders`            | List purchase orders (`?view=active` or `history`) |
+| POST   | `/inventory/purchase-orders`            | Create or edit a purchase order (requires `purchaseorder:create`) |
+| GET    | `/inventory/purchase-orders/{id}`       | Purchase order details        |
+| POST   | `/inventory/purchase-orders/{id}/close` | Close an open or partial order (requires `purchaseorder:create`) |
+| POST   | `/inventory/purchase-orders/{id}/move-outstanding` | Move unfilled items to a new order for another supplier (requires `purchaseorder:create`) |
 
 ### Stock Taking (`/stock-taking/`)
-| Method | Path                                        | Description                    |
-|--------|---------------------------------------------|--------------------------------|
-| GET    | `/stock-taking/`                            | Dashboard page                 |
-| POST   | `/stock-taking/api/create`                  | Create a new session           |
-| GET    | `/stock-taking/api/list`                    | List all sessions              |
-| GET    | `/stock-taking/{id}`                        | Stock counting page            |
-| GET    | `/stock-taking/api/{id}`                    | Session data (JSON)            |
-| POST   | `/stock-taking/api/{id}`                    | Complete session               |
-| GET    | `/stock-taking/api/{id}/items`              | Session items (JSON)           |
-| POST   | `/stock-taking/api/{id}/item/{product_id}` | Update item count              |
+| Method | Path                                       | Description                              |
+|--------|--------------------------------------------|------------------------------------------|
+| GET    | `/stock-taking/api/list`                   | List all sessions                        |
+| POST   | `/stock-taking/api/create`                 | Create a new session                     |
+| GET    | `/stock-taking/api/{id}`                   | Session data (JSON)                      |
+| POST   | `/stock-taking/api/{id}`                   | Complete session (`stock:complete`)      |
+| GET    | `/stock-taking/api/{id}/items`             | Session items (JSON)                     |
+| POST   | `/stock-taking/api/{id}/item/{product_id}` | Update item count                        |
+
+### Admin (`/admin/`, requires `admin:access`)
+| Method | Path                                            | Description                  |
+|--------|-------------------------------------------------|------------------------------|
+| GET    | `/admin/api/modules`                            | List modules                 |
+| GET/POST | `/admin/api/permissions`                      | List / create permissions    |
+| DELETE | `/admin/api/permissions/{id}`                   | Delete a permission          |
+| POST/DELETE | `/admin/api/permissions/{id}/role/{roleId}` | Assign / remove from a role |
+| GET    | `/admin/api/roles`                              | List roles                   |
+| GET    | `/admin/api/users`                              | List users                   |
+| POST   | `/admin/api/users/{id}/role`                    | Change a user's role         |
+| POST   | `/admin/api/users/{id}/reset-password`          | Reset a user's password      |
+| GET/POST | `/admin/api/categories`                       | List / create categories     |
+| PUT/DELETE | `/admin/api/categories/{id}`                | Update / delete a category   |
 
 ### WebSocket
 | Path | Description                                          |
@@ -332,6 +371,14 @@ make create-migration MIGRATION_NAME=add_widget_table
 cd backend && go test ./service/ -v
 ```
 
+The database integration tests (migrations and the purchase order lifecycle) are skipped unless
+`PHARMACY_TEST_DSN` points at a Postgres server where the user may create databases. Each test
+creates its own throwaway database, runs the real migrations in it and drops it afterwards:
+
+```bash
+cd backend && PHARMACY_TEST_DSN="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" go test ./...
+```
+
 ### Building frontend assets separately
 
 ```bash
@@ -345,6 +392,7 @@ make build-frontend    # Rebuild Vue only
 
 - [ ] Modal on sales receipt after save when change > 0
 - [ ] Stock taking (partially implemented — backend services & frontend UIs exist but may need finishing touches)
+- [ ] Purchase orders (in progress on `feat/purchase-orders`)
 
 ---
 
