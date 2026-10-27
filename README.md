@@ -9,7 +9,7 @@ A full-stack **pharmacy point-of-sale (POS) and inventory management system** fo
 | Layer              | Technology                                                              |
 |--------------------|-------------------------------------------------------------------------|
 | **Backend**        | Go 1.24, `net/http` (standard library), Gorilla sessions / CSRF / WebSocket |
-| **Database**       | PostgreSQL (via `pgx` + `sqlx`), 41 sequential migrations               |
+| **Database**       | PostgreSQL (via `pgx` + `sqlx`), 43 sequential migrations               |
 | **Templating**     | Go `html/template` (server-rendered HTML)                               |
 | **Frontend**       | Vue 3 + vue-router + shadcn-vue, built with Vite into `static/dist/` and embedded |
 | **Styling**        | TailwindCSS v4                                                          |
@@ -40,7 +40,7 @@ main.go                       ← wires everything, embeds templates + static as
 │   └── static/               ← CSS, fonts, JS, Vite-built Vue bundles
 ├── internal/                 ← shared types (request/response DTOs) & constants
 ├── httperror/                ← structured HTTP error types
-└── db/migrations/            ← 41 PostgreSQL migrations (golang-migrate)
+└── db/migrations/            ← 43 PostgreSQL migrations (golang-migrate)
 ```
 
 ### Frontend / Vue
@@ -91,6 +91,7 @@ The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` 
 - Idempotency keys prevent duplicate receives
 
 ### 5. Purchase Orders
+- **Approval flow:** a user with the *draft* permission (for example a cashier) writes a **draft**. Managers can already see and edit it while it is being written. When the author is done they **submit it for approval**; from then on only a manager can change it. A manager edits if needed, then **approves** (the order becomes `open`) or **rejects** it with a reason (closed, kept on record). Managers who create an order skip the drafts: theirs starts open. Drafts and submitted orders can't be received against and have no PDF; the author can only read their own orders. Managers see a badge on *Purchase Orders* and a dashboard banner when orders are waiting
 - Build an order from products you stock (search), from **low stock** (pick only the rows you want; items already on another open order are flagged and the suggested quantity accounts for them), or from items **not in your product list yet** (typed by name; an exact match to an existing product is added as that product)
 - Each order has an optional **additional notes** field, and each item can carry its own note (brand, strength, pack size...). Notes show on the order, in the item dialog, on the receive screen and on the PDF, and an item's note travels with it when outstanding items are moved to another supplier
 - Orders are listed with a coloured status (open blue, partial amber, received green, closed grey) and a progress bar; **View** opens a dialog with the order's items, filterable (all / outstanding / complete), searchable and paged, so large orders do not become one long list. Long item lists in the editor are filtered and paged the same way
@@ -100,7 +101,7 @@ The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` 
 - New items are registered (or linked to an existing product) on the receive screen, which links the product to the order line
 - **Another supplier for the unfilled items:** *Other supplier* on a partial order closes it with what it received and creates a new open order, linked to the first, containing only the outstanding quantities for the supplier you choose. Receipts record their own supplier, so a delivery can also be recorded from a different supplier than the order was placed with (the receive screen flags this)
 - Reducing a line's quantity to what has already arrived completes it; **Close order** stops waiting for whatever is still outstanding (status `closed`, stock already received is unaffected)
-- Status is `open`, `partial`, `received` or `closed`. Received quantities are updated in the same database transaction as the stock receipt, so they cannot drift apart
+- Status is `draft`, `pending_approval`, `open`, `partial`, `received` or `closed`. Received quantities are updated in the same database transaction as the stock receipt, so they cannot drift apart
 
 ### 6. Stock Taking
 - Create stock-taking sessions (only one can be in progress at a time)
@@ -133,15 +134,16 @@ The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` 
 | `stock:complete`             | Complete / finalise a stock-taking session     |
 | `inventory:edit`             | Edit product details (prices, stock info)      |
 | `admin:access`               | Access the `/admin/` APIs (users, roles, permissions, categories) |
-| `purchaseorder:create`       | Create, edit, close and move purchase orders (hides the Purchase Orders page for everyone else; receiving against an order is not gated) |
+| `purchaseorder:draft`        | Write purchase order drafts, edit your own draft and submit it for approval (you only see your own orders) |
+| `purchaseorder:approve`      | Manager: create orders directly, edit any draft, approve or reject, and close or move approved orders. Receiving against an order is not gated |
 
-Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to `Admin` and `Manager`; `admin:access` goes to `Admin` only. `purchaseorder:create` is not seeded: create it in Administration → Permissions (resource `PurchaseOrder`, action `Create`) and assign it to the roles that should manage purchase orders; users pick it up the next time they log in. No migration seeds `salestotal:view`, so grant it to a role through the admin permissions API.
+Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to `Admin` and `Manager`; `admin:access` goes to `Admin` only; `purchaseorder:draft` goes to `Cashier` and `purchaseorder:approve` to `Manager` and `Admin` (migration 43). Change who holds them in Administration → Permissions; users pick up a change the next time they log in.
 
 ---
 
 ## Database Schema
 
-41 migrations covering:
+43 migrations covering:
 
 - `users`, `roles`, `permissions`, `role_permissions`
 - `categories`, `products`, `product_prices`
@@ -250,7 +252,7 @@ pharmacy/
 │   │   │   └── router/           # Route registration
 │   │   └── websocket/            # WebSocket hub & handlers
 │   ├── config/                   # Environment config
-│   ├── db/migrations/            # 41 SQL migrations
+│   ├── db/migrations/            # 43 SQL migrations
 │   ├── httperror/                # Structured error types
 │   ├── internal/
 │   │   ├── constant/             # App constants & permission keys
@@ -321,10 +323,14 @@ All routes except `/user/*` and static assets require an authenticated session.
 | DELETE | `/inventory/receive-items/held/{ref}`   | Delete held receipt           |
 | GET    | `/inventory/received-items-history/api` | Received items history (JSON) |
 | GET    | `/inventory/purchase-orders`            | List purchase orders (`?view=active` or `history`) |
-| POST   | `/inventory/purchase-orders`            | Create or edit a purchase order (requires `purchaseorder:create`) |
+| POST   | `/inventory/purchase-orders`            | Create or edit a purchase order (needs `purchaseorder:draft` or `:approve`; a drafter's order starts as a draft, a manager's as open) |
+| GET    | `/inventory/purchase-orders/pending-count` | Orders waiting for approval and drafts in progress (approve) |
+| POST   | `/inventory/purchase-orders/{id}/submit` | Author submits a draft for approval |
+| POST   | `/inventory/purchase-orders/{id}/approve` | Approve a draft or submitted order (approve) |
+| POST   | `/inventory/purchase-orders/{id}/reject` | Reject a draft or submitted order with a reason (approve) |
 | GET    | `/inventory/purchase-orders/{id}`       | Purchase order details        |
-| POST   | `/inventory/purchase-orders/{id}/close` | Close an open or partial order (requires `purchaseorder:create`) |
-| POST   | `/inventory/purchase-orders/{id}/move-outstanding` | Move unfilled items to a new order for another supplier (requires `purchaseorder:create`) |
+| POST   | `/inventory/purchase-orders/{id}/close` | Close an open or partial order (approve) |
+| POST   | `/inventory/purchase-orders/{id}/move-outstanding` | Move unfilled items to a new order for another supplier (approve) |
 
 ### Stock Taking (`/stock-taking/`)
 | Method | Path                                       | Description                              |
