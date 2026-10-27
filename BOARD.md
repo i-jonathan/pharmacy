@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-099 -->
+<!-- next-id: T-104 -->
 
 <details>
 <summary>How this board works</summary>
@@ -227,13 +227,49 @@ Run against a hosted server, but losing the connection must never stall work. To
 
 ## Backlog
 
-### T-035 Extend audit log to all sensitive actions
+### T-035 Audit log everything
 
 - priority: P1
 - area: security
 - created: 2026-10-26
 
-Extend `audit_log` beyond purchase orders: sales and returns, stock movements and adjustments, stock taking, price and cost edits, receiving, user/role/permission changes. Shared `auditEntry` helper in the service layer, written in the same transaction. Admin screen to browse and filter.
+Every change writes an `audit_log` entry in the same transaction: who, when, what, before and after, and a reason where it matters. Only purchase orders do this today. Add a shared `auditEntry` helper in the service layer.
+
+- [ ] Sales, voids, returns and refunds
+- [ ] Stock movements: receiving, manual adjustments, stock-take completion
+- [ ] Product, price and cost edits; categories, groups and merges
+- [ ] Users, roles and permissions; logins, logouts and failed logins
+- [ ] Settings changes and data exports
+- [ ] Admin screen to browse, filter (user, entity, action, date) and export the log
+
+### T-099 Granular permissions with default roles
+
+- priority: P1
+- area: security
+- depends: T-023
+- created: 2026-10-27
+
+Everything is behind a permission. The system ships with default roles that have permissions assigned, and every permission has an explanation.
+
+- [ ] Permission catalog in code: key, name, description, group (Sales, Inventory, Purchasing, Reports, Admin…)
+- [ ] Every route and every UI action checks a permission. Today many are ungated: creating products (`POST /inventory/add-item`), receiving, sales, returns, stock-take create and count, and most read endpoints
+- [ ] Default roles seeded by migration and kept in sync with the catalog (e.g. Owner, Manager, Pharmacist, Cashier, Storekeeper)
+- [ ] Admin screen lists permissions grouped, with their explanations, and lets admins build custom roles from the catalog
+- [ ] Remove the free-form create/delete permission endpoints; permissions are defined by code
+- [ ] Works with per-request checks (T-023) and role-independent seeding (T-092)
+
+### T-103 Notification centre
+
+- priority: P1
+- area: admin
+- created: 2026-10-27
+
+One place for everything the system needs to tell people.
+
+- [ ] Stored in-app inbox with a bell and unread count, per user
+- [ ] Events: purchase orders submitted, approved or rejected (T-091), low stock and expiry (T-078), backup failed (T-026), offline sync problems (T-047), what's new (T-095), insights (T-100)
+- [ ] Channels: in-app, email, WhatsApp/SMS, push (desktop and mobile)
+- [ ] Per-user and per-role preferences, and a daily digest option
 
 ### T-036 Capture batch/lot numbers on receiving
 
@@ -281,13 +317,19 @@ Hard-coded values should become settings that an admin edits on a settings scree
 - [ ] Approval badge poll interval: 60 seconds (`usePendingPurchaseOrders.js`)
 - [ ] Completed purchase orders cap: 100 (`purchaseOrderHistoryMax`)
 
-### T-040 Customer records & purchase history
+### T-040 Customer management
 
 - priority: P1
 - area: pos
 - created: 2026-10-26
 
-Customer name is typed on the receipt but never stored. Add customers (name, phone), attach to sales, view purchase history, search at the POS.
+The customer name is typed on the receipt but never stored.
+
+- [ ] Customer profiles: name, phone, email, notes, consent to be contacted
+- [ ] Quick lookup by phone at the POS and attach to the sale
+- [ ] Purchase history and totals per customer
+- [ ] Import, edit and merge duplicate customers
+- [ ] Balances and credit (T-041), loyalty (T-084)
 
 ### T-041 Credit sales & debtor balances
 
@@ -338,6 +380,19 @@ Configurable tax rates (e.g. 7.5% VAT), tax-inclusive/exclusive pricing, exempt 
 
 Max discount per role, price override requiring permission, promotions (percentage, buy-X-get-Y, time-bound).
 
+### T-101 Keyboard workflow for POS and Receive Items
+
+- priority: P1
+- area: pos
+- created: 2026-10-27
+
+Make the two busiest screens fully usable without a mouse.
+
+- [ ] POS: focus search (`/` or F2), arrow keys + Enter to add, change quantity and price option, remove a line, discount, choose a payment method, save, save and print, hold
+- [ ] Receive Items: Enter moves to the next field, a new row at the end, quick expiry entry (MM/YY), save
+- [ ] Barcode scanner input works from anywhere on both screens
+- [ ] A `?` overlay listing the shortcuts; the same keys mean the same thing on both screens
+
 ### T-048 Thermal printing & digital receipts
 
 - priority: P1
@@ -355,29 +410,47 @@ ESC/POS thermal printer support (58/80mm), reprint from sales history, receipts 
 
 Stock is computed per product from `stock_movement`; sales don't deduct from a batch, and expiry is the product's earliest date. Track quantity per batch and deduct first-expiry-first-out, so you know how much of each batch is left and what actually expires. Depends on capturing batch numbers.
 
-### T-050 Stock adjustments & write-offs with reason codes
+### T-050 Manual stock management
 
 - priority: P1
 - area: inventory
 - created: 2026-10-26
 
-Adjustments only happen through product edit. Add a dedicated adjustment flow with reasons (expired, damaged, theft, correction), permission and audit, and new movement types for write-offs.
+Adjust stock directly, without starting a stock take. Today the only way is the stock field on the product edit form.
 
-### T-051 Multi-location stock & transfers
+- [ ] Adjust one product or many at once, by setting a new count or adding/removing a quantity
+- [ ] Reason codes: expired, damaged, theft/loss, correction, opening stock, internal use; new movement types for write-offs
+- [ ] Set or correct expiry and batch while adjusting
+- [ ] Own permission, plus approval above a configurable quantity or value
+- [ ] Audit entry for every adjustment; route the product edit stock field through this flow, or remove it
 
-- priority: P1
-- area: inventory
-- created: 2026-10-26
-
-Branches/locations (and dispensary vs store, today only in stock-taking counts) with stock per location and transfer documents between them.
-
-### T-052 Product stock ledger (bin card)
+### T-051 Multi-store & multi-branch support
 
 - priority: P1
 - area: inventory
 - created: 2026-10-26
 
-Per-product movement history: every receipt, sale, return, adjustment and stock-take with running balance, user and reference.
+One business owns one or more stores, and each store has one or more branches. Dispensary and store room become locations inside a branch (today they exist only as stock-take counts).
+
+- [ ] Stock, batches and stock takes per branch and location
+- [ ] Prices shared across branches, with optional branch overrides
+- [ ] Users and permissions per branch, and a branch switcher
+- [ ] Transfers between branches, with an in-transit state and receipt at the other end
+- [ ] Reports per branch plus a consolidated view (T-080)
+
+### T-052 Product history
+
+- priority: P1
+- area: inventory
+- created: 2026-10-26
+
+One screen per product that shows its whole history:
+
+- [ ] Stock ledger: every receipt, sale, return, adjustment and stock take, with running balance, user and reference
+- [ ] Purchase cost history per receipt and supplier (already stored on `product_batch`)
+- [ ] Selling price history: prices are updated in place today (`UpdateProduct`), so start recording price changes with who and when
+- [ ] Restock dates and quantities, and time between restocks
+- [ ] Simple charts for cost, price and stock over time
 
 ### T-053 Reorder suggestions to draft purchase order
 
@@ -489,13 +562,32 @@ At-a-glance numbers for the dashboard; the full reports are T-060, T-061 and T-0
 - [ ] Sales: gross margin %, average basket value and items per sale, sales by hour and weekday, returns rate, comparison with the same day last week
 - [ ] Inventory: stock value at cost, days of cover per product or group, stock turnover, sell-through since receipt, value at risk of expiry, fast movers next to dead stock
 
-### T-063 Export every report to CSV/Excel
+### T-100 Business insights
+
+- priority: P1
+- area: reports
+- created: 2026-10-27
+
+Go beyond tables: have the system point out what matters. The detailed reports are T-060 to T-062; the metrics are T-096.
+
+- [ ] "Runs out in N days at the current sales rate" for each product or group
+- [ ] Margin changes, e.g. the last restock cost went up but the selling price didn't
+- [ ] Sales up or down against the same weekday or period last time, by product and category
+- [ ] Money tied up in slow movers, and stock value at risk of expiry in the next 30/60/90 days
+- [ ] Weekly summary for owners (delivered through T-103)
+
+### T-063 Export data
 
 - priority: P1
 - area: reports
 - created: 2026-10-26
 
-Consistent CSV/Excel export across reports and lists (and relink the existing stock CSV export).
+Get data out in a usable form.
+
+- [ ] CSV/Excel export on every list and report (and relink the existing stock CSV export)
+- [ ] Full store export: products, prices, stock and batches, customers, sales, purchases, suppliers, as a zip of CSVs, for accounting, migration or leaving
+- [ ] Optional scheduled export to the backup location (T-026)
+- [ ] Exports need a permission and are audited (T-035)
 
 ### T-064 Admin user management
 
@@ -521,6 +613,21 @@ Staging environment, versioned releases, migrations run as part of deploy, pinne
 
 `inventory_view` sums all of `stock_movement` on every read, which slows down with volume and tenants. Maintain a stock balance table (or materialised view) updated in the same transaction.
 
+### T-102 Make the app snappy
+
+- priority: P1
+- area: ops
+- created: 2026-10-27
+
+General speed work, measured first so it goes where the time actually is.
+
+- [ ] Measure: request timings in logs, Postgres slow query log, JS bundle size per route
+- [ ] Stock balance table instead of summing `stock_movement` on every read (T-066)
+- [ ] Indexes for the hot queries (product search, sales history, dashboard)
+- [ ] Cache the product catalog in the browser so POS search is instant
+- [ ] Optimistic updates and prefetching for the common screens; pagination on every long list
+- [ ] Compression and long cache headers for the embedded static assets
+
 ### T-067 Idempotency key for creating a purchase order
 
 - priority: P1
@@ -528,6 +635,36 @@ Staging environment, versioned releases, migrations run as part of deploy, pinne
 - created: 2026-10-26
 
 The Save button is disabled while saving, but a retry after a lost response can still create a duplicate order.
+
+### T-082 Responsive mobile & tablet support
+
+- priority: P1
+- area: saas
+- created: 2026-10-26
+
+Every screen works on phones and tablets, not just desktop.
+
+- [ ] POS usable on a tablet; stock-take counting and receiving on a phone
+- [ ] Dashboard, approvals and reports readable on a phone for owners
+- [ ] Collapsible navigation, touch-sized controls, tables that become cards on small screens
+- [ ] Known issue: purchase order card actions wrap below about 1280px
+
+A native mobile app can come later through the PWA / app shell in T-094.
+
+### T-084 Customizable loyalty program
+
+- priority: P1
+- area: pos
+- depends: T-040, T-093
+- created: 2026-10-26
+
+Loyalty rules an admin sets up per store, instead of one fixed scheme.
+
+- [ ] Earn rate (points per ₦ spent), with multipliers or exclusions by category or product (e.g. exclude prescription-only items)
+- [ ] Redemption value, minimum to redeem, and points expiry
+- [ ] Optional tiers with their own rates, and bonuses (birthday, first purchase, promotions)
+- [ ] Points balance on the receipt and at the POS; redeem as a payment method
+- [ ] Every earn, redeem and manual change audited
 
 ### T-068 Change-due modal after saving a sale
 
@@ -581,6 +718,7 @@ A rejected draft shows as "Closed", with the reason only in the activity log. Sh
 
 - priority: P2
 - area: purchasing
+- depends: T-103
 - created: 2026-10-27
 
 Replace the sidebar badge and dashboard banner, which poll once a minute, with a stored inbox and push or email. Could share delivery with T-078.
@@ -646,6 +784,7 @@ Document the JSON API; groundwork for a public API.
 
 - priority: P2
 - area: reports
+- depends: T-103
 - created: 2026-10-26
 
 Email/WhatsApp alerts for low stock and upcoming expiries; daily summary to owners.
@@ -676,14 +815,6 @@ Owner view across branches: sales, stock, transfers, branch comparison.
 
 Tenant API keys, webhooks (sale created, low stock), integrations with e-commerce and delivery platforms.
 
-### T-082 Mobile owner app / responsive views
-
-- priority: P2
-- area: saas
-- created: 2026-10-26
-
-Owners check sales and stock from a phone; responsive layouts or a lightweight mobile app.
-
 ### T-094 Desktop app
 
 - priority: P2
@@ -707,15 +838,6 @@ After a release, show each user a short "What's new" panel once after they log i
 - created: 2026-10-26
 
 Currency and formatting per tenant (money is kobo-only today), translations.
-
-### T-084 Customer loyalty program
-
-- priority: P2
-- area: pos
-- depends: T-040
-- created: 2026-10-26
-
-Points or discounts for repeat customers. Depends on customer records.
 
 ### T-085 Shared purchase order lock-and-check helper
 
