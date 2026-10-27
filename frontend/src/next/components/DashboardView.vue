@@ -13,6 +13,18 @@
 
     <!-- Dashboard Content -->
     <template v-else>
+      <router-link
+        v-if="pendingPurchaseOrders.pending"
+        to="/purchase-orders?tab=drafts"
+        class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-950/60"
+      >
+        <span>
+          <strong>{{ pendingPurchaseOrders.pending }}</strong>
+          purchase order{{ pendingPurchaseOrders.pending === 1 ? "" : "s" }} waiting for your approval
+        </span>
+        <span class="font-medium underline">Review</span>
+      </router-link>
+
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-sm font-medium text-foreground">Today at a glance</h2>
@@ -85,6 +97,7 @@ import { useRouter } from "vue-router";
 import { DollarSign, ShoppingCart, Package, AlertTriangle, Calendar } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "../composables/useDashboard.js";
+import { usePendingPurchaseOrders } from "../composables/usePendingPurchaseOrders.js";
 import { shared } from "../store.js";
 import MetricCard from "./MetricCard.vue";
 import SalesTrendChart from "./SalesTrendChart.vue";
@@ -94,6 +107,8 @@ import LowStockTable from "./LowStockTable.vue";
 import DateFilterBar from "./DateFilterBar.vue";
 
 const router = useRouter();
+// The sidebar polls these counts; opening the dashboard refreshes them straight away.
+const { counts: pendingPurchaseOrders, refresh: refreshPending } = usePendingPurchaseOrders();
 const { loading, error, dashboardData, dateFilter, fetchDashboard, getKPIValue } = useDashboard();
 
 function formatNaira(kobo) {
@@ -116,6 +131,7 @@ function goToExpiring() {
 }
 
 onMounted(() => {
+  refreshPending();
   fetchDashboard(dateFilter.value);
 });
 </script>

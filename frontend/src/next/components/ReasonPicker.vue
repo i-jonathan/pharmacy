@@ -7,7 +7,7 @@
       @change="$emit('update:preset', $event.target.value)"
     >
       <option value="" disabled>Choose a reason</option>
-      <option v-for="r in REASONS" :key="r" :value="r">{{ r }}</option>
+      <option v-for="r in reasons" :key="r" :value="r">{{ r }}</option>
     </select>
     <input
       v-if="preset"
@@ -22,17 +22,12 @@
 </template>
 
 <script setup>
+import { REASONS } from "./reasons.js";
 defineProps({
   preset: { type: String, default: "" },
   detail: { type: String, default: "" },
+  reasons: { type: Array, default: () => REASONS },
 });
 defineEmits(["update:preset", "update:detail"]);
 
-const REASONS = [
-  "Supplier out of stock",
-  "Supplier cannot deliver in time",
-  "Price or terms changed",
-  "Ordered by mistake",
-  "Other",
-];
 </script>
