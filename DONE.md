@@ -6,7 +6,7 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 ### T-087 Purchase order approval workflow
 
-- area: purchasing
+- feature: Purchasing & receiving
 - done: 2026-10-27
 - prs: #29
 
@@ -14,7 +14,7 @@ Cashiers write drafts and submit them; managers approve or reject (with a reason
 
 ### T-039 Seed purchase order permissions
 
-- area: ops
+- feature: Permissions & audit
 - done: 2026-10-27
 - prs: #29
 
@@ -22,7 +22,7 @@ Migration 000043 seeds `PurchaseOrder`/`Draft` (Cashier) and `PurchaseOrder`/`Ap
 
 ### T-016 Database integration test harness
 
-- area: ops
+- feature: Reliability & operations
 - done: 2026-10-27
 - prs: #28
 
@@ -30,7 +30,7 @@ Migration 000043 seeds `PurchaseOrder`/`Draft` (Cashier) and `PurchaseOrder`/`Ap
 
 ### T-015 Audit log foundation
 
-- area: security
+- feature: Permissions & audit
 - done: 2026-10-27
 - prs: #28
 
@@ -38,7 +38,7 @@ Append-only `audit_log` (a trigger blocks UPDATE/DELETE) written in the same tra
 
 ### T-014 Purchase orders & suppliers
 
-- area: purchasing
+- feature: Purchasing & receiving
 - done: 2026-10-27
 - prs: #28
 
@@ -46,7 +46,7 @@ Build an order from search, low-stock items or items not yet in the product list
 
 ### T-013 Vue SPA / new UI
 
-- area: ops
+- feature: Reliability & operations
 - done: 2026-10-02
 - prs: #26, #27
 
@@ -54,7 +54,7 @@ Migrated from Go templates to a Vue 3 + shadcn-vue SPA served under `/app/`, emb
 
 ### T-012 Point of Sale
 
-- area: pos
+- feature: Point of sale
 - done: 2026-10-02
 - prs: #2, #26, #27
 
@@ -64,7 +64,7 @@ Prefix search on name/barcode/manufacturer, cart with price-option per line, dis
 
 ### T-011 Low stock & expiring items pages
 
-- area: reports
+- feature: Reports & insights
 - done: 2026-09-29
 - prs: #26
 
@@ -72,17 +72,17 @@ Dedicated Low Stock and Expiring pages with PDF export (jsPDF).
 
 ### T-010 Authentication & sessions
 
-- area: security
+- feature: Security hardening
 - done: 2026-09-29
 - prs: #26
 
-Login page, Argon2id password hashing, gorilla/sessions cookie sessions (expire at 3am), CSRF via gorilla/csrf with `GET /csrf-token` for the SPA.
+Login page (built before PRs were used), Argon2id password hashing, gorilla/sessions cookie sessions (expire at 3am), CSRF via gorilla/csrf with `GET /csrf-token` for the SPA.
 
 ## 2026-06
 
 ### T-009 Stock taking
 
-- area: inventory
+- feature: Inventory control
 - done: 2026-06-02
 - prs: #9, #12, #18, #24, #25
 
@@ -92,7 +92,7 @@ Named stock-take sessions, live multi-user counting over WebSocket, dispensary +
 
 ### T-008 Receiving (goods-in)
 
-- area: inventory
+- feature: Purchasing & receiving
 - done: 2026-05-09
 - prs: #1, #22
 
@@ -100,7 +100,7 @@ Receive supplier deliveries with cost price and expiry per line; hold/resume a r
 
 ### T-007 Role-based access control & admin panel
 
-- area: admin
+- feature: Permissions & audit
 - done: 2026-05-09
 - prs: #7, #23
 
@@ -110,7 +110,7 @@ Roles (Admin/Manager/Cashier), permissions and role-permission assignment. Admin
 
 ### T-006 Dashboard
 
-- area: reports
+- feature: Reports & insights
 - done: 2026-04-08
 - prs: #15, #17
 
@@ -118,7 +118,7 @@ KPIs with period-over-period trend, sales trend chart, category split, top selle
 
 ### T-005 Product catalog
 
-- area: inventory
+- feature: Inventory control
 - done: 2026-04-05
 - prs: #1, #13
 
@@ -128,7 +128,7 @@ Products with category, barcode, manufacturer, reorder level, cost price. Multip
 
 ### T-004 Sales history
 
-- area: pos
+- feature: Point of sale
 - done: 2025-12-16
 - prs: #2, #8
 
@@ -136,7 +136,7 @@ Browse sales by date range and search, item and payment detail, net period total
 
 ### T-003 Returns
 
-- area: pos
+- feature: Point of sale
 - done: 2025-12-15
 - prs: #5, #6
 
@@ -146,7 +146,7 @@ Return items against an original sale; stock goes back in (`IN_SALE_RETURN`); re
 
 ### T-002 Stock export to CSV
 
-- area: reports
+- feature: Reports & insights
 - done: 2025-10-28
 - prs: #4
 
@@ -156,7 +156,7 @@ Note: the new SPA no longer links to it.
 
 ### T-001 Hold & resume sales
 
-- area: pos
+- feature: Point of sale
 - done: 2025-10-07
 - prs: #3
 
