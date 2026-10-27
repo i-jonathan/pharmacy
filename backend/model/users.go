@@ -3,6 +3,7 @@ package model
 import (
 	"crypto/rand"
 	"crypto/subtle"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -114,6 +115,13 @@ func (u *User) ValidatePassword() error {
 	if utf8.RuneCountInString(u.Password) < MinPasswordLength {
 		return fmt.Errorf("password must be at least %d characters", MinPasswordLength)
 	}
+	lowered := strings.ToLower(u.Password)
+	if _, common := commonPasswords[lowered]; common {
+		return errors.New("this password is too common; choose another")
+	}
+	if u.UserName != "" && strings.Contains(lowered, strings.ToLower(u.UserName)) {
+		return errors.New("the password must not contain the username")
+	}
 	return nil
 }
 
@@ -126,4 +134,21 @@ func (u *User) ValidateUsername() error {
 		return errors.New("username contains invalid characters")
 	}
 	return nil
+}
+
+//go:embed common_passwords.txt
+var commonPasswordsFile string
+
+// commonPasswords holds the lowercased entries of common_passwords.txt.
+var commonPasswords = loadCommonPasswords(commonPasswordsFile)
+
+func loadCommonPasswords(file string) map[string]struct{} {
+	set := make(map[string]struct{})
+	for _, line := range strings.Split(file, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			set[line] = struct{}{}
+		}
+	}
+	return set
 }
