@@ -9,6 +9,8 @@ make assets    # tailwind + vue build
 make run       # or `make dev` to rebuild assets first
 ```
 
+A fresh database has no users. Create the first admin with `cd backend && go run . create-admin -username owner` (or `<executable> create-admin` on a build); it prompts for the password or reads `PHARMACY_ADMIN_PASSWORD`. There is no public sign-up; admins add other users in Administration → Users.
+
 Server listens on `:8000`. Stop with `Ctrl+C`.
 
 ## Commands
