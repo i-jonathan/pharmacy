@@ -112,10 +112,12 @@ func (u *User) VerifyPassword(hash string) (bool, error) {
 const MinPasswordLength = 10
 
 func (u *User) ValidatePassword() error {
-	if utf8.RuneCountInString(u.Password) < MinPasswordLength {
+	// Surrounding spaces are kept in the stored password but don't count towards its strength.
+	core := strings.TrimSpace(u.Password)
+	if utf8.RuneCountInString(core) < MinPasswordLength {
 		return fmt.Errorf("password must be at least %d characters", MinPasswordLength)
 	}
-	lowered := strings.ToLower(u.Password)
+	lowered := strings.ToLower(core)
 	if _, common := commonPasswords[lowered]; common {
 		return errors.New("this password is too common; choose another")
 	}

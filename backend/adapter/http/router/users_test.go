@@ -68,3 +68,18 @@ func TestAdminCreateUserPassesTheRequestAndActor(t *testing.T) {
 		t.Fatalf("service got %+v from actor %d", svc.got, svc.actorID)
 	}
 }
+
+func TestAdminCreateUserNeedsASignedInUser(t *testing.T) {
+	svc := &fakeAdminService{}
+	handler := InitAdminRouter(svc, errorPage)
+	body := `{"username":"ada","password":"ten chars!","role_id":3}`
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized || svc.got.Username != "" {
+		t.Fatalf("expected 401 without calling the service, got %d (service saw %+v)",
+			rec.Code, svc.got)
+	}
+}

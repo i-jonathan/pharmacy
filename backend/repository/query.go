@@ -33,7 +33,7 @@ ORDER BY p.name ASC
 const createUserWithRoleQuery = `
 	INSERT INTO users (username, password, role_id) VALUES ($1, $2, $3) RETURNING id
 `
-const roleExistsQuery = `SELECT EXISTS (SELECT 1 FROM roles WHERE id = $1)`
+const usernameByIDQuery = `SELECT username FROM users WHERE id = $1`
 const roleIDByNameQuery = `SELECT id FROM roles WHERE name = $1`
 const fetchUserByNameQuery = `
 	SELECT

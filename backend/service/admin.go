@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"log"
@@ -138,8 +139,15 @@ func (s *adminService) UpdateUserRole(ctx context.Context, userID, roleID int) e
 }
 
 func (s *adminService) ResetUserPassword(ctx context.Context, userID int, newPassword string) error {
-	newPassword = strings.TrimSpace(newPassword)
-	u := model.User{Password: newPassword}
+	username, err := s.repo.FetchUsernameByID(ctx, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return httperror.NotFound("user not found", err)
+	}
+	if err != nil {
+		return httperror.ServerError("failed to fetch user", err)
+	}
+	// Stored exactly as typed: login compares the untrimmed password.
+	u := model.User{UserName: username, Password: newPassword}
 	if err := u.ValidatePassword(); err != nil {
 		return httperror.BadRequest(err.Error(), err)
 	}
@@ -149,7 +157,7 @@ func (s *adminService) ResetUserPassword(ctx context.Context, userID int, newPas
 		return httperror.ServerError("failed to hash password", err)
 	}
 
-	err := s.repo.UpdateUserPassword(ctx, userID, u.Password)
+	err = s.repo.UpdateUserPassword(ctx, userID, u.Password)
 	if err != nil {
 		log.Println(err)
 		return httperror.ServerError("failed to update password", err)
@@ -243,14 +251,6 @@ func (s *adminService) CreateUser(
 		}
 	}()
 
-	exists, err := s.repo.RoleExistsTx(ctx, tx, req.RoleID)
-	if err != nil {
-		return 0, httperror.ServerError("failed to check role", err)
-	}
-	if !exists {
-		return 0, httperror.BadRequest("that role does not exist", nil)
-	}
-
 	if err = user.HashPassword(); err != nil {
 		return 0, httperror.ServerError("failed to hash password", err)
 	}
@@ -258,6 +258,9 @@ func (s *adminService) CreateUser(
 	id, err := s.repo.CreateUserTx(ctx, tx, user)
 	if errors.Is(err, repository.ErrUsernameTaken) {
 		return 0, httperror.NewHttpError(http.StatusConflict, "username already exists", nil)
+	}
+	if errors.Is(err, repository.ErrRoleNotFound) {
+		return 0, httperror.BadRequest("that role does not exist", err)
 	}
 	if err != nil {
 		log.Println(err)
@@ -270,6 +273,7 @@ func (s *adminService) CreateUser(
 	}
 	err = s.repo.InsertAuditLogTx(ctx, tx, types.AuditEntry{
 		ActorID:    actorID,
+		NoActor:    actorID == 0,
 		EntityType: constant.AuditEntityUser,
 		EntityID:   id,
 		Action:     constant.AuditCreated,

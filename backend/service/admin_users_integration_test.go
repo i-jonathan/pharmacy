@@ -84,6 +84,13 @@ func TestCreateUserAgainstTheDatabase(t *testing.T) {
 		t.Fatalf("a taken username should be a 409, got %v", err)
 	}
 
+	_, err = svc.CreateUser(ctx, types.CreateUserRequest{
+		Username: "bola", Password: "another password", RoleID: 999,
+	}, firstAdmin)
+	if status(err) != http.StatusBadRequest {
+		t.Fatalf("an unknown role should be a 400, got %v", err)
+	}
+
 	var users int
 	db.Get(&users, `SELECT count(*) FROM users`)
 	if users != 2 {

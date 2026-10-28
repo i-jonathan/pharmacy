@@ -6,7 +6,9 @@ import (
 )
 
 func TestValidatePasswordRejectsCommonPasswords(t *testing.T) {
-	for _, password := range []string{"basketball", "1q2w3e4r5t", "Password12", "QWERTYUIOP"} {
+	for _, password := range []string{
+		"basketball", "1q2w3e4r5t", "Password12", "QWERTYUIOP", "basketball ", " qwertyuiop",
+	} {
 		err := (&User{Password: password}).ValidatePassword()
 		if err == nil || !strings.Contains(err.Error(), "too common") {
 			t.Errorf("%q is a common password and should be refused, got %v", password, err)

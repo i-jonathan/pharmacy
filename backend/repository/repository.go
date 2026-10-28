@@ -13,7 +13,7 @@ import (
 type UserRepository interface {
 	FetchUserWithPassword(ctx context.Context, userName string) (model.User, error)
 	CreateUserTx(ctx context.Context, tx *sqlx.Tx, user model.User) (int, error)
-	RoleExistsTx(ctx context.Context, tx *sqlx.Tx, roleID int) (bool, error)
+	FetchUsernameByID(ctx context.Context, userID int) (string, error)
 	FetchRoleIDByName(ctx context.Context, name string) (int, error)
 	BulkFetchUserByIDTx(ctx context.Context, tx *sqlx.Tx, userIDs []int) ([]model.User, error)
 }

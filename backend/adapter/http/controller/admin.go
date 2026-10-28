@@ -165,7 +165,11 @@ func (c *adminController) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID, _ := r.Context().Value(constant.UserIDKey).(int)
+	actorID, ok := r.Context().Value(constant.UserIDKey).(int)
+	if !ok || actorID <= 0 {
+		httperror.Unauthorized("sign in to add users", nil).JSONRespond(w)
+		return
+	}
 	id, err := c.adminService.CreateUser(r.Context(), params, actorID)
 	if err != nil {
 		var httperr *httperror.HTTPError

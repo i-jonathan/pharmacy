@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"pharmacy/internal/constant"
@@ -25,6 +26,7 @@ type fakeUserRepo struct {
 	commits   int
 	rollbacks int
 	passwords map[int]string
+	usernames map[int]string
 }
 
 func (r *fakeUserRepo) BeginTx(context.Context) (*sqlx.Tx, error) { return nil, nil }
@@ -34,13 +36,12 @@ func (r *fakeUserRepo) CommitTx(*sqlx.Tx) error {
 	return nil
 }
 
-func (r *fakeUserRepo) RoleExistsTx(_ context.Context, _ *sqlx.Tx, roleID int) (bool, error) {
-	return r.roles[roleID], nil
-}
-
 func (r *fakeUserRepo) CreateUserTx(_ context.Context, _ *sqlx.Tx, user model.User) (int, error) {
 	if r.insertErr != nil {
 		return 0, r.insertErr
+	}
+	if !r.roles[user.RoleID] {
+		return 0, repository.ErrRoleNotFound
 	}
 	r.inserted = append(r.inserted, user)
 	return 41 + len(r.inserted), nil
@@ -49,6 +50,14 @@ func (r *fakeUserRepo) CreateUserTx(_ context.Context, _ *sqlx.Tx, user model.Us
 func (r *fakeUserRepo) InsertAuditLogTx(_ context.Context, _ *sqlx.Tx, e types.AuditEntry) error {
 	r.audit = append(r.audit, e)
 	return nil
+}
+
+func (r *fakeUserRepo) FetchUsernameByID(_ context.Context, userID int) (string, error) {
+	name, ok := r.usernames[userID]
+	if !ok {
+		return "", sql.ErrNoRows
+	}
+	return name, nil
 }
 
 func (r *fakeUserRepo) UpdateUserPassword(_ context.Context, userID int, hashed string) error {
@@ -62,7 +71,10 @@ func (r *fakeUserRepo) UpdateUserPassword(_ context.Context, userID int, hashed 
 const cashierRoleID = 3
 
 func newUserRepo() *fakeUserRepo {
-	return &fakeUserRepo{roles: map[int]bool{1: true, 2: true, cashierRoleID: true}}
+	return &fakeUserRepo{
+		roles:     map[int]bool{1: true, 2: true, cashierRoleID: true},
+		usernames: map[int]string{5: "ada_cashier"},
+	}
 }
 
 func validUser() types.CreateUserRequest {
@@ -77,6 +89,7 @@ func TestCreateUserRejectsInvalidInput(t *testing.T) {
 		"username with spaces inside": func(u *types.CreateUserRequest) { u.Username = "ada lovelace" },
 		"password of nine characters": func(u *types.CreateUserRequest) { u.Password = "nine char" },
 		"nine multibyte characters":   func(u *types.CreateUserRequest) { u.Password = "ééééééééé" },
+		"only spaces":                 func(u *types.CreateUserRequest) { u.Password = "          " },
 		"no role chosen":              func(u *types.CreateUserRequest) { u.RoleID = 0 },
 		"role that does not exist":    func(u *types.CreateUserRequest) { u.RoleID = 99 },
 	}
@@ -172,5 +185,55 @@ func TestResetUserPasswordNeedsTenCharacters(t *testing.T) {
 	}
 	if repo.passwords[5] == "" || repo.passwords[5] == "ten chars!" {
 		t.Fatal("expected a hashed password to be saved")
+	}
+}
+
+func TestCreateUserFromTheCommandLineHasNoActor(t *testing.T) {
+	repo := newUserRepo()
+
+	if _, err := NewAdminService(
+		repo,
+	).CreateUser(context.Background(), validUser(), 0); err != nil {
+		t.Fatal(err)
+	}
+	if !repo.audit[0].NoActor {
+		t.Fatal("a user created with no one signed in should be audited with no actor")
+	}
+
+	repo = newUserRepo()
+	if _, err := NewAdminService(
+		repo,
+	).CreateUser(context.Background(), validUser(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if repo.audit[0].NoActor {
+		t.Fatal("a user created by an admin must record that admin as the actor")
+	}
+}
+
+func TestResetUserPasswordRefusesOneContainingTheUsername(t *testing.T) {
+	err := NewAdminService(
+		newUserRepo(),
+	).ResetUserPassword(context.Background(), 5, "Ada_Cashier2025")
+	requireHTTPStatus(t, err, http.StatusBadRequest)
+}
+
+func TestResetUserPasswordOfAnUnknownUserIsNotFound(t *testing.T) {
+	err := NewAdminService(
+		newUserRepo(),
+	).ResetUserPassword(context.Background(), 99, "calm river 47")
+	requireHTTPStatus(t, err, http.StatusNotFound)
+}
+
+func TestResetUserPasswordKeepsSpacesSoItCanBeTypedBack(t *testing.T) {
+	repo := newUserRepo()
+
+	err := NewAdminService(repo).ResetUserPassword(context.Background(), 5, "  calm river 47 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, err := (&model.User{Password: "  calm river 47 "}).VerifyPassword(repo.passwords[5])
+	if err != nil || !ok {
+		t.Fatal("the password must be stored exactly as typed, spaces included")
 	}
 }
