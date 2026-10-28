@@ -8,7 +8,7 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 - feature: Security hardening
 - done: 2026-10-28
-- prs: (pending)
+- prs: #32
 
 Removed public `POST /user/register`. Admins add users in Administration → Users → Add user (`POST /admin/api/users`, behind `admin:access`, audited). The first admin on a new install comes from the `create-admin` subcommand of the executable. Passwords need 10+ characters, must not be on the bundled NCSC common-password list and must not contain the username as a word; the admin reset uses the same rule and now stores the password as typed. Plan: `docs/plans/T-018-lock-down-registration.md`.
 
