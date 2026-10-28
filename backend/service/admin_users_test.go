@@ -41,7 +41,7 @@ func (r *fakeUserRepo) CreateUserTx(_ context.Context, _ *sqlx.Tx, user model.Us
 		return 0, r.insertErr
 	}
 	if !r.roles[user.RoleID] {
-		return 0, repository.ErrRoleNotFound
+		return 0, repository.ErrInvalidReference
 	}
 	r.inserted = append(r.inserted, user)
 	return 41 + len(r.inserted), nil
@@ -235,5 +235,16 @@ func TestResetUserPasswordKeepsSpacesSoItCanBeTypedBack(t *testing.T) {
 	ok, err := (&model.User{Password: "  calm river 47 "}).VerifyPassword(repo.passwords[5])
 	if err != nil || !ok {
 		t.Fatal("the password must be stored exactly as typed, spaces included")
+	}
+}
+
+func TestCreateUserRefusesANegativeActor(t *testing.T) {
+	repo := newUserRepo()
+
+	_, err := NewAdminService(repo).CreateUser(context.Background(), validUser(), -1)
+
+	requireHTTPStatus(t, err, http.StatusBadRequest)
+	if len(repo.inserted) != 0 {
+		t.Fatal("nothing should be saved for an invalid actor")
 	}
 }

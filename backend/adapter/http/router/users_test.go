@@ -33,8 +33,10 @@ func TestPublicRegistrationIsGone(t *testing.T) {
 // fakeAdminService captures the create-user call; everything else is unused here.
 type fakeAdminService struct {
 	service.AdminService
-	got     types.CreateUserRequest
-	actorID int
+	got      types.CreateUserRequest
+	actorID  int
+	resetFor int
+	resetTo  string
 }
 
 func (f *fakeAdminService) CreateUser(
@@ -81,5 +83,41 @@ func TestAdminCreateUserNeedsASignedInUser(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized || svc.got.Username != "" {
 		t.Fatalf("expected 401 without calling the service, got %d (service saw %+v)",
 			rec.Code, svc.got)
+	}
+}
+
+func TestAdminCreateUserRefusesAnOversizedBody(t *testing.T) {
+	svc := &fakeAdminService{}
+	handler := InitAdminRouter(svc, errorPage)
+	big := `{"username":"ada","password":"` + strings.Repeat("x", 32*1024) + `","role_id":3}`
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users", strings.NewReader(big))
+	req = req.WithContext(context.WithValue(req.Context(), constant.UserIDKey, 7))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge || svc.got.Username != "" {
+		t.Fatalf("expected 413 without calling the service, got %d", rec.Code)
+	}
+}
+
+func (f *fakeAdminService) ResetUserPassword(_ context.Context, userID int, password string) error {
+	f.resetFor, f.resetTo = userID, password
+	return nil
+}
+
+func TestAdminResetPasswordRefusesAnOversizedBody(t *testing.T) {
+	svc := &fakeAdminService{}
+	handler := InitAdminRouter(svc, errorPage)
+	big := `{"new_password":"` + strings.Repeat("x", 32*1024) + `"}`
+	req := httptest.NewRequest(
+		http.MethodPost, "/admin/api/users/5/reset-password", strings.NewReader(big),
+	)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge || svc.resetFor != 0 {
+		t.Fatalf("expected 413 without calling the service, got %d", rec.Code)
 	}
 }

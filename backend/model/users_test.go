@@ -36,3 +36,41 @@ func TestCommonPasswordListIsLoaded(t *testing.T) {
 			len(commonPasswords))
 	}
 }
+
+func TestValidateUsernameExplainsTheRuleInPlainWords(t *testing.T) {
+	cases := map[string]string{
+		"ab":           "username must be 3 to 15 characters",
+		"ada lovelace": "username can only use letters, numbers and _",
+	}
+	for name, want := range cases {
+		err := (&User{UserName: name}).ValidateUsername()
+		if err == nil || err.Error() != want {
+			t.Errorf("%q: want %q, got %v", name, want, err)
+		}
+	}
+}
+
+func TestValidatePasswordChecksTheUsernameAsAWord(t *testing.T) {
+	refused := map[string]string{
+		"mary":  "mary123456",
+		"jay":   "jay2026!!xx",
+		"amaka": "amaka is my name",
+		"ada":   "my name is ADA ok",
+	}
+	for name, password := range refused {
+		err := (&User{UserName: name, Password: password}).ValidatePassword()
+		if err == nil || !strings.Contains(err.Error(), "username") {
+			t.Errorf("%q with username %q should be refused, got %v", password, name, err)
+		}
+	}
+	allowed := map[string]string{
+		"ada": "nevada sunset 2026",
+		"jay": "majestic river 9",
+	}
+	for name, password := range allowed {
+		if err := (&User{UserName: name, Password: password}).ValidatePassword(); err != nil {
+			t.Errorf("%q only contains %q inside a word and should be allowed: %v",
+				password, name, err)
+		}
+	}
+}

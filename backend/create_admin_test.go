@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"pharmacy/internal/types"
 	"strings"
 	"testing"
@@ -60,7 +60,7 @@ func TestCreateAdminNeedsAnAdminRole(t *testing.T) {
 }
 
 func TestReadNewPasswordPrefersTheEnvironment(t *testing.T) {
-	got, err := readNewPassword("from env", false, nil, nil, &bytes.Buffer{})
+	got, err := readNewPassword("from env", false, nil, &bytes.Buffer{})
 	if err != nil || got != "from env" {
 		t.Fatalf("got %q, %v", got, err)
 	}
@@ -74,7 +74,7 @@ func TestReadNewPasswordAsksTwiceOnATerminal(t *testing.T) {
 		return []byte(next), nil
 	}
 
-	got, err := readNewPassword("", true, secret, nil, &bytes.Buffer{})
+	got, err := readNewPassword("", true, secret, &bytes.Buffer{})
 	if err != nil || got != "first try pass" {
 		t.Fatalf("got %q, %v", got, err)
 	}
@@ -88,17 +88,34 @@ func TestReadNewPasswordRefusesAMismatch(t *testing.T) {
 		return []byte(next), nil
 	}
 
-	_, err := readNewPassword("", true, secret, nil, &bytes.Buffer{})
+	_, err := readNewPassword("", true, secret, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "do not match") {
 		t.Fatalf("expected a mismatch error, got %v", err)
 	}
 }
 
-func TestReadNewPasswordReadsALineWhenPiped(t *testing.T) {
-	in := bufio.NewReader(strings.NewReader("piped password\n"))
+func TestReadNewPasswordNeedsTheEnvironmentWithoutATerminal(t *testing.T) {
+	_, err := readNewPassword("", false, nil, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "PHARMACY_ADMIN_PASSWORD") {
+		t.Fatalf("without a terminal it should ask for PHARMACY_ADMIN_PASSWORD, got %v", err)
+	}
+}
 
-	got, err := readNewPassword("", false, nil, in, &bytes.Buffer{})
-	if err != nil || got != "piped password" {
-		t.Fatalf("got %q, %v", got, err)
+func TestReadLineStopsAtTheNewline(t *testing.T) {
+	in := strings.NewReader("owner\nsecret pass\n")
+
+	line, err := readLine(in)
+	if err != nil || line != "owner" {
+		t.Fatalf("got %q, %v", line, err)
+	}
+	rest, _ := io.ReadAll(in)
+	if string(rest) != "secret pass\n" {
+		t.Fatalf("reading the username must not consume what follows, left %q", rest)
+	}
+}
+
+func TestCreateAdminHelpExitsCleanly(t *testing.T) {
+	if code := runCreateAdmin([]string{"-h"}); code != 0 {
+		t.Fatalf("create-admin -h should exit 0, got %d", code)
 	}
 }

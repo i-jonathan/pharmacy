@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
@@ -111,6 +112,8 @@ func (u *User) VerifyPassword(hash string) (bool, error) {
 // MinPasswordLength is the shortest password accepted when one is set, counted in characters.
 const MinPasswordLength = 10
 
+var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+
 func (u *User) ValidatePassword() error {
 	// Surrounding spaces are kept in the stored password but don't count towards its strength.
 	core := strings.TrimSpace(u.Password)
@@ -121,7 +124,7 @@ func (u *User) ValidatePassword() error {
 	if _, common := commonPasswords[lowered]; common {
 		return errors.New("this password is too common; choose another")
 	}
-	if u.UserName != "" && strings.Contains(lowered, strings.ToLower(u.UserName)) {
+	if u.UserName != "" && containsAsWord(lowered, strings.ToLower(u.UserName)) {
 		return errors.New("the password must not contain the username")
 	}
 	return nil
@@ -129,13 +132,31 @@ func (u *User) ValidatePassword() error {
 
 func (u *User) ValidateUsername() error {
 	if len(u.UserName) < 3 || len(u.UserName) > 15 {
-		return errors.New("come on. username is either too short or long")
+		return errors.New("username must be 3 to 15 characters")
 	}
 
-	if !regexp.MustCompile(`^[a-zA-Z0-9_]+$`).MatchString(u.UserName) {
-		return errors.New("username contains invalid characters")
+	if !usernamePattern.MatchString(u.UserName) {
+		return errors.New("username can only use letters, numbers and _")
 	}
 	return nil
+}
+
+// containsAsWord reports whether word appears in s with no letter right before or after it, so
+// "mary" is found in "mary123456" but "ada" is not found in "nevada".
+func containsAsWord(s, word string) bool {
+	for start := 0; ; {
+		i := strings.Index(s[start:], word)
+		if i < 0 {
+			return false
+		}
+		i += start
+		before, _ := utf8.DecodeLastRuneInString(s[:i])
+		after, _ := utf8.DecodeRuneInString(s[i+len(word):])
+		if !unicode.IsLetter(before) && !unicode.IsLetter(after) {
+			return true
+		}
+		start = i + 1
+	}
 }
 
 //go:embed common_passwords.txt

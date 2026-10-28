@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -36,14 +35,17 @@ func runCreateAdmin(args []string) int {
 	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
 	username := flags.String("username", "", "username for the new admin")
 	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 
-	in := bufio.NewReader(os.Stdin)
 	name := strings.TrimSpace(*username)
 	if name == "" {
 		fmt.Print("Username: ")
-		line, err := in.ReadString('\n')
+		// Unbuffered, so anything typed after the username is left for the password prompt.
+		line, err := readLine(os.Stdin)
 		if err != nil && line == "" {
 			fmt.Fprintln(os.Stderr, "create-admin: no username given")
 			return 1
@@ -56,7 +58,6 @@ func runCreateAdmin(args []string) int {
 		os.Getenv("PHARMACY_ADMIN_PASSWORD"),
 		term.IsTerminal(stdin),
 		func() ([]byte, error) { return term.ReadPassword(stdin) },
-		in,
 		os.Stdout,
 	)
 	if err != nil {
@@ -93,20 +94,16 @@ func createAdmin(
 	}, 0)
 }
 
-// readNewPassword takes the password from env when set. On a terminal it asks twice without
-// echoing; when input is piped it reads one line.
+// readNewPassword takes the password from env when set, otherwise asks twice on the terminal
+// without echoing. Without a terminal there is no way to confirm it, so env is required.
 func readNewPassword(
-	env string, terminal bool, readSecret func() ([]byte, error), in *bufio.Reader, out io.Writer,
+	env string, terminal bool, readSecret func() ([]byte, error), out io.Writer,
 ) (string, error) {
 	if env != "" {
 		return env, nil
 	}
 	if !terminal {
-		line, err := in.ReadString('\n')
-		if err != nil && line == "" {
-			return "", errors.New("no password given")
-		}
-		return strings.TrimRight(line, "\r\n"), nil
+		return "", errors.New("no terminal to type the password in: set PHARMACY_ADMIN_PASSWORD")
 	}
 
 	fmt.Fprint(out, "Password: ")
@@ -125,6 +122,24 @@ func readNewPassword(
 		return "", errors.New("the passwords do not match")
 	}
 	return string(first), nil
+}
+
+// readLine reads up to the next newline one byte at a time, so nothing after it is consumed.
+func readLine(r io.Reader) (string, error) {
+	var line []byte
+	b := make([]byte, 1)
+	for {
+		n, err := r.Read(b)
+		if n == 1 {
+			if b[0] == '\n' {
+				return strings.TrimRight(string(line), "\r"), nil
+			}
+			line = append(line, b[0])
+		}
+		if err != nil {
+			return string(line), err
+		}
+	}
 }
 
 // userMessage is the plain message of a service error, without the wrapped cause.

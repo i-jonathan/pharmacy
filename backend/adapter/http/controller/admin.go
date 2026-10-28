@@ -157,17 +157,36 @@ func (c *adminController) ListUsers(w http.ResponseWriter, r *http.Request) {
 	helper.JSONResponse(w, http.StatusOK, users)
 }
 
+// maxJSONBody caps request bodies that carry passwords, which are then hashed with Argon2id.
+const maxJSONBody = 16 * 1024
+
+// decodeLimitedJSON decodes a JSON body of at most maxJSONBody bytes into v. It writes the error
+// response itself and reports whether decoding succeeded.
+func decodeLimitedJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxJSONBody)).Decode(v)
+	var tooLarge *http.MaxBytesError
+	switch {
+	case errors.As(err, &tooLarge):
+		httperror.NewHttpError(http.StatusRequestEntityTooLarge, "request too large", err).
+			JSONRespond(w)
+		return false
+	case err != nil:
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return false
+	}
+	return true
+}
+
 // CreateUser adds a staff account. The admin making the request is recorded as the actor.
 func (c *adminController) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var params types.CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		httperror.BadRequest("invalid json", err).JSONRespond(w)
-		return
-	}
-
 	actorID, ok := r.Context().Value(constant.UserIDKey).(int)
 	if !ok || actorID <= 0 {
 		httperror.Unauthorized("sign in to add users", nil).JSONRespond(w)
+		return
+	}
+
+	var params types.CreateUserRequest
+	if !decodeLimitedJSON(w, r, &params) {
 		return
 	}
 	id, err := c.adminService.CreateUser(r.Context(), params, actorID)
@@ -218,8 +237,7 @@ func (c *adminController) ResetUserPassword(w http.ResponseWriter, r *http.Reque
 	}
 
 	var params types.ResetPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		httperror.BadRequest("invalid json", err).JSONRespond(w)
+	if !decodeLimitedJSON(w, r, &params) {
 		return
 	}
 

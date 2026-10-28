@@ -33,27 +33,19 @@ func (r *repo) BulkFetchUserByIDTx(ctx context.Context, tx *sqlx.Tx, userIDs []i
 // ErrUsernameTaken is returned when a new user's username is already in use.
 var ErrUsernameTaken = errors.New("username already exists")
 
-// ErrRoleNotFound is returned when a new user's role does not exist.
-var ErrRoleNotFound = errors.New("role does not exist")
-
 // CreateUserTx inserts a user with its role and returns the new id. The unique index on
 // username decides duplicates, so two admins adding the same name at once can't both succeed,
-// and the role's foreign key decides whether the role exists.
+// and the role's foreign key decides whether the role exists (ErrInvalidReference).
 func (r *repo) CreateUserTx(ctx context.Context, tx *sqlx.Tx, user model.User) (int, error) {
 	var id int
 	err := tx.GetContext(
 		ctx, &id, createUserWithRoleQuery, user.UserName, user.Password, user.RoleID,
 	)
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		switch pgErr.Code {
-		case "23505":
-			return 0, ErrUsernameTaken
-		case "23503":
-			return 0, ErrRoleNotFound
-		}
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return 0, ErrUsernameTaken
 	}
-	return id, err
+	return id, mapForeignKeyError(err)
 }
 
 func (r *repo) FetchUsernameByID(ctx context.Context, userID int) (string, error) {

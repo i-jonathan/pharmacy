@@ -239,6 +239,15 @@ func (s *adminService) CreateUser(
 	if req.RoleID <= 0 {
 		return 0, httperror.BadRequest("choose a role", nil)
 	}
+	if actorID < 0 {
+		return 0, httperror.BadRequest("invalid actor", nil)
+	}
+
+	// Hash before opening the transaction: Argon2id is slow on purpose, and a connection
+	// shouldn't be held while it runs.
+	if err := user.HashPassword(); err != nil {
+		return 0, httperror.ServerError("failed to hash password", err)
+	}
 
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
@@ -251,15 +260,12 @@ func (s *adminService) CreateUser(
 		}
 	}()
 
-	if err = user.HashPassword(); err != nil {
-		return 0, httperror.ServerError("failed to hash password", err)
-	}
 	user.RoleID = req.RoleID
 	id, err := s.repo.CreateUserTx(ctx, tx, user)
 	if errors.Is(err, repository.ErrUsernameTaken) {
 		return 0, httperror.NewHttpError(http.StatusConflict, "username already exists", nil)
 	}
-	if errors.Is(err, repository.ErrRoleNotFound) {
+	if errors.Is(err, repository.ErrInvalidReference) {
 		return 0, httperror.BadRequest("that role does not exist", err)
 	}
 	if err != nil {

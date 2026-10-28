@@ -58,7 +58,7 @@
 
         <!-- Add User Modal -->
         <div v-if="adding" class="fixed inset-0 z-50 flex items-center justify-center">
-            <div class="absolute inset-0 bg-black/40" @click="adding = false"></div>
+            <div class="absolute inset-0 bg-black/40" @click="closeAddUser"></div>
             <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
                 <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">Add user</h3>
                 <form @submit.prevent="addUser">
@@ -111,8 +111,9 @@
                     <div class="flex justify-end gap-3">
                         <button
                             type="button"
-                            @click="adding = false"
-                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
+                            :disabled="saving"
+                            @click="closeAddUser"
+                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 disabled:opacity-50 transition-colors"
                         >Cancel</button>
                         <button
                             type="submit"
@@ -126,7 +127,7 @@
 
         <!-- Reset Password Modal -->
         <div v-if="resetUser" class="fixed inset-0 z-50 flex items-center justify-center">
-            <div class="absolute inset-0 bg-black/40" @click="resetUser = null"></div>
+            <div class="absolute inset-0 bg-black/40" @click="closeResetPassword"></div>
             <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
                 <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
                     Reset Password for {{ resetUser.username }}
@@ -143,12 +144,24 @@
                             class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
                         />
                     </div>
+                    <div class="mb-4">
+                        <label for="reset-password-confirm" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Confirm password</label>
+                        <input
+                            id="reset-password-confirm"
+                            v-model="confirmPassword"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
+                        />
+                    </div>
                     <div v-if="resetError" class="mb-4 text-sm text-red-500">{{ resetError }}</div>
                     <div class="flex justify-end gap-3">
                         <button
                             type="button"
-                            @click="resetUser = null"
-                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
+                            :disabled="resetting"
+                            @click="closeResetPassword"
+                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 disabled:opacity-50 transition-colors"
                         >Cancel</button>
                         <button
                             type="submit"
@@ -175,6 +188,7 @@ export default {
             error: null,
             resetUser: null,
             newPassword: "",
+            confirmPassword: "",
             resetting: false,
             resetError: null,
             adding: false,
@@ -224,6 +238,10 @@ export default {
             this.addError = null;
             this.adding = true;
         },
+        // Stay open while saving, so the result (or an error such as a taken username) is seen.
+        closeAddUser() {
+            if (!this.saving) this.adding = false;
+        },
         async addUser() {
             if (this.newUser.password !== this.newUser.confirm) {
                 this.addError = "The passwords do not match.";
@@ -256,9 +274,17 @@ export default {
         openResetPassword(user) {
             this.resetUser = user;
             this.newPassword = "";
+            this.confirmPassword = "";
             this.resetError = null;
         },
+        closeResetPassword() {
+            if (!this.resetting) this.resetUser = null;
+        },
         async resetPassword() {
+            if (this.newPassword !== this.confirmPassword) {
+                this.resetError = "The passwords do not match.";
+                return;
+            }
             this.resetting = true;
             this.resetError = null;
             try {
@@ -268,7 +294,7 @@ export default {
                     body: JSON.stringify({ new_password: this.newPassword }),
                 });
                 if (!res.ok) {
-                    const data = await res.json();
+                    const data = await res.json().catch(() => ({}));
                     throw new Error(data.error || "Failed to reset");
                 }
                 this.resetUser = null;
