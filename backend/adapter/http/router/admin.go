@@ -24,6 +24,7 @@ func InitAdminRouter(svc service.AdminService, tmpl *template.Template) http.Han
 	mux.HandleFunc("GET /api/roles", ctrl.ListRoles)
 
 	mux.HandleFunc("GET /api/users", ctrl.ListUsers)
+	mux.HandleFunc("POST /api/users", ctrl.CreateUser)
 	mux.HandleFunc("POST /api/users/{id}/role", ctrl.UpdateUserRole)
 	mux.HandleFunc("POST /api/users/{id}/reset-password", ctrl.ResetUserPassword)
 

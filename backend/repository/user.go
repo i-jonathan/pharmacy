@@ -2,9 +2,10 @@ package repository
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"pharmacy/model"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -19,25 +20,6 @@ func (r *repo) FetchUserWithPassword(ctx context.Context, username string) (mode
 	return user, nil
 }
 
-func (r *repo) CheckUserNameExists(ctx context.Context, userName string) (bool, error) {
-	var dummy int
-	err := r.Data.GetContext(ctx, &dummy, usernameExistsQuery, userName)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (r *repo) CreateUserAccount(ctx context.Context, user model.User) error {
-	_, err := r.Data.ExecContext(ctx, createUserQuery, user.UserName, user.Password)
-	return err
-}
-
 func (r *repo) BulkFetchUserByIDTx(ctx context.Context, tx *sqlx.Tx, userIDs []int) ([]model.User, error) {
 	var users []model.User
 
@@ -46,4 +28,40 @@ func (r *repo) BulkFetchUserByIDTx(ctx context.Context, tx *sqlx.Tx, userIDs []i
 		return nil, err
 	}
 	return users, nil
+}
+
+// ErrUsernameTaken is returned when a new user's username is already in use.
+var ErrUsernameTaken = errors.New("username already exists")
+
+// CreateUserTx inserts a user with its role and returns the new id. The unique index on
+// username decides duplicates, so two admins adding the same name at once can't both succeed,
+// and the role's foreign key decides whether the role exists (ErrInvalidReference).
+func (r *repo) CreateUserTx(ctx context.Context, tx *sqlx.Tx, user model.User) (int, error) {
+	var id int
+	err := tx.GetContext(
+		ctx, &id, createUserWithRoleQuery, user.UserName, user.Password, user.RoleID,
+	)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return 0, ErrUsernameTaken
+	}
+	return id, mapForeignKeyError(err)
+}
+
+func (r *repo) FetchUsernameByID(ctx context.Context, userID int) (string, error) {
+	var name string
+	err := r.Data.GetContext(ctx, &name, usernameByIDQuery, userID)
+	return name, err
+}
+
+func (r *repo) FetchRoleIDByName(ctx context.Context, name string) (int, error) {
+	var id int
+	err := r.Data.GetContext(ctx, &id, roleIDByNameQuery, name)
+	return id, err
+}
+
+func (r *repo) FetchUsernamesByRole(ctx context.Context, roleID int) ([]string, error) {
+	names := []string{}
+	err := r.Data.SelectContext(ctx, &names, usernamesByRoleQuery, roleID)
+	return names, err
 }

@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-104 -->
+<!-- next-id: T-107 -->
 
 <details>
 <summary>How this board works</summary>
@@ -61,14 +61,6 @@ PRs #28 and #29 are merged; per PR #28, production was at migration 39.
 - [ ] Click through what #29's Playwright checks skipped: the admin category and permission delete dialogs, and the sales page "Discard and continue" path
 - [ ] `make assets`, build the image, deploy, have every user log in again to pick up the new permissions
 
-### T-018 Lock down public user registration
-
-- priority: P0
-- feature: Security hardening
-- created: 2026-10-26
-
-`POST /user/register` is mounted without auth (`router/user.go`, `main.go`): anyone who can reach the server can create a Cashier account. Remove it or restrict to admins / invitations.
-
 ### T-019 Authenticate the /ws WebSocket
 
 - priority: P0
@@ -116,6 +108,8 @@ Permissions are cached in the session cookie at login (`RequirePermissions` read
 - created: 2026-10-26
 
 No throttling or lockout on failed logins. Session cookie lacks `Secure`; review `SameSite`. Add HTTPS-only settings and security headers.
+
+Also cap request body size on every JSON endpoint (one middleware or shared helper). T-018 added `decodeLimitedJSON` (16 KB, 413 when exceeded) to the admin create-user and reset-password handlers only.
 
 ### T-025 CI pipeline
 
@@ -197,6 +191,8 @@ Import products, prices, price options and opening stock with expiry from a spre
 
 Self-serve signup that creates a tenant and its first admin, then a guided setup: store details, categories, products (import), users, opening stock.
 
+First-admin creation moves here from the `create-admin` command (T-018) once a new store is set up in the app.
+
 ### T-033 Subscription billing & plans
 
 - priority: P0
@@ -247,6 +243,8 @@ Every change writes an `audit_log` entry in the same transaction: who, when, wha
 - [ ] Settings changes and data exports
 - [ ] Admin screen to browse, filter (user, entity, action, date) and export the log
 
+Password resets by an admin are not audited yet (T-018 audits user creation only); include them here.
+
 ### T-099 Granular permissions with default roles
 
 - priority: P1
@@ -266,6 +264,16 @@ Everything is behind a permission. The system ships with default roles that have
 - [ ] Decide whether receiving against a purchase order needs its own permission (today anyone who can receive can)
 - [ ] Seed grants without matching role names: migration 000043 grants by name (`r.name = 'Cashier'`, `IN ('Manager', 'Admin')`), which breaks when a deployment's roles are named differently or tenants rename them
 - [ ] Works with per-request permission checks (T-023)
+
+- [ ] Split user management from `admin:access`: today anyone holding it can add users with any role, including Admin, and change roles. Limit which roles a non-Admin can grant (raised in T-018 review)
+
+### T-104 Password policy toward NIST guidance
+
+- priority: P1
+- feature: Security hardening
+- created: 2026-10-28
+
+T-018 set a 10-character minimum, a common-password list and a username check. NIST SP 800-63B rev 4 also asks for at least a 64-character maximum, no composition rules, and a 15-character minimum while login is password-only. Move to 15 when it's workable for the shop or once there's a second factor (T-075).
 
 ### T-103 Notification centre
 
@@ -594,7 +602,23 @@ Get data out in a usable form.
 - feature: Admin & settings
 - created: 2026-10-26
 
-Admins can't create or deactivate users from the UI, and users can't change their own password. Add invite/create, deactivate, change password, last login.
+Admins can add users (T-018), but can't deactivate them, and users can't change their own password. Add deactivate, change own password, last login, and optionally invite by link instead of a starting password.
+
+### T-106 Temporary passwords: change on first sign-in
+
+- priority: P1
+- feature: Security hardening
+- created: 2026-10-28
+
+The password an admin sets with Add user or Reset Password is known to the admin, so make it temporary.
+
+- [ ] A `must_change_password` flag on users (migration), set by Add user and admin resets, not by `create-admin`
+- [ ] While it's set, every page and API call except change password and sign out sends the user to a "Set your password" screen, enforced on the server
+- [ ] The screen asks for the temporary password, a new one and a confirmation. Same rules as everywhere (`ValidatePassword`), and it must differ from the temporary one. Saving clears the flag and writes an audit entry
+- [ ] Administration → Users shows "Password not set yet"
+- [ ] Optional: temporary passwords expire after a set number of days
+
+Shares the change-password endpoint and screen with T-064's "users change their own password". Build them together. Raised during T-018.
 
 ### T-065 Release & deployment pipeline
 
@@ -714,6 +738,14 @@ Generate and print barcode/shelf labels for products without manufacturer barcod
 - created: 2026-10-26
 
 Fast PIN-based user switching on a shared till; TOTP 2FA for admin accounts.
+
+### T-105 Case-insensitive unique usernames
+
+- priority: P2
+- feature: Security hardening
+- created: 2026-10-28
+
+Usernames are unique only case-sensitively, so "Ada" and "ada" can both exist, and login is case-sensitive. Add a unique index on `lower(username)` (migration), check existing data for clashes first, and decide whether login should ignore case. Found in T-018's review.
 
 ### T-076 Frontend lint & tests
 

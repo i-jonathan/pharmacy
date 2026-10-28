@@ -48,7 +48,10 @@ const (
 	PurchaseOrderClosed   = "closed"
 )
 
-const AuditEntityPurchaseOrder = "purchase_order"
+const (
+	AuditEntityPurchaseOrder = "purchase_order"
+	AuditEntityUser          = "user"
+)
 
 const (
 	AuditCreated   = "created"

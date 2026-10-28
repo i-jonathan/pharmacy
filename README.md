@@ -119,10 +119,12 @@ The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` 
 - Low-stock and expiring cards link to their full pages
 
 ### 8. Users & Auth
-- Account registration (`POST /user/register`); usernames are 3–15 letters, digits or underscores and passwords at least 8 characters
+- No public sign-up. Admins add staff in **Administration → Users → Add user** (username, role, starting password); the first admin on a new install comes from the `create-admin` command (see Quick Start)
+- Usernames are 3–15 letters, digits or underscores. Passwords need at least 10 characters (surrounding spaces don't count), must not be on the bundled common-password list (NCSC top 100k, 10+ character entries) and must not contain the username as a word (so "mary123456" is refused for "mary", but "nevada" is fine for "ada")
+- Creating a user writes an audit entry; one created by `create-admin` has no actor
 - **Argon2id** password hashing
 - Session-based authentication (Gorilla sessions)
-- **Role-based access control**: users have one role (`Admin`, `Manager` or `Cashier`; new accounts default to `Cashier`), and roles are granted permissions through `role_permissions`
+- **Role-based access control**: users have one role (`Admin`, `Manager` or `Cashier`, chosen when the user is added), and roles are granted permissions through `role_permissions`
 - Permissions are stored as `resource`/`action` pairs and exposed as lowercase `resource:action` keys. They are computed at login and kept in the session, so a permission change takes effect after the user logs in again
 
 ### 9. Permissions
@@ -204,7 +206,13 @@ make migrate-up DB_URL="postgres://user:pass@localhost:5432/pharmacy?sslmode=dis
 cd frontend && npm install && cd ..
 make assets
 
-# 6. Start the server
+# 6. Create the first admin (prompts for a password, or set PHARMACY_ADMIN_PASSWORD)
+cd backend && go run . create-admin -username owner && cd ..
+#    With a built executable: ./<executable> create-admin -username owner
+#    In Docker:               docker compose exec server /main create-admin -username owner
+#    Without a terminal (scripts, `docker compose exec -T`), PHARMACY_ADMIN_PASSWORD is required
+
+# 7. Start the server
 make run
 ```
 
@@ -284,7 +292,6 @@ pharmacy/
 |--------|---------------|------------------------|
 | GET    | `/login`      | Login page             |
 | POST   | `/login`      | Authenticate user      |
-| POST   | `/register`   | Create user account    |
 | GET    | `/logout`     | End session            |
 
 All routes except `/user/*` and static assets require an authenticated session.
@@ -350,7 +357,7 @@ All routes except `/user/*` and static assets require an authenticated session.
 | DELETE | `/admin/api/permissions/{id}`                   | Delete a permission          |
 | POST/DELETE | `/admin/api/permissions/{id}/role/{roleId}` | Assign / remove from a role |
 | GET    | `/admin/api/roles`                              | List roles                   |
-| GET    | `/admin/api/users`                              | List users                   |
+| GET/POST | `/admin/api/users`                            | List / add users             |
 | POST   | `/admin/api/users/{id}/role`                    | Change a user's role         |
 | POST   | `/admin/api/users/{id}/reset-password`          | Reset a user's password      |
 | GET/POST | `/admin/api/categories`                       | List / create categories     |

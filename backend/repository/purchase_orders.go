@@ -11,8 +11,8 @@ import (
 	"github.com/lib/pq"
 )
 
-// ErrInvalidReference is returned when a purchase order line points at a product that
-// does not exist.
+// ErrInvalidReference is returned when an insert or update points at a row that does not exist
+// (a foreign key violation), for example a purchase order line's product or a new user's role.
 var ErrInvalidReference = errors.New("referenced row does not exist")
 
 // ErrPurchaseOrderItemNotReceivable is returned when a receipt does not fit a purchase order
@@ -272,8 +272,10 @@ func (r *repo) InsertAuditLogTx(ctx context.Context, tx *sqlx.Tx, entry types.Au
 	if len(details) == 0 {
 		details = []byte("{}")
 	}
+	// NoActor is stored as a null actor; any other ActorID must be a real user.
+	actor := sql.NullInt64{Int64: int64(entry.ActorID), Valid: !entry.NoActor}
 	_, err := tx.ExecContext(
-		ctx, insertAuditLogQuery, entry.ActorID, entry.EntityType, entry.EntityID,
+		ctx, insertAuditLogQuery, actor, entry.EntityType, entry.EntityID,
 		entry.Action, entry.Reason, details,
 	)
 	return err

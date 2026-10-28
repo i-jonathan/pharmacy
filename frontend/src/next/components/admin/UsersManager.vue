@@ -1,6 +1,13 @@
 <template>
     <div>
-        <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">Users</h2>
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-neutral-800 dark:text-neutral-100">Users</h2>
+            <button
+                v-if="!loading && !error"
+                @click="openAddUser"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm"
+            >Add user</button>
+        </div>
 
         <div v-if="loading" class="text-center py-12 text-neutral-500 dark:text-neutral-400">Loading...</div>
 
@@ -49,9 +56,78 @@
             </table>
         </div>
 
+        <!-- Add User Modal -->
+        <div v-if="adding" class="fixed inset-0 z-50 flex items-center justify-center">
+            <div class="absolute inset-0 bg-black/40" @click="closeAddUser"></div>
+            <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">Add user</h3>
+                <form @submit.prevent="addUser">
+                    <div class="mb-4">
+                        <label for="new-username" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Username</label>
+                        <input
+                            id="new-username"
+                            v-model="newUser.username"
+                            required
+                            minlength="3"
+                            maxlength="15"
+                            pattern="[A-Za-z0-9_]+"
+                            autocomplete="off"
+                            placeholder="Letters, numbers and _ (3 to 15)"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
+                        />
+                    </div>
+                    <div class="mb-4">
+                        <label for="new-role" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Role</label>
+                        <select id="new-role" v-model.number="newUser.role_id" required class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100">
+                            <option disabled value="">Choose a role</option>
+                            <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="new-password" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Starting password</label>
+                        <input
+                            id="new-password"
+                            v-model="newUser.password"
+                            type="password"
+                            required
+                            minlength="10"
+                            autocomplete="new-password"
+                            placeholder="At least 10 characters, not a common password"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
+                        />
+                    </div>
+                    <div class="mb-4">
+                        <label for="new-password-confirm" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Confirm password</label>
+                        <input
+                            id="new-password-confirm"
+                            v-model="newUser.confirm"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
+                        />
+                    </div>
+                    <div v-if="addError" class="mb-4 text-sm text-red-500" role="alert">{{ addError }}</div>
+                    <div class="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            :disabled="saving"
+                            @click="closeAddUser"
+                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 disabled:opacity-50 transition-colors"
+                        >Cancel</button>
+                        <button
+                            type="submit"
+                            :disabled="saving"
+                            class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
+                        >{{ saving ? "Adding..." : "Add user" }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Reset Password Modal -->
         <div v-if="resetUser" class="fixed inset-0 z-50 flex items-center justify-center">
-            <div class="absolute inset-0 bg-black/40" @click="resetUser = null"></div>
+            <div class="absolute inset-0 bg-black/40" @click="closeResetPassword"></div>
             <div class="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
                 <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
                     Reset Password for {{ resetUser.username }}
@@ -63,8 +139,19 @@
                             v-model="newPassword"
                             type="password"
                             required
-                            minlength="8"
-                            placeholder="At least 8 characters"
+                            minlength="10"
+                            placeholder="At least 10 characters"
+                            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
+                        />
+                    </div>
+                    <div class="mb-4">
+                        <label for="reset-password-confirm" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Confirm password</label>
+                        <input
+                            id="reset-password-confirm"
+                            v-model="confirmPassword"
+                            type="password"
+                            required
+                            autocomplete="new-password"
                             class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-neutral-900 dark:text-neutral-100"
                         />
                     </div>
@@ -72,8 +159,9 @@
                     <div class="flex justify-end gap-3">
                         <button
                             type="button"
-                            @click="resetUser = null"
-                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 transition-colors"
+                            :disabled="resetting"
+                            @click="closeResetPassword"
+                            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 disabled:opacity-50 transition-colors"
                         >Cancel</button>
                         <button
                             type="submit"
@@ -100,8 +188,13 @@ export default {
             error: null,
             resetUser: null,
             newPassword: "",
+            confirmPassword: "",
             resetting: false,
             resetError: null,
+            adding: false,
+            newUser: { username: "", role_id: "", password: "", confirm: "" },
+            saving: false,
+            addError: null,
         };
     },
     mounted() {
@@ -140,12 +233,58 @@ export default {
                 alert("Failed to update role: " + e.message);
             }
         },
+        openAddUser() {
+            this.newUser = { username: "", role_id: "", password: "", confirm: "" };
+            this.addError = null;
+            this.adding = true;
+        },
+        // Stay open while saving, so the result (or an error such as a taken username) is seen.
+        closeAddUser() {
+            if (!this.saving) this.adding = false;
+        },
+        async addUser() {
+            if (this.newUser.password !== this.newUser.confirm) {
+                this.addError = "The passwords do not match.";
+                return;
+            }
+            this.saving = true;
+            this.addError = null;
+            try {
+                const res = await csrfFetch("/admin/api/users", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: this.newUser.username.trim(),
+                        password: this.newUser.password,
+                        role_id: this.newUser.role_id,
+                    }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Failed to add user");
+                }
+                this.adding = false;
+                await this.fetchData();
+            } catch (e) {
+                this.addError = e.message;
+            } finally {
+                this.saving = false;
+            }
+        },
         openResetPassword(user) {
             this.resetUser = user;
             this.newPassword = "";
+            this.confirmPassword = "";
             this.resetError = null;
         },
+        closeResetPassword() {
+            if (!this.resetting) this.resetUser = null;
+        },
         async resetPassword() {
+            if (this.newPassword !== this.confirmPassword) {
+                this.resetError = "The passwords do not match.";
+                return;
+            }
             this.resetting = true;
             this.resetError = null;
             try {
@@ -155,7 +294,7 @@ export default {
                     body: JSON.stringify({ new_password: this.newPassword }),
                 });
                 if (!res.ok) {
-                    const data = await res.json();
+                    const data = await res.json().catch(() => ({}));
                     throw new Error(data.error || "Failed to reset");
                 }
                 this.resetUser = null;

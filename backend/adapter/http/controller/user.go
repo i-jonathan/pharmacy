@@ -2,12 +2,10 @@ package controller
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"pharmacy/config"
-	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/model"
 	"pharmacy/service"
@@ -23,31 +21,6 @@ type userController struct {
 
 func NewUserController(svc service.UserService, tmpl *template.Template) *userController {
 	return &userController{service: svc, template: tmpl}
-}
-
-func (c *userController) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "failed to parse form", http.StatusBadRequest)
-		return
-	}
-
-	u := model.User{
-		UserName: r.FormValue("username"),
-		Password: r.FormValue("password"),
-	}
-
-	err := c.service.CreateUserAccount(r.Context(), u)
-	if err != nil {
-		var httperr *httperror.HTTPError
-		if errors.As(err, &httperr) {
-			http.Error(w, httperr.Error(), httperr.Code)
-			return
-		}
-		http.Error(w, "failed to create account", http.StatusInternalServerError)
-		return
-	}
-
-	http.Redirect(w, r, "/app/", http.StatusSeeOther)
 }
 
 func (c *userController) GetLoginPage(w http.ResponseWriter, r *http.Request) {

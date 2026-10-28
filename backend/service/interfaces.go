@@ -8,7 +8,6 @@ import (
 )
 
 type UserService interface {
-	CreateUserAccount(ctx context.Context, user model.User) error
 	AuthenticateUser(ctx context.Context, user *model.User) error
 }
 
@@ -72,6 +71,7 @@ type AdminService interface {
 	GetUsers(ctx context.Context) ([]types.UserListItem, error)
 	UpdateUserRole(ctx context.Context, userID, roleID int) error
 	ResetUserPassword(ctx context.Context, userID int, newPassword string) error
+	CreateUser(ctx context.Context, req types.CreateUserRequest, actorID int) (int, error)
 	GetCategories(ctx context.Context) ([]types.CategoryListItem, error)
 	CreateCategory(ctx context.Context, name string) error
 	UpdateCategory(ctx context.Context, id int, name string) error

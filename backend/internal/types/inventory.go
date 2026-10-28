@@ -168,7 +168,10 @@ type ClosePurchaseOrderRequest struct {
 
 // AuditEntry is one fact to append to the audit log.
 type AuditEntry struct {
-	ActorID    int
+	ActorID int
+	// NoActor records that no user was signed in (the create-admin command). Otherwise ActorID
+	// must be a real user; 0 is refused by the database rather than stored as "nobody".
+	NoActor    bool
 	EntityType string
 	EntityID   int
 	Action     string

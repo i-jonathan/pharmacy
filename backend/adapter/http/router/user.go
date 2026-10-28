@@ -13,7 +13,6 @@ func InitUserRouter(svc service.UserService, tmpl *template.Template) http.Handl
 	userController := controller.NewUserController(svc, tmpl)
 	userMux := http.NewServeMux()
 
-	userMux.HandleFunc(http.MethodPost+" /register", userController.CreateUserAccount)
 	userMux.HandleFunc(http.MethodGet+" /login", userController.GetLoginPage)
 	userMux.HandleFunc(http.MethodPost+" /login", userController.HandleLogin)
 	userMux.Handle("/logout", middleware.AuthMiddleware(http.HandlerFunc(userController.LogoutHandler)))
