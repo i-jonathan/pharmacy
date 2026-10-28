@@ -33,15 +33,26 @@ func (f fakeRoles) FetchRoleIDByName(_ context.Context, name string) (int, error
 	return id, nil
 }
 
+// fakeDirectory knows the roles and which users already hold the Admin role.
+type fakeDirectory struct {
+	fakeRoles
+	admins []string
+}
+
+func (f fakeDirectory) FetchUsernamesByRole(context.Context, int) ([]string, error) {
+	return f.admins, nil
+}
+
 func TestCreateAdminUsesTheAdminRoleWithNoActor(t *testing.T) {
 	svc := &fakeAdminCreator{}
 
 	_, err := createAdmin(
 		context.Background(),
 		svc,
-		fakeRoles{"Admin": 1},
+		fakeDirectory{fakeRoles: fakeRoles{"Admin": 1}},
 		"owner",
 		"a long secret",
+		false,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +64,14 @@ func TestCreateAdminUsesTheAdminRoleWithNoActor(t *testing.T) {
 }
 
 func TestCreateAdminNeedsAnAdminRole(t *testing.T) {
-	_, err := createAdmin(context.Background(), &fakeAdminCreator{}, fakeRoles{}, "owner", "x")
+	_, err := createAdmin(
+		context.Background(),
+		&fakeAdminCreator{},
+		fakeDirectory{},
+		"owner",
+		"x",
+		false,
+	)
 	if err == nil || !strings.Contains(err.Error(), "Admin role") {
 		t.Fatalf("expected a missing Admin role error, got %v", err)
 	}
@@ -117,5 +135,60 @@ func TestReadLineStopsAtTheNewline(t *testing.T) {
 func TestCreateAdminHelpExitsCleanly(t *testing.T) {
 	if code := runCreateAdmin([]string{"-h"}); code != 0 {
 		t.Fatalf("create-admin -h should exit 0, got %d", code)
+	}
+}
+
+func TestCreateAdminRefusesOnceAnAdminExists(t *testing.T) {
+	svc := &fakeAdminCreator{}
+	dir := fakeDirectory{fakeRoles: fakeRoles{"Admin": 1}, admins: []string{"owner"}}
+
+	_, err := createAdmin(context.Background(), svc, dir, "second", "a long secret", false)
+
+	if err == nil || !strings.Contains(err.Error(), "an admin already exists (owner)") {
+		t.Fatalf("expected a refusal naming the existing admin, got %v", err)
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "recover") {
+		t.Fatalf("the refusal must not advertise the override: %v", err)
+	}
+	if svc.got.Username != "" {
+		t.Fatal("no user should be created")
+	}
+}
+
+func TestCreateAdminRecoveryAddsAnotherAdminAndSaysSo(t *testing.T) {
+	svc := &fakeAdminCreator{}
+	dir := fakeDirectory{fakeRoles: fakeRoles{"Admin": 1}, admins: []string{"owner"}}
+
+	if _, err := createAdmin(
+		context.Background(),
+		svc,
+		dir,
+		"rescue",
+		"a long secret",
+		true,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if svc.got.Username != "rescue" || !svc.got.Recovery {
+		t.Fatalf("expected a recovery admin, got %+v", svc.got)
+	}
+}
+
+func TestCreateAdminHelpDoesNotMentionRecovery(t *testing.T) {
+	var out bytes.Buffer
+	createAdminFlags(&out).Usage()
+	if strings.Contains(strings.ToLower(out.String()), "recover") ||
+		!strings.Contains(out.String(), "-username") {
+		t.Fatalf("help should list -username and hide the override, got:\n%s", out.String())
+	}
+}
+
+func TestCreateAdminAcceptsBothRecoverySpellings(t *testing.T) {
+	for _, args := range [][]string{{"--recover"}, {"-r"}} {
+		fs := createAdminFlags(&bytes.Buffer{})
+		recovering := fs.Lookup("recover")
+		if err := fs.Parse(args); err != nil || recovering.Value.String() != "true" {
+			t.Fatalf("%v should turn recovery on, got %v (%v)", args, recovering.Value, err)
+		}
 	}
 }

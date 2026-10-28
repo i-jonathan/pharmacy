@@ -121,3 +121,18 @@ func TestAdminResetPasswordRefusesAnOversizedBody(t *testing.T) {
 		t.Fatalf("expected 413 without calling the service, got %d", rec.Code)
 	}
 }
+
+func TestRecoveryCannotBeSetOverTheWeb(t *testing.T) {
+	svc := &fakeAdminService{}
+	handler := InitAdminRouter(svc, errorPage)
+	body := `{"username":"ada","password":"ten chars!","role_id":3,"recovery":true,"Recovery":true}`
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users", strings.NewReader(body))
+	req = req.WithContext(context.WithValue(req.Context(), constant.UserIDKey, 7))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if svc.got.Recovery {
+		t.Fatal("the recovery marker must only come from create-admin")
+	}
+}

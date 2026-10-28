@@ -26,14 +26,31 @@ type adminCreator interface {
 
 type roleLookup interface {
 	FetchRoleIDByName(ctx context.Context, name string) (int, error)
+	FetchUsernamesByRole(ctx context.Context, roleID int) ([]string, error)
+}
+
+// createAdminFlags defines the command's flags. --recover (or -r) adds an admin even though
+// others exist, for when none of them can sign in; it is left out of the usage text on purpose.
+func createAdminFlags(out io.Writer) *flag.FlagSet {
+	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
+	flags.SetOutput(out)
+	flags.String("username", "", "username for the new admin")
+	var recovering bool
+	flags.BoolVar(&recovering, "recover", false, "")
+	flags.BoolVar(&recovering, "r", false, "")
+	flags.Usage = func() {
+		fmt.Fprintln(out, "Usage: create-admin [-username NAME]")
+		fmt.Fprintln(out, "  -username string")
+		fmt.Fprintln(out, "        username for the new admin")
+	}
+	return flags
 }
 
 // runCreateAdmin is the `create-admin` command: it adds an Admin user, for example the first
 // one on a new install, and returns the process exit code. The password comes from
 // PHARMACY_ADMIN_PASSWORD when set, otherwise from a hidden prompt.
 func runCreateAdmin(args []string) int {
-	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
-	username := flags.String("username", "", "username for the new admin")
+	flags := createAdminFlags(os.Stderr)
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -41,7 +58,8 @@ func runCreateAdmin(args []string) int {
 		return 2
 	}
 
-	name := strings.TrimSpace(*username)
+	name := strings.TrimSpace(flags.Lookup("username").Value.String())
+	recovering := flags.Lookup("recover").Value.String() == "true"
 	if name == "" {
 		fmt.Print("Username: ")
 		// Unbuffered, so anything typed after the username is left for the password prompt.
@@ -71,7 +89,7 @@ func runCreateAdmin(args []string) int {
 		return 1
 	}
 	id, err := createAdmin(
-		context.Background(), service.NewAdminService(store), store, name, password,
+		context.Background(), service.NewAdminService(store), store, name, password, recovering,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "create-admin: %s\n", userMessage(err))
@@ -83,14 +101,25 @@ func runCreateAdmin(args []string) int {
 
 func createAdmin(
 	ctx context.Context, svc adminCreator, roles roleLookup, username, password string,
+	recovering bool,
 ) (int, error) {
 	roleID, err := roles.FetchRoleIDByName(ctx, adminRoleName)
 	if err != nil {
 		return 0, fmt.Errorf("could not find the %s role: %w", adminRoleName, err)
 	}
+	admins, err := roles.FetchUsernamesByRole(ctx, roleID)
+	if err != nil {
+		return 0, fmt.Errorf("could not check for existing admins: %w", err)
+	}
+	if len(admins) > 0 && !recovering {
+		return 0, fmt.Errorf(
+			"an admin already exists (%s); create-admin is for a new install",
+			strings.Join(admins, ", "),
+		)
+	}
 	// No one is signed in, so the audit entry has no actor.
 	return svc.CreateUser(ctx, types.CreateUserRequest{
-		Username: username, Password: password, RoleID: roleID,
+		Username: username, Password: password, RoleID: roleID, Recovery: len(admins) > 0,
 	}, 0)
 }
 

@@ -14,6 +14,9 @@ type CreateUserRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	RoleID   int    `json:"role_id"`
+	// Recovery marks an admin added by create-admin while other admins exist. It can't be set
+	// over the web.
+	Recovery bool `json:"-"`
 }
 
 type PermissionInfo struct {

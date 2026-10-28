@@ -34,6 +34,7 @@ const createUserWithRoleQuery = `
 	INSERT INTO users (username, password, role_id) VALUES ($1, $2, $3) RETURNING id
 `
 const usernameByIDQuery = `SELECT username FROM users WHERE id = $1`
+const usernamesByRoleQuery = `SELECT username FROM users WHERE role_id = $1 ORDER BY id`
 const roleIDByNameQuery = `SELECT id FROM roles WHERE name = $1`
 const fetchUserByNameQuery = `
 	SELECT

@@ -248,3 +248,16 @@ func TestCreateUserRefusesANegativeActor(t *testing.T) {
 		t.Fatal("nothing should be saved for an invalid actor")
 	}
 }
+
+func TestRecoveryAdminIsMarkedInTheAudit(t *testing.T) {
+	repo := newUserRepo()
+	req := validUser()
+	req.Recovery = true
+
+	if _, err := NewAdminService(repo).CreateUser(context.Background(), req, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(repo.audit[0].Details), `"recovery":true`) {
+		t.Fatalf("expected the audit details to mark recovery: %s", repo.audit[0].Details)
+	}
+}

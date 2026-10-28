@@ -59,3 +59,9 @@ func (r *repo) FetchRoleIDByName(ctx context.Context, name string) (int, error) 
 	err := r.Data.GetContext(ctx, &id, roleIDByNameQuery, name)
 	return id, err
 }
+
+func (r *repo) FetchUsernamesByRole(ctx context.Context, roleID int) ([]string, error) {
+	names := []string{}
+	err := r.Data.SelectContext(ctx, &names, usernamesByRoleQuery, roleID)
+	return names, err
+}

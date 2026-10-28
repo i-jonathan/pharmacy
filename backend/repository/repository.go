@@ -15,6 +15,7 @@ type UserRepository interface {
 	CreateUserTx(ctx context.Context, tx *sqlx.Tx, user model.User) (int, error)
 	FetchUsernameByID(ctx context.Context, userID int) (string, error)
 	FetchRoleIDByName(ctx context.Context, name string) (int, error)
+	FetchUsernamesByRole(ctx context.Context, roleID int) ([]string, error)
 	BulkFetchUserByIDTx(ctx context.Context, tx *sqlx.Tx, userIDs []int) ([]model.User, error)
 }
 

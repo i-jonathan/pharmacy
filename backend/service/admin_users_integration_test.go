@@ -36,6 +36,11 @@ func TestCreateUserAgainstTheDatabase(t *testing.T) {
 		t.Fatalf("first admin: %v", err)
 	}
 
+	admins, err := store.FetchUsernamesByRole(ctx, admin)
+	if err != nil || len(admins) != 1 || admins[0] != "owner" {
+		t.Fatalf("expected the one admin to be listed, got %v, %v", admins, err)
+	}
+
 	id, err := svc.CreateUser(ctx, types.CreateUserRequest{
 		Username: "ada", Password: "ten chars!", RoleID: cashier,
 	}, firstAdmin)

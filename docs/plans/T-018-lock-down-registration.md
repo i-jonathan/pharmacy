@@ -63,6 +63,7 @@ Stop strangers from creating accounts, and give admins a proper way to add staff
 - **Passwords:** one shared rule (`model.User.ValidatePassword`: minimum 10 characters, not on the common-password list, and not containing the username) used by create, `create-admin` and the admin reset, which today has its own 8-character check. The reset form's hint and `minlength` change to 10.
 - **Common-password list:** the NCSC top 100,000 passwords (SecLists, MIT licence), cut to the 9,126 distinct entries of 10 or more characters (shorter ones already fail the length rule), lowercased, and embedded in the binary (`backend/model/common_passwords.txt`, about 106 KB, with the licence notice). The check is case-insensitive. The rejection says why, as NIST asks: "this password is too common; choose another". The username check applies when creating a user; the admin reset doesn't load the username.
 - **CLI:** in `main.go`, `create-admin` runs after config and DB setup and before templates and the server start. It reads the username from a flag or prompt and the password from a prompt, or from `PHARMACY_ADMIN_PASSWORD` for scripted installs. It uses the same service method with the Admin role and no actor, then exits.
+- **`create-admin` after the first admin** (owner's addition, after the PR opened): when an Admin already exists, the command refuses with "an admin already exists (NAME); create-admin is for a new install". The message and `-h` don't mention the override. `--recover` / `-r` (hidden from usage) creates another admin anyway, for when no admin can sign in. The audit entry's details record `"recovery": true`, so a break-glass account shows in the audit log. The flag isn't settable over the web API: the request field is `json:"-"`.
 - **UI:** **Add user** button and form in `UsersManager.vue`, matching its existing style: username, role (the existing roles list), password and confirm password. It uses `csrfFetch`, shows errors inline, and refreshes the list on success.
 - **Permissions:** no new keys. Creating a user needs `admin:access`, same as the rest of the Users screen. T-099 will split it later.
 
@@ -101,6 +102,7 @@ Logical groups, each approved by the owner:
 4. `c1eda82` Add the Add user form
 5. `c748b22` Fix review findings: the reset checks the username and keeps the password as typed; strength ignores surrounding spaces; "no audit actor" is explicit; 401 without a signed-in admin; the role foreign key replaces the role query
 6. Docs, plan and board (with the PR)
+7. `create-admin` refuses once an admin exists, unless the hidden `--recover`/`-r` flag is given (recorded in the audit details)
 
 ## Follow-up cards
 

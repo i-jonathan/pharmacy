@@ -273,7 +273,11 @@ func (s *adminService) CreateUser(
 		return 0, httperror.ServerError("failed to create user", err)
 	}
 
-	details, err := json.Marshal(map[string]any{"username": user.UserName, "role_id": req.RoleID})
+	facts := map[string]any{"username": user.UserName, "role_id": req.RoleID}
+	if req.Recovery {
+		facts["recovery"] = true
+	}
+	details, err := json.Marshal(facts)
 	if err != nil {
 		return 0, httperror.ServerError("failed to record audit entry", err)
 	}
