@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-106 -->
+<!-- next-id: T-107 -->
 
 <details>
 <summary>How this board works</summary>
@@ -603,6 +603,22 @@ Get data out in a usable form.
 - created: 2026-10-26
 
 Admins can add users (T-018), but can't deactivate them, and users can't change their own password. Add deactivate, change own password, last login, and optionally invite by link instead of a starting password.
+
+### T-106 Temporary passwords: change on first sign-in
+
+- priority: P1
+- feature: Security hardening
+- created: 2026-10-28
+
+The password an admin sets with Add user or Reset Password is known to the admin, so make it temporary.
+
+- [ ] A `must_change_password` flag on users (migration), set by Add user and admin resets, not by `create-admin`
+- [ ] While it's set, every page and API call except change password and sign out sends the user to a "Set your password" screen, enforced on the server
+- [ ] The screen asks for the temporary password, a new one and a confirmation. Same rules as everywhere (`ValidatePassword`), and it must differ from the temporary one. Saving clears the flag and writes an audit entry
+- [ ] Administration → Users shows "Password not set yet"
+- [ ] Optional: temporary passwords expire after a set number of days
+
+Shares the change-password endpoint and screen with T-064's "users change their own password". Build them together. Raised during T-018.
 
 ### T-065 Release & deployment pipeline
 
