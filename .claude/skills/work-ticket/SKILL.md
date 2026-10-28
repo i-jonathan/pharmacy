@@ -18,9 +18,9 @@ Phases loop rather than run once: research can reopen during implementation, rev
 | 1. Pick & claim | Card chosen, depends met, branch created, card moved to In Progress | — (below) |
 | 2. Research | Card claims verified in code; gaps to "feature complete" listed with sources | `references/research.md` |
 | 3. Plan | Plan file written and **approved by the owner in chat** | `references/plan-template.md` |
-| 4. Implement | Plan steps done, tests green, commits made | — (below) |
+| 4. Implement | Plan steps done, tests green, nothing committed yet | — (below) |
 | 5. Review | Review checklist passed, findings fixed or listed | `references/review-checklist.md` |
-| 6. Ship | PR open with the structured body, board updated in the PR | `references/pr-template.md` |
+| 6. Ship | One approval for all commits, push and PR; PR open with the structured body, board updated in the PR | `references/pr-template.md` |
 
 Load each reference when its phase starts, every time, even if you remember it. If you notice a phase ran without its reference, stop and load it.
 
@@ -36,38 +36,29 @@ Load each reference when its phase starts, every time, even if you remember it. 
 
 - Follow `CLAUDE.md` and `AGENTS.md`. Money stays in kobo; permission checks go in both the route/service and the UI; confirmations use the shared dialog.
 - **REQUIRED SUB-SKILL:** superpowers:test-driven-development for backend logic.
-- Commit only at the points the chosen commit style sets, and only after the owner confirms (see Commits and pushes). Tick the card's checklist items as they land.
+- Don't commit or ask about commits while implementing or reviewing; the owner approves them all at once when shipping (see Commits and pushes). Tick the card's checklist items as they land.
 - Something the plan didn't cover? Small and obviously in scope: do it and note it for the PR. Otherwise stop, explain, and get approval before continuing.
 
 ## Commits and pushes (protected)
 
-Committing and pushing are protected actions: each one needs the owner's yes in chat for that specific commit or push. `.claude/settings.json` backs this up with `ask` rules for `git commit`, `git push` and `gh pr merge`, so Claude Code also shows a permission prompt. The prompt is in addition to the chat confirmation, not a replacement for it.
+Committing and pushing are protected: nothing is committed or pushed without the owner's yes in chat. `.claude/settings.json` backs this up with `ask` rules for `git commit`, `git push` and `gh pr merge`, so Claude Code also shows a permission prompt. That prompt adds to the chat approval; it doesn't replace it.
 
-**Commit style.** Ask once per ticket, together with the plan approval (use the question tool if available), and record the answer in the plan's Commits section:
+**One approval, at the end.** Implement and review the whole ticket with the work uncommitted. Don't stop to ask about commits along the way; one-by-one approvals are tiring for the owner. When review has passed, show everything in a single message (the shipping bundle in `references/pr-template.md`):
 
-1. In logical groups (recommended): one commit per coherent change, e.g. migration + repository, then service, then UI
-2. After every plan step
-3. At the end of implementation, before review
-4. One commit for the whole ticket, after review
+- the proposed commits, in logical groups by default (e.g. migration + repository, then service, then UI, then docs and board), each with its files staged by name (never `git add -A` or `git add .`) and its message ending with the repo's attribution trailer
+- the tests and checks run, with their results
+- the push (branch and commits going up) and the PR title
 
-**At each commit point**, show the owner:
-- the files to be committed (stage them by name; never `git add -A` or `git add .`)
-- the proposed message, ending with the repo's attribution trailer
-- the tests run since the last commit and their result
+One yes covers all of it. The owner can also approve the commits only, regroup them, or change anything. Run the approved commits in one shell command, so Claude Code's permission prompt appears once.
 
-Then wait. Yes → commit. Anything else → adjust and ask again. If the owner said "commit without asking" for this ticket, commits at the agreed points may go ahead, but you still say what you committed. Pushes never relax like this.
+**After that**, a further change (another review round, a fix the owner asks for) gets one approval covering its commit and its push together.
 
-**Before every push**, show:
-- the branch
-- the commits that will go up (`git log --oneline origin/<branch>..HEAD`, or the full branch log on its first push)
-- the review checklist result
-
-Then wait for an explicit yes. Never push to `main`. Never force-push unless the owner asks for that push.
+Never push to `main` unless the owner says so. Never force-push unless the owner asks for that push.
 
 ## Rules that apply every time
 
 - **No implementation before the owner approves the plan.** Approval means they said so in chat ("approved", "go", "ship it"). Silence, a question, or approval of an earlier version is not approval.
-- Approving the plan is not approval to commit or push. Approving one commit or push is not approval of the next.
+- Approving the plan is not approval to commit or push. An approved bundle covers exactly what it listed.
 - A card's description can be stale or wrong. Every claim on it is checked against the code before the plan relies on it; wrong claims get fixed on the card.
 - Board edits for the ticket ride in the ticket's PR, not on `main`.
 - Never merge the PR, push to `main`, or deploy unless the owner says so in this conversation.

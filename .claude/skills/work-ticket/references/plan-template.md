@@ -32,7 +32,7 @@ For each: the options, my recommendation, and why. Only real choices; no questio
 Data model and migrations (with rollback), API changes, permissions (keys and who gets them by default), audit entries, UI changes, offline or idempotency concerns.
 
 ## Steps
-Numbered, each small enough to commit on its own, each naming its test.
+Numbered, each naming its test.
 
 ## Testing
 Unit tests, integration tests (`PHARMACY_TEST_DSN`), manual checks in the running app, and what will not be tested and why.
@@ -41,7 +41,7 @@ Unit tests, integration tests (`PHARMACY_TEST_DSN`), manual checks in the runnin
 Migrations to run, permissions to grant, users who must log in again, `make assets`.
 
 ## Commits
-Style chosen by the owner (logical groups / after every step / end of implementation / one commit), and the planned commit points for that style.
+Filled in at ship time with the commits the owner approved.
 
 ## Follow-up cards
 Title, priority, feature, one line each. Added to the board after approval.
@@ -51,7 +51,5 @@ Links with one line each.
 ```
 
 ## Approval
-
-In the same message as the summary, ask which commit style to use (the options are in SKILL.md, "Commits and pushes"). Fill in the Commits section with the answer.
 
 Only the owner's explicit yes in chat counts. Approval covers this plan as written: a new migration, permission, dependency, or user-visible behaviour not in the plan needs the plan updated and approved again.
