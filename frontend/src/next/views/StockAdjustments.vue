@@ -323,9 +323,8 @@ const lines = ref([]);
 const reason = ref("");
 const note = ref("");
 const saving = ref(false);
-// A save that failed without a clear refusal (timeout, lost reply) may have gone through. The form
-// is locked until it is sent again with the same retry key, so an edit can't turn the retry into
-// a second, different adjustment.
+// Set when a save failed without a clear answer and may have gone through: the form locks so
+// Save again resends exactly that adjustment.
 const unconfirmed = ref(false);
 const query = ref("");
 const results = ref([]);
@@ -441,8 +440,7 @@ function isDirty() {
   return editing.value && (lines.value.length > 0 || note.value.trim() !== "");
 }
 
-// After an unconfirmed save the adjustment may already be stored, so leaving must not say
-// otherwise.
+// After an unconfirmed save, leaving must not claim nothing was saved.
 function confirmDiscard() {
   if (unconfirmed.value) {
     return confirm({
@@ -517,8 +515,7 @@ function addProduct(p, extra = {}) {
     mode: "set",
     quantity: p.stock ?? 0,
     expiry: "",
-    // Open flags on the product are shown; they are resolved only if the manager ticks that this
-    // adjustment answers them (adjusting from a flag ticks it).
+    // Open flags are shown; they resolve only when ticked (adjusting from a flag ticks them).
     flags: flags.value.filter((f) => f.product_id === p.id),
     resolvesFlags: false,
     ...extra,
@@ -545,8 +542,7 @@ function after(line) {
   return line.stock + change(line);
 }
 
-// From a flag: the cashier's count was taken when the flag was raised, so carry it forward by the
-// sales, receipts and returns since (moved_since leaves out corrections) to estimate the shelf.
+// The cashier's count, carried forward by the sales, receipts and returns since the flag.
 function flagEstimate(f) {
   if (f.counted_quantity === null || f.counted_quantity === undefined) return f.current_stock;
   return Math.max(0, f.counted_quantity + f.moved_since);
@@ -599,8 +595,7 @@ async function save() {
       `${l.name}: ${l.stock} → ${after(l)} (${signed(change(l))})` +
       (l.resolvesFlags && l.flags.length ? `, resolves ${l.flags.length > 1 ? `${l.flags.length} flags` : "the flag"}` : ""),
   );
-  // One retry key per save attempt. It is kept only while a save is unconfirmed, so Save again
-  // resends that same adjustment; any new attempt is a different save with a new key.
+  // One key per save attempt, kept while unconfirmed so Save again is a retry.
   if (!unconfirmed.value) idempotencyKey = newKey();
   const ok = await confirm({
     title: "Save this stock adjustment?",
@@ -612,8 +607,7 @@ async function save() {
     run: postAdjustment,
   });
   if (!ok) return;
-  // Refused: the dialog closed and the lines were brought up to date, so the next save is
-  // validated and confirmed afresh.
+  // Refused: the lines were refreshed, so the next save is checked and confirmed again.
   if (refused) return;
 
   editing.value = false;
@@ -633,11 +627,9 @@ let refused = false;
 const UNCONFIRMED_SAVE =
   "We couldn't confirm this was saved. Press Save again to send the same adjustment: it is applied once, even if the first one got through.";
 
-// Sends the adjustment from the confirmation dialog. A 4xx means the server refused it and nothing
-// was stored: the dialog closes (its summary would be out of date), the lines are brought up to
-// date (stock moved by a sale, a flag handled by someone else) and the form unlocks. Any other
-// failure (timeout, lost reply, a failed commit) may have saved it: the dialog stays open so Save
-// again resends the same adjustment with the same retry key, and the form locks.
+// Runs inside the confirm dialog. A 4xx stored nothing: close the dialog, refresh the lines, unlock
+// the form. Any other failure may have saved it: keep the dialog and key so Save again retries,
+// and lock the form.
 async function postAdjustment() {
   refused = false;
   const body = {

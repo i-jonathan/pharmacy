@@ -263,8 +263,8 @@ func TestAFlagEstimateCountsSalesNotCorrections(t *testing.T) {
 	}, f.uid); err != nil {
 		t.Fatal(err)
 	}
-	// After the count: 3 sold and 5 received (shelf movements), and a correction of -2 from a
-	// stock taking, which the cashier's count already reflected.
+	// After the count: 3 sold and 5 received (shelf movements) and a stock-taking correction of
+	// -2, which isn't one.
 	f.db.MustExec(`INSERT INTO stock_movement (product_id, reference_id, movement_type, quantity)
 		VALUES ($1, 1, 'OUT_SALE', 3), ($1, 1, 'IN_PURCHASE', 5), ($1, 1, 'OUT_STOCK_TAKING', 2)`,
 		product)

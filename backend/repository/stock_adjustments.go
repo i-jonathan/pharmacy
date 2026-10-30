@@ -29,10 +29,8 @@ var productStockQuery = `
 	ORDER BY p.id
 `
 
-// LockProductStockTx locks the products' rows (in id order, so concurrent adjustments queue
-// instead of deadlocking) and then returns their stock. The stock is read in a second statement:
-// under READ COMMITTED it then sees everything committed while this one waited for the lock,
-// which a sum computed in the locking statement would not.
+// LockProductStockTx locks the products in id order, then reads their stock in a second statement,
+// which (under READ COMMITTED) sees whatever committed while it waited for the locks.
 func (r *repo) LockProductStockTx(
 	ctx context.Context, tx *sqlx.Tx, productIDs []int,
 ) ([]types.ProductStock, error) {
@@ -81,8 +79,8 @@ const createStockAdjustmentQuery = `
 const stockAdjustmentByKeyQuery = `
 	SELECT id FROM stock_adjustment WHERE created_by_id = $1 AND idempotency_key = $2`
 
-// CreateStockAdjustmentTx inserts the adjustment and returns its id. When the idempotency key
-// was already used it returns the existing adjustment's id and false.
+// CreateStockAdjustmentTx inserts the adjustment: its id and true, or the existing adjustment's
+// id and false when the user already used the key.
 func (r *repo) CreateStockAdjustmentTx(
 	ctx context.Context, tx *sqlx.Tx, adj types.NewStockAdjustment,
 ) (int, bool, error) {
@@ -215,10 +213,8 @@ func (r *repo) CreateStockFlagTx(
 	return id, mapForeignKeyError(err)
 }
 
-// stockFlagColumns sums stock only for the flagged products, not through inventory_view, which
-// would aggregate every product's movements. moved_since counts only shelf movements (sales,
-// receipts, returns) after the flag; a stock taking or adjustment since then changed the system's
-// number, not the shelf, so it must not move the cashier's count.
+// stockFlagColumns sums stock for the flagged products only. moved_since counts shelf movements
+// (sales, receipts, returns) since the flag; corrections change the system's number, not the shelf.
 var stockFlagColumns = `
 	SELECT f.id, f.product_id, p.name AS product_name,
 		COALESCE(p.manufacturer, '') AS manufacturer, f.note, f.counted_quantity,

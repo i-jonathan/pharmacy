@@ -1,7 +1,6 @@
--- Manual stock adjustments: a manager corrects stock outside sales, receiving and stock taking.
--- Each adjustment records why, who and when; its items record before and after. Rows are never
--- edited: a mistake is corrected with a new adjustment. Stock itself still comes from
--- stock_movement, whose reference_id points at the adjustment.
+-- Manual stock adjustments (why, who, when; items hold before and after). Never edited: a mistake
+-- is corrected with a new adjustment. Stock still comes from stock_movement, whose reference_id
+-- is the adjustment.
 CREATE TABLE stock_adjustment (
     id BIGSERIAL PRIMARY KEY,
     reason TEXT NOT NULL CONSTRAINT stock_adjustment_reason_check CHECK (reason IN (

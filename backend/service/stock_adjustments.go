@@ -50,8 +50,8 @@ type plannedStockItem struct {
 	expiry    *time.Time
 }
 
-// normalizeStockNote trims a note and checks its length; required notes must not be empty, and
-// missing is the message when one is.
+// normalizeStockNote trims a note and checks its length; missing is the error for an empty
+// required note.
 func normalizeStockNote(note string, required bool, missing string) (string, error) {
 	note = strings.TrimSpace(note)
 	if required && note == "" {
@@ -136,11 +136,9 @@ func normalizeStockAdjustment(
 	return req, items, nil
 }
 
-// CreateStockAdjustment corrects the stock of one or more products for one reason. The products
-// are locked and their stock read inside the transaction, so concurrent adjustments of a product
-// queue up and each sees the last one's result. Sales, receiving and stock taking don't take the
-// lock yet (T-022), so a sale committing at the same moment is not counted. A retry with the same
-// idempotency key returns the first adjustment.
+// CreateStockAdjustment corrects stock for one or more products for one reason. Products are
+// locked and their stock read in the transaction, so adjustments of a product queue. A retry with
+// the same key returns the first adjustment.
 func (s *inventoryService) CreateStockAdjustment(
 	ctx context.Context, req types.StockAdjustmentRequest, userID int,
 ) (int, error) {
@@ -177,9 +175,7 @@ func (s *inventoryService) createStockAdjustmentTx(
 	if err != nil {
 		return 0, httperror.ServerError("failed to read stock", err)
 	}
-	// A retry of a save that already went through returns it, before the items are checked
-	// against stock that already includes it. Checked after the locks, so a copy that committed
-	// while this one waited is visible.
+	// After the locks, so a copy that committed while this one waited is found and returned.
 	if req.IdempotencyKey != "" {
 		existing, err := s.repo.StockAdjustmentIDByKeyTx(ctx, tx, userID, req.IdempotencyKey)
 		if err != nil {
@@ -373,9 +369,8 @@ func sameDay(a *time.Time, b time.Time) bool {
 	return ay == by && am == bm && ad == bd
 }
 
-// refuseProductsBeingCounted stops an adjustment of a product already counted in an open stock
-// taking: completing the taking applies (count - snapshot), so a change made after the snapshot
-// would be applied twice.
+// refuseProductsBeingCounted refuses products already counted in an open stock taking: completing
+// it posts count − snapshot, which would apply this change a second time.
 func (s *inventoryService) refuseProductsBeingCounted(
 	ctx context.Context, tx *sqlx.Tx, ids []int, products map[int]types.ProductStock,
 ) error {

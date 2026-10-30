@@ -85,9 +85,8 @@ type StockFlagRequest struct {
 	CountedQuantity *int   `json:"counted_quantity"`
 }
 
-// StockFlag is an open flag with the product's current stock. MovedSince is what sales, receipts
-// and returns changed since the flag was raised; stock takings and adjustments are corrections,
-// not shelf movements, so they are left out.
+// StockFlag is an open flag with the product's current stock. MovedSince is the change from sales,
+// receipts and returns since the flag (corrections left out).
 type StockFlag struct {
 	ID              int       `json:"id"               db:"id"`
 	ProductID       int       `json:"product_id"       db:"product_id"`
