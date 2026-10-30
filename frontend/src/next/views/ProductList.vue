@@ -185,6 +185,24 @@
               </div>
             </div>
 
+            <!-- Stock actions -->
+            <div v-if="canAdjustStock || canFlagStock" class="border-t border-border px-5 py-4 space-y-3">
+              <div v-if="!flagging" class="flex flex-wrap gap-2">
+                <Button v-if="canAdjustStock" size="sm" variant="outline" @click="adjustStock">Adjust stock</Button>
+                <Button v-if="canFlagStock" size="sm" variant="outline" @click="startFlag">Flag for check</Button>
+              </div>
+              <div v-else class="space-y-2">
+                <label for="flag-note" class="block text-xs text-muted-foreground">What looks wrong?</label>
+                <input id="flag-note" v-model="flagForm.note" maxlength="500" class="w-full text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" placeholder="e.g. two packs crushed, or the shelf count doesn't match" />
+                <label for="flag-count" class="block text-xs text-muted-foreground">Count you saw (optional)</label>
+                <input id="flag-count" v-model="flagForm.counted" type="number" min="0" class="w-32 text-sm border border-border rounded-md px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-ring" />
+                <div class="flex gap-2">
+                  <Button size="sm" :disabled="flagSaving || !flagForm.note.trim()" @click="submitFlag">{{ flagSaving ? "Sending..." : "Send to a manager" }}</Button>
+                  <Button size="sm" variant="outline" :disabled="flagSaving" @click="flagging = false">Cancel</Button>
+                </div>
+              </div>
+            </div>
+
             <!-- Price Options -->
             <div v-if="detailProduct.price_options?.length" class="border-t border-border px-5 py-4">
               <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Price Options</div>
@@ -303,12 +321,60 @@ import { ref, computed, watch, onMounted } from "vue";
 import { Search, RotateCw, AlertCircle, Package, ChevronLeft, ChevronRight, X, Pencil, Check, Plus } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
+import { useRouter } from "vue-router";
+import { useStockFlags } from "../composables/useStockFlags.js";
 
 const API = "";
 
 const permissions = ref(window.__PERMISSIONS__ ?? {});
 const canViewReorder = computed(() => permissions.value["reorderlevel:view"]);
 const canEditInventory = computed(() => permissions.value["inventory:edit"]);
+const canAdjustStock = computed(() => permissions.value["stock:adjust"]);
+const canFlagStock = computed(() => permissions.value["stock:flag"] || permissions.value["stock:adjust"]);
+const router = useRouter();
+const { refresh: refreshFlagCount } = useStockFlags();
+
+// Flagging asks a manager to check this product's stock.
+const flagging = ref(false);
+const flagSaving = ref(false);
+const flagForm = ref({ note: "", counted: "" });
+
+function startFlag() {
+  flagForm.value = { note: "", counted: "" };
+  flagging.value = true;
+}
+
+async function submitFlag() {
+  if (!detailProduct.value) return;
+  const counted = flagForm.value.counted === "" || flagForm.value.counted === null ? null : Number(flagForm.value.counted);
+  if (counted !== null && (!Number.isInteger(counted) || counted < 0)) {
+    showToast("Enter the count as a whole number");
+    return;
+  }
+  flagSaving.value = true;
+  try {
+    const res = await csrfFetch(`${API}/inventory/stock-flags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: detailProduct.value.id, note: flagForm.value.note.trim(), counted_quantity: counted }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    flagging.value = false;
+    showToast("Flagged for a manager to check");
+    refreshFlagCount(); // a manager flagging sees their own badge update straight away
+  } catch (e) {
+    showToast(e.message || "Could not flag the product");
+  } finally {
+    flagSaving.value = false;
+  }
+}
+
+function adjustStock() {
+  if (detailProduct.value) router.push({ path: "/stock-adjustments", query: { product: String(detailProduct.value.id) } });
+}
 
 const allProducts = ref([]);
 const categories = ref([]);
@@ -336,6 +402,8 @@ const editForm = ref({
 });
 
 let toastTimer = null;
+watch(detailProduct, () => { flagging.value = false; });
+
 function showToast(msg) {
   toast.value = msg;
   clearTimeout(toastTimer);
