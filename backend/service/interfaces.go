@@ -12,6 +12,7 @@ type UserService interface {
 }
 
 type InventoryService interface {
+	StockAdjustmentService
 	SavePurchaseOrder(ctx context.Context, order types.PurchaseOrderRequest, userID int) (int, error)
 	ListPurchaseOrders(ctx context.Context, view string, userID int) ([]types.PurchaseOrder, error)
 	GetPurchaseOrder(ctx context.Context, id, userID int) (types.PurchaseOrder, error)
@@ -35,6 +36,17 @@ type InventoryService interface {
 	FetchProductByID(ctx context.Context, id int) (types.ProductResult, error)
 	FetchReceivingBatches(ctx context.Context, filter types.SaleFilter) ([]types.ReceivedBatch, error)
 	GetTopSellingProducts(ctx context.Context, limit int) ([]types.TopSellingProductData, error)
+}
+
+type StockAdjustmentService interface {
+	CreateStockAdjustment(
+		ctx context.Context, req types.StockAdjustmentRequest, userID int,
+	) (int, error)
+	ListStockAdjustments(ctx context.Context, page int) (types.StockAdjustmentPage, error)
+	FlagStock(ctx context.Context, req types.StockFlagRequest, userID int) (int, error)
+	ListStockFlags(ctx context.Context) ([]types.StockFlag, error)
+	CountStockFlags(ctx context.Context) (int, error)
+	DismissStockFlag(ctx context.Context, id int, note string, userID int) error
 }
 
 type SaleService interface {

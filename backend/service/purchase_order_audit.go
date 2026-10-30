@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"pharmacy/httperror"
@@ -31,10 +30,10 @@ type change struct {
 func normalizeAuditReason(reason string) (string, error) {
 	reason = strings.TrimSpace(reason)
 	if utf8.RuneCountInString(reason) < minAuditReason {
-		return "", purchaseOrderBadRequest("give a reason")
+		return "", badRequest("give a reason")
 	}
 	if utf8.RuneCountInString(reason) > maxAuditReason {
-		return "", purchaseOrderBadRequest(
+		return "", badRequest(
 			fmt.Sprintf("the reason is limited to %d characters", maxAuditReason),
 		)
 	}
@@ -45,22 +44,9 @@ func normalizeAuditReason(reason string) (string, error) {
 func (s *inventoryService) auditPurchaseOrder(
 	ctx context.Context, tx *sqlx.Tx, userID, orderID int, action, reason string, details any,
 ) error {
-	body, err := json.Marshal(details)
-	if err != nil {
-		return httperror.ServerError("failed to record audit entry", err)
-	}
-	err = s.repo.InsertAuditLogTx(ctx, tx, types.AuditEntry{
-		ActorID:    userID,
-		EntityType: constant.AuditEntityPurchaseOrder,
-		EntityID:   orderID,
-		Action:     action,
-		Reason:     reason,
-		Details:    body,
-	})
-	if err != nil {
-		return httperror.ServerError("failed to record audit entry", err)
-	}
-	return nil
+	return s.audit(
+		ctx, tx, userID, constant.AuditEntityPurchaseOrder, orderID, action, reason, details,
+	)
 }
 
 func auditItemSummary(item types.PurchaseOrderItem) map[string]any {
