@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-107 -->
+<!-- next-id: T-112 -->
 
 <details>
 <summary>How this board works</summary>
@@ -93,6 +93,8 @@ Amounts arrive as float naira and are converted with `int(x * 100)`, which trunc
 
 `CreateSale` posts `OUT_SALE` without checking available stock. Block or require an override permission when a sale exceeds stock.
 
+The check has to lock the products first, the way stock adjustments do (`LockProductStockTx`: `FOR UPDATE` in id order, then read stock in a second statement). Until sales take that lock, a sale committing at the same moment as an adjustment isn't counted by the adjustment's below-zero check.
+
 ### T-023 Re-check permissions on each request
 
 - priority: P0
@@ -110,6 +112,22 @@ Permissions are cached in the session cookie at login (`RequirePermissions` read
 No throttling or lockout on failed logins. Session cookie lacks `Secure`; review `SameSite`. Add HTTPS-only settings and security headers.
 
 Also cap request body size on every JSON endpoint (one middleware or shared helper). T-018 added `decodeLimitedJSON` (16 KB, 413 when exceeded) to the admin create-user and reset-password handlers only.
+
+### T-110 Sign-in can send you to a stale page
+
+- priority: P2
+- feature: Security hardening
+- created: 2026-10-28
+
+`AuthMiddleware` stores the page you were trying to open in the session as `next`, and sign-in sends you there. Visiting `/user/logout` while signed out stores `/user/logout`, and the next sign-in then lands on a 404. An API call made after the session ends (an open page's background fetch) does the same, and sign-in then shows raw JSON. Ignore `next` for sign-out, `/api` and other non-page paths, and clear it after use. Found in T-050's browser check.
+
+### T-111 Sales and receipts during a stock take are counted twice
+
+- priority: P1
+- feature: Inventory control
+- created: 2026-10-29
+
+A product's stock is snapshotted the first time it's counted in a stock taking, and completing the taking posts (count - snapshot). A sale or receipt of that product between its count and completion is in both the movements and the difference: snapshot 50, sell 5, count 45 → completion posts −5, stock ends at 40 with 45 on the shelf. Stock adjustments refuse products already counted in an open stock taking (T-050); sales and receiving don't. Either move the snapshot by every movement after it, or snapshot at count time and post (count − stock at count). Recording a count should also lock the product row (as adjustments do), so a count saved at the same moment as an adjustment can't take its snapshot before the adjustment and slip past the adjustment's check. Raised in T-050's review.
 
 ### T-025 CI pipeline
 
@@ -409,19 +427,7 @@ Track stock per batch, not just per product. Today stock is one number per produ
 - [ ] Expiry lists and write-offs per batch
 - [ ] Recall lookup: which sales (and customers, T-040) took batch X
 
-### T-050 Manual stock management
-
-- priority: P1
-- feature: Inventory control
-- created: 2026-10-26
-
-Adjust stock directly, without starting a stock take. Today the only way is the stock field on the product edit form.
-
-- [ ] Adjust one product or many at once, by setting a new count or adding/removing a quantity
-- [ ] Reason codes: expired, damaged, theft/loss, correction, opening stock, internal use; new movement types for write-offs
-- [ ] Set or correct expiry and batch while adjusting
-- [ ] Own permission, plus approval above a configurable quantity or value
-- [ ] Audit entry for every adjustment; route the product edit stock field through this flow, or remove it
+Per-batch stock adjustments and lot details on write-offs belong here (T-050 adjusts at product level).
 
 ### T-051 Multi-store & multi-branch support
 
@@ -502,6 +508,23 @@ Group interchangeable products, e.g. different brands of amoxicillin 500mg that 
 - [ ] Low stock judged per group as well as per product
 - [ ] Substitution at the POS: when a product is out of stock, suggest in-stock products from the same group or with the same active ingredient (T-057)
 
+### T-107 Approval for large stock adjustments
+
+- priority: P1
+- feature: Inventory control
+- depends: T-093
+- created: 2026-10-28
+
+Adjustments above a quantity or value threshold wait for a second manager, so the person adjusting isn't the one approving. Threshold set on the settings screen. Raised in T-050.
+
+### T-108 Adjust stock in packs as well as units
+
+- priority: P2
+- feature: Inventory control
+- created: 2026-10-28
+
+Stock adjustments are entered in base units. Let the manager pick a price option (pack, sachet) and enter quantities in it. Raised in T-050.
+
 ### T-098 Merge duplicate products, categories and groups
 
 - priority: P1
@@ -557,6 +580,8 @@ Running register of controlled substances: receipts, dispensing, balances, who d
 - created: 2026-10-26
 
 Stock value at cost and retail, slow and dead movers, value of expired / written-off stock.
+
+Write-off value by reason: `stock_adjustment_item.unit_cost_kobo × quantity_change`, grouped by `stock_adjustment.reason` (T-050).
 
 ### T-096 More useful sales and inventory metrics
 
@@ -730,6 +755,14 @@ Search and filter by supplier, status and date, with pagination; the Completed t
 - created: 2026-10-26
 
 Generate and print barcode/shelf labels for products without manufacturer barcodes.
+
+### T-109 Product search returns stock as 0
+
+- priority: P2
+- feature: Inventory control
+- created: 2026-10-28
+
+`/inventory/search` results always carry `stock: 0`; only `/inventory/product/{id}` and `/inventory/item-list` compute it. Either compute it in the search query or drop the field so nothing relies on it. The POS uses item-list and isn't affected. Found in T-050.
 
 ### T-075 Cashier PIN switching & admin 2FA
 
