@@ -51,6 +51,11 @@
           @click="toggleSection('inventory')"
         >
           <span>Inventory</span>
+          <span
+            v-if="!(sectionOpen.inventory || isInSection(inventoryPaths)) && inventoryAttention"
+            class="ml-auto mr-2 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-white"
+            :title="`${inventoryAttention} waiting in Inventory`"
+          >{{ inventoryAttention }}</span>
           <ChevronDown :stroke-width="1.5" :size="14" :class="sectionOpen.inventory ? 'rotate-0' : '-rotate-90'" class="transition-transform" />
         </button>
         <div v-if="!collapsed || mobileOpen" class="w-full h-px bg-border mb-1" />
@@ -62,6 +67,7 @@
           <router-link to="/receive-items" :class="linkClasses('/receive-items')" @click="$emit('close-mobile')"><Truck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Receive Items</span></router-link>
           <router-link to="/received-items-history" :class="linkClasses('/received-items-history')" @click="$emit('close-mobile')"><ClipboardList :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Received History</span></router-link>
           <router-link to="/held-receive-items" :class="linkClasses('/held-receive-items')" @click="$emit('close-mobile')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Held Receipts</span></router-link>
+          <router-link v-if="canAdjustStock" to="/stock-adjustments" :class="linkClasses('/stock-adjustments')" @click="$emit('close-mobile')"><SlidersHorizontal :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Stock Adjustments</span><span v-if="stockFlags.open && (!collapsed || mobileOpen)" class="ml-auto rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white" :title="`${stockFlags.open} flagged for checking`">{{ stockFlags.open }}</span></router-link>
           <router-link to="/stock-taking" :class="linkClasses('/stock-taking')" @click="$emit('close-mobile')"><ClipboardCheck :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Stock Taking</span></router-link>
         </div>
       </div>
@@ -104,13 +110,14 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
-  Package, Truck, ClipboardCheck, ClipboardList, Shield,
+  Package, Truck, ClipboardCheck, ClipboardList, Shield, SlidersHorizontal,
   PillBottle, PanelLeftClose, PanelRightOpen, Moon, Sun,
   ChevronDown,
 } from "lucide-vue-next";
 import PermissionGate from "./PermissionGate.vue";
 import { usePermissions } from "../composables/usePermissions.js";
 import { usePendingPurchaseOrders } from "../composables/usePendingPurchaseOrders.js";
+import { useStockFlags } from "../composables/useStockFlags.js";
 
 defineProps({
   collapsed: { type: Boolean, default: false },
@@ -128,9 +135,15 @@ const canUsePurchaseOrders = computed(
 const { counts: pendingCounts, start: watchPending, stop: stopWatchingPending } = usePendingPurchaseOrders();
 onMounted(watchPending);
 onUnmounted(stopWatchingPending);
+const canAdjustStock = computed(() => hasPermission("stock:adjust"));
+const { counts: stockFlags, start: watchFlags, stop: stopWatchingFlags } = useStockFlags();
+onMounted(watchFlags);
+onUnmounted(stopWatchingFlags);
+// Shown on the folded Inventory header, so the counts aren't hidden behind it.
+const inventoryAttention = computed(() => (pendingCounts.pending || 0) + (stockFlags.open || 0));
 
 const salesPaths = ["/pos", "/sales-history", "/held-sales"];
-const inventoryPaths = ["/products", "/purchase-orders", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking"];
+const inventoryPaths = ["/products", "/purchase-orders", "/stock-adjustments", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking"];
 
 function activeSectionKeys() {
   const keys = [];

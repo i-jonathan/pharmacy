@@ -51,6 +51,9 @@ const (
 const (
 	AuditEntityPurchaseOrder = "purchase_order"
 	AuditEntityUser          = "user"
+
+	AuditEntityStockAdjustment = "stock_adjustment"
+	AuditEntityStockFlag       = "stock_flag"
 )
 
 const (
@@ -62,6 +65,8 @@ const (
 	AuditSubmitted = "submitted"
 	AuditApproved  = "approved"
 	AuditRejected  = "rejected"
+	AuditResolved  = "resolved"
+	AuditDismissed = "dismissed"
 )
 
 type RequirePermissionMode string

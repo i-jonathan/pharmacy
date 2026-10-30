@@ -13,10 +13,11 @@ import (
 // is exercised against the schema as production has it: everything up to 39 applied, with
 // receipts already in place.
 const (
-	purchaseOrderMigration = 40
-	auditLogMigration      = 41
-	approvalMigration      = 42
-	permissionsMigration   = 43
+	purchaseOrderMigration   = 40
+	auditLogMigration        = 41
+	approvalMigration        = 42
+	permissionsMigration     = 43
+	stockAdjustmentMigration = 44
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -264,4 +265,68 @@ func TestPurchaseOrderPermissionsMigration(t *testing.T) {
 	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'PurchaseOrder'`); n != 0 {
 		t.Fatalf("rollback should remove the permissions, got %d", n)
 	}
+}
+
+func TestStockAdjustmentMigration(t *testing.T) {
+	db := testdb.New(t, stockAdjustmentMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('m', 'x')`)
+	db.MustExec(`INSERT INTO category (name) VALUES ('General')`)
+	db.MustExec(`INSERT INTO product (name, category_id) SELECT 'Amoxil', id FROM category`)
+
+	testdb.Migrate(t, db, stockAdjustmentMigration-1, stockAdjustmentMigration)
+
+	var grants []string
+	err := db.Select(&grants, `
+		SELECT r.name || ':' || p.action
+		FROM role_permissions rp
+		JOIN roles r ON r.id = rp.role_id
+		JOIN permissions p ON p.id = rp.permission_id
+		WHERE p.resource = 'Stock' AND p.action IN ('Adjust', 'Flag')
+		ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Admin:Adjust,Admin:Flag,Cashier:Flag,Manager:Adjust,Manager:Flag"
+	if got := strings.Join(grants, ","); got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+
+	addAdjustment := `INSERT INTO stock_adjustment (reason, created_by_id)
+		VALUES ($1, (SELECT id FROM users))`
+	db.MustExec(addAdjustment, "damaged")
+	mustFail(t, db, "stock_adjustment_reason_check", addAdjustment, "borrowed")
+	// An item has to change the quantity or the expiry.
+	mustFail(t, db, "stock_adjustment_item_changes_something", `
+		INSERT INTO stock_adjustment_item
+			(stock_adjustment_id, product_id, quantity_before, quantity_change)
+		VALUES ((SELECT id FROM stock_adjustment), (SELECT id FROM product), 5, 0)`)
+	db.MustExec(`
+		INSERT INTO stock_adjustment_item
+			(stock_adjustment_id, product_id, quantity_before, quantity_change)
+		VALUES ((SELECT id FROM stock_adjustment), (SELECT id FROM product), 5, -2)`)
+	db.MustExec(`INSERT INTO stock_flag (product_id, note, flagged_by_id)
+		VALUES ((SELECT id FROM product), 'two packs crushed', (SELECT id FROM users))`)
+	mustFail(t, db, "stock_flag_status_check", `UPDATE stock_flag SET status = 'maybe'`)
+	mustFail(t, db, "stock_flag_one_open_per_user", `
+		INSERT INTO stock_flag (product_id, note, flagged_by_id)
+		VALUES ((SELECT id FROM product), 'again', (SELECT id FROM users))`)
+
+	testdb.Rollback(t, db, stockAdjustmentMigration)
+	tables := `SELECT count(*) FROM information_schema.tables
+		WHERE table_name IN ('stock_adjustment', 'stock_adjustment_item', 'stock_flag')`
+	if n := count(t, db, tables); n != 0 {
+		t.Fatalf("the adjustment tables should be gone after rollback, %d left", n)
+	}
+	newPerms := `SELECT count(*) FROM permissions
+		WHERE resource = 'Stock' AND action IN ('Adjust', 'Flag')`
+	if n := count(t, db, newPerms); n != 0 {
+		t.Fatal("the new permissions should be removed on rollback")
+	}
+	kept := `SELECT count(*) FROM permissions WHERE resource = 'Stock' AND action = 'Complete'`
+	if n := count(t, db, kept); n != 1 {
+		t.Fatal("existing stock permissions must survive the rollback")
+	}
+
+	testdb.Migrate(t, db, stockAdjustmentMigration-1, stockAdjustmentMigration)
+	db.MustExec(addAdjustment, "expired")
 }

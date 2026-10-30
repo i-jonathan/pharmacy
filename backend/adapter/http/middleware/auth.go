@@ -67,8 +67,12 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 						return
 					}
 				}
+				// None of the permissions matched: refuse, don't fall through to the handler.
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
 			default:
 				http.Error(w, "Server Error", http.StatusInternalServerError)
+				return
 			}
 
 			ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)

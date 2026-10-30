@@ -28,10 +28,10 @@ flowchart LR
 |---|---|
 | Screens | `frontend/src/next/views/PurchaseOrders.vue` (list, editor, details dialog, PDF export); `views/ReceiveItems.vue` (receive against an order); `components/SupplierInput.vue`, `ReasonPicker.vue`, `reasons.js`, `QuantityStepper.vue`, `PagerBar.vue` |
 | Entry points | `components/Sidebar.vue` (link and pending badge), `components/DashboardView.vue` (approval banner), `components/LowStockPage.vue` (`/purchase-orders?lowStock=1`) |
-| Badge polling | `composables/usePendingPurchaseOrders.js` |
+| Badge polling | `composables/usePendingPurchaseOrders.js`, built on the shared `usePolledCounts.js` (one timer per count, also used by the stock flag badge) |
 | Routes | `backend/adapter/http/router/inventory.go` (mounted at `/inventory/` in `main.go`) |
 | Controller | `backend/adapter/http/controller/inventory.go` (`SavePurchaseOrder`, `ListPurchaseOrders`, `SubmitPurchaseOrder`, `ApprovePurchaseOrder`, `RejectPurchaseOrder`, `ClosePurchaseOrder`, `MovePurchaseOrderOutstanding`, `CountPendingPurchaseOrders`, `GetPurchaseOrderHistory`) |
-| Services | `backend/service/purchase_orders.go` (save, edit, list, get, close, move, receipt), `purchase_order_approval.go` (submit, approve, reject, pending counts, `inPurchaseOrderTx`), `purchase_order_audit.go` (audit entries, history, reason rules) |
+| Services | `backend/service/purchase_orders.go` (save, edit, list, get, close, move, receipt), `purchase_order_approval.go` (submit, approve, reject, pending counts, `inPurchaseOrderTx`), `purchase_order_audit.go` (audit entries, history, reason rules); the shared `inTx`, `audit` and `badRequest` helpers are in `helpers.go` |
 | Repository | `backend/repository/purchase_orders.go`; SQL in `repository/query.go` |
 | Migrations | `000040_purchase_orders_and_suppliers`, `000041_audit_log`, `000042_purchase_order_approval`, `000043_purchase_order_permissions` |
 | Constants | `internal/constant/constant.go` (statuses, audit actions), `internal/constant/permissions.go` |
@@ -58,7 +58,7 @@ The UI shows a closed order that received something as "partially filled" (`show
 |---|---|---|
 | Starts | `PurchaseOrders.vue` `save()` | `validateLines` (whole quantities ≥ 1, not below received); `confirmLargeOrder` asks when a line is ≥ `CONFIRM_QUANTITY` (100,000) or there are more than `CONFIRM_LINES` (200) lines |
 | Request | `POST /inventory/purchase-orders` | `{id, version, supplier, note, items: [{id, product_id, name, manufacturer, note, quantity}]}`; `id: 0` creates. No idempotency key |
-| Gate | `AuthMiddleware`, `AddPermissionsToContext`, `RequirePermissions(any: purchaseorder:draft, purchaseorder:approve)`, CSRF | |
+| Gate | `AuthMiddleware`, `AddPermissionsToContext`, `RequirePermissions(any: purchaseorder:draft, purchaseorder:approve)`, CSRF | Before T-050, "any" mode let a user with neither permission through to the handler (the service still refused); it now answers 403 |
 | Service | `SavePurchaseOrder` | `normalizePurchaseOrderRequest` (trim, lengths, ≥ 1 item, quantity 1..`math.MaxInt32`, no duplicate product or duplicate new-item name+manufacturer). Create: status `open` for approvers, `draft` for drafters. Edit: `GetPurchaseOrderForUpdateTx` (row lock), version must match, `checkPurchaseOrderEditable`, `planPurchaseOrderEdit` (received lines keep their identity, can't drop below received, can't be removed). Supplier resolved by `resolveSupplier` (find-or-create, case-insensitive). No-op edits write nothing |
 | Data | `purchase_order`, `purchase_order_item`, `supplier` | Header update bumps `version`; active orders get `refreshPurchaseOrderStatusQuery` |
 | Side effects | `audit_log` | `created` or `edited` with a diff (`describePurchaseOrderEdit`) |

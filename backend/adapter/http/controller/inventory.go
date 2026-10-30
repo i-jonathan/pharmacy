@@ -80,9 +80,9 @@ func (c *inventoryController) CreateProduct(w http.ResponseWriter, r *http.Reque
 	helper.JSONResponse(w, http.StatusOK, itemResponse)
 }
 
-// respondPurchaseOrderError writes service errors that carry their own status as-is and
+// respondServiceError writes service errors that carry their own status as-is and
 // anything else as a server error.
-func respondPurchaseOrderError(w http.ResponseWriter, err error, msg string) {
+func respondServiceError(w http.ResponseWriter, err error, msg string) {
 	var httperr *httperror.HTTPError
 	if errors.As(err, &httperr) {
 		httperr.JSONRespond(w)
@@ -124,7 +124,7 @@ func (c *inventoryController) versionedAction(
 		return
 	}
 	if err := act(id, req.Version); err != nil {
-		respondPurchaseOrderError(w, err, failure)
+		respondServiceError(w, err, failure)
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
@@ -143,7 +143,7 @@ func (c *inventoryController) RejectPurchaseOrder(w http.ResponseWriter, r *http
 	}
 	err = c.service.RejectPurchaseOrder(r.Context(), id, req.Version, req.Reason, requestUserID(r))
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not reject purchase order")
+		respondServiceError(w, err, "could not reject purchase order")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
@@ -152,7 +152,7 @@ func (c *inventoryController) RejectPurchaseOrder(w http.ResponseWriter, r *http
 func (c *inventoryController) CountPendingPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	counts, err := c.service.CountPendingPurchaseOrders(r.Context())
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not count purchase orders")
+		respondServiceError(w, err, "could not count purchase orders")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, counts)
@@ -167,7 +167,7 @@ func (c *inventoryController) SavePurchaseOrder(w http.ResponseWriter, r *http.R
 	userID := requestUserID(r)
 	id, err := c.service.SavePurchaseOrder(r.Context(), order, userID)
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not save purchase order")
+		respondServiceError(w, err, "could not save purchase order")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
@@ -178,7 +178,7 @@ func (c *inventoryController) ListPurchaseOrders(w http.ResponseWriter, r *http.
 		r.Context(), r.URL.Query().Get("view"), requestUserID(r),
 	)
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not fetch purchase orders")
+		respondServiceError(w, err, "could not fetch purchase orders")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, orders)
@@ -192,7 +192,7 @@ func (c *inventoryController) GetPurchaseOrder(w http.ResponseWriter, r *http.Re
 	}
 	order, err := c.service.GetPurchaseOrder(r.Context(), id, requestUserID(r))
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not fetch purchase order")
+		respondServiceError(w, err, "could not fetch purchase order")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, order)
@@ -211,7 +211,7 @@ func (c *inventoryController) ClosePurchaseOrder(w http.ResponseWriter, r *http.
 	}
 	userID, _ := r.Context().Value(constant.UserIDKey).(int)
 	if err := c.service.ClosePurchaseOrder(r.Context(), id, req.Version, req.Reason, userID); err != nil {
-		respondPurchaseOrderError(w, err, "could not close purchase order")
+		respondServiceError(w, err, "could not close purchase order")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
@@ -225,7 +225,7 @@ func (c *inventoryController) GetPurchaseOrderHistory(w http.ResponseWriter, r *
 	}
 	records, err := c.service.GetPurchaseOrderHistory(r.Context(), id, requestUserID(r))
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not fetch purchase order history")
+		respondServiceError(w, err, "could not fetch purchase order history")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, records)
@@ -247,7 +247,7 @@ func (c *inventoryController) MovePurchaseOrderOutstanding(w http.ResponseWriter
 		r.Context(), id, req.Version, req.Supplier, req.Reason, userID,
 	)
 	if err != nil {
-		respondPurchaseOrderError(w, err, "could not move outstanding items")
+		respondServiceError(w, err, "could not move outstanding items")
 		return
 	}
 	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": newID})

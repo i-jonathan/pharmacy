@@ -163,7 +163,12 @@ const maxJSONBody = 16 * 1024
 // decodeLimitedJSON decodes a JSON body of at most maxJSONBody bytes into v. It writes the error
 // response itself and reports whether decoding succeeded.
 func decodeLimitedJSON(w http.ResponseWriter, r *http.Request, v any) bool {
-	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxJSONBody)).Decode(v)
+	return decodeJSONWithin(w, r, v, maxJSONBody)
+}
+
+// decodeJSONWithin is decodeLimitedJSON with its own size limit, for larger requests.
+func decodeJSONWithin(w http.ResponseWriter, r *http.Request, v any, limit int64) bool {
+	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit)).Decode(v)
 	var tooLarge *http.MaxBytesError
 	switch {
 	case errors.As(err, &tooLarge):

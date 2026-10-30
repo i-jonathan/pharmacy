@@ -81,7 +81,13 @@ The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` 
 - Expiry tracking (earliest expiry per product); Expiring page lists items expiring within 90 days (PDF export)
 - **CSV export** of current stock
 - Stock movement ledger (receives, sales, returns, stock-taking adjustments)
-- Edit products (prices, stock, details); requires `inventory:edit`
+- Edit product details and prices; requires `inventory:edit`. Stock isn't edited here: use stock adjustments
+- **Stock adjustments** (Inventory → Stock Adjustments, `stock:adjust`, managers by default):
+  - correct several products at once, setting a counted quantity or adding/removing an amount, optionally correcting the expiry date
+  - a reason is required: expired, damaged, theft or loss, count correction, opening stock, internal use, or other (with a note)
+  - each adjustment records who, when, before and after, and the cost price at the time; it's audited and kept as history, never edited
+  - stock can't go below zero, concurrent adjustments to a product queue up, and a retried save is applied once
+- **Flag for check** (`stock:flag`, cashiers too): from a product's details, say what looks wrong and optionally the count you saw. Managers see a badge, then adjust (which resolves the flag) or dismiss it with a note
 
 ### 4. Receiving / Supplier Deliveries
 - Record deliveries by supplier with quantity, cost price, selling price and expiry per item
@@ -134,18 +140,20 @@ The SPA calls the JSON endpoints under `/api`, `/sales`, `/inventory`, `/admin` 
 | `salestotal:view`            | View sales totals on the history page and sales figures/trend on the dashboard |
 | `stock:view`                 | Show system quantities and variances on the stock-counting screen (checked in the UI only) |
 | `stock:complete`             | Complete / finalise a stock-taking session     |
-| `inventory:edit`             | Edit product details (prices, stock info)      |
+| `inventory:edit`             | Edit product details and prices                |
+| `stock:adjust`               | Make stock adjustments, see their history, handle flagged products |
+| `stock:flag`                 | Flag a product for a manager to check          |
 | `admin:access`               | Access the `/admin/` APIs (users, roles, permissions, categories) |
 | `purchaseorder:draft`        | Write purchase order drafts, edit your own draft and submit it for approval (you only see your own orders) |
 | `purchaseorder:approve`      | Manager: create orders directly, edit any draft, approve or reject, and close or move approved orders. Receiving against an order is not gated |
 
-Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to `Admin` and `Manager`; `admin:access` goes to `Admin` only; `purchaseorder:draft` goes to `Cashier` and `purchaseorder:approve` to `Manager` and `Admin` (migration 43). Change who holds them in Administration → Permissions; users pick up a change the next time they log in.
+Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to `Admin` and `Manager`; `admin:access` goes to `Admin` only; `purchaseorder:draft` goes to `Cashier` and `purchaseorder:approve` to `Manager` and `Admin` (migration 43); `stock:adjust` goes to `Manager` and `Admin`, and `stock:flag` to `Cashier`, `Manager` and `Admin` (migration 44). Change who holds them in Administration → Permissions; users pick up a change the next time they log in.
 
 ---
 
 ## Database Schema
 
-43 migrations covering:
+44 migrations covering:
 
 - `users`, `roles`, `permissions`, `role_permissions`
 - `categories`, `products`, `product_prices`
@@ -159,6 +167,7 @@ Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to 
 - `idempotency_keys`
 - `supplier` (one row per supplier name, unique ignoring case and spaces; referenced by `receiving_batch.supplier_id` and `purchase_order.supplier_id`, which also keep the name as written on the document)
 - `purchase_order`, `purchase_order_item`
+- `stock_adjustment`, `stock_adjustment_item` (manual corrections with reason, before/after and cost), `stock_flag` (products flagged for checking)
 
 ### Movement Types
 
@@ -168,8 +177,8 @@ Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to 
 | `IN_SALE_RETURN`        | In        | Returned from a sale         |
 | `IN_STOCK_TAKING`       | In        | Positive stock-taking adjustment |
 | `OUT_STOCK_TAKING`      | Out       | Negative stock-taking adjustment |
-| `IN_MANUAL_ADJUSTMENT`  | In        | Manual stock addition        |
-| `OUT_MANUAL_ADJUSTMENT` | Out       | Manual stock reduction       |
+| `IN_MANUAL_ADJUSTMENT`  | In        | Stock adjustment addition (`reference_id` is the adjustment) |
+| `OUT_MANUAL_ADJUSTMENT` | Out       | Stock adjustment reduction (`reference_id` is the adjustment) |
 | `OUT_SALE`              | Out       | Sold to customer             |
 
 ---
@@ -323,7 +332,13 @@ All routes except `/user/*` and static assets require an authenticated session.
 | GET    | `/inventory/suppliers/search`           | Supplier search               |
 | GET    | `/inventory/report/stock`               | Export stock CSV              |
 | GET    | `/inventory/product/{id}`               | Product details (JSON)        |
-| PUT    | `/inventory/product/{id}`               | Update product (requires `inventory:edit`) |
+| PUT    | `/inventory/product/{id}`               | Update product details and prices (requires `inventory:edit`) |
+| POST   | `/inventory/stock-adjustments`          | Adjust stock (`stock:adjust`)  |
+| GET    | `/inventory/stock-adjustments`          | Adjustment history, paged (`stock:adjust`) |
+| POST   | `/inventory/stock-flags`                | Flag a product for checking (`stock:flag` or `stock:adjust`) |
+| GET    | `/inventory/stock-flags`                | Open flags (`stock:adjust`)    |
+| GET    | `/inventory/stock-flags/count`          | Number of open flags (`stock:adjust`) |
+| POST   | `/inventory/stock-flags/{id}/dismiss`   | Dismiss a flag with a note (`stock:adjust`) |
 | POST   | `/inventory/receive-items`              | Submit supplier delivery      |
 | POST   | `/inventory/receive-items/hold`         | Hold receiving form           |
 | GET    | `/inventory/receive-items/held/api`     | Held receipts (JSON)          |

@@ -1,5 +1,7 @@
 package repository
 
+import "fmt"
+
 const fetchReceivingBatchesQuery = `
 SELECT
     rb.id,
@@ -392,17 +394,9 @@ const checkIfActiveStockTaking = `
 		SELECT 1 FROM stock_taking WHERE status = $1
 	);
 `
-const currentProductStockQuery = `
-	SELECT COALESCE(SUM(
-        CASE
-            WHEN movement_type LIKE 'IN%'  THEN quantity
-            WHEN movement_type LIKE 'OUT%' THEN -quantity
-            ELSE 0
-        END
-    ), 0) AS stock
-    FROM stock_movement
-    WHERE product_id = $1;
-`
+
+var currentProductStockQuery = `SELECT ` + fmt.Sprintf(productStockSQL, "$1") + ` AS stock`
+
 const getStockTakingItemByProductIDQuery = `
 	SELECT * from stock_taking_item
 	WHERE stock_taking_id = $1

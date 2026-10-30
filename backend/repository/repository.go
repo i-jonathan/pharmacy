@@ -65,6 +65,38 @@ type InventoryRepository interface {
 	FetchBatchItemsByReceivingBatchID(ctx context.Context, batchID int) ([]types.ReceivedBatchItem, error)
 }
 
+type StockAdjustmentRepository interface {
+	ProductsInActiveStockTakingTx(
+		ctx context.Context, tx *sqlx.Tx, productIDs []int,
+	) ([]int, error)
+	LockProductStockTx(
+		ctx context.Context, tx *sqlx.Tx, productIDs []int,
+	) ([]types.ProductStock, error)
+	StockAdjustmentIDByKeyTx(
+		ctx context.Context, tx *sqlx.Tx, userID int, key string,
+	) (int, error)
+	CreateStockAdjustmentTx(
+		ctx context.Context, tx *sqlx.Tx, adj types.NewStockAdjustment,
+	) (int, bool, error)
+	InsertStockAdjustmentItemTx(
+		ctx context.Context, tx *sqlx.Tx, adjustmentID int, item types.NewStockAdjustmentItem,
+	) error
+	SetProductCurrentExpiryTx(
+		ctx context.Context, tx *sqlx.Tx, productID int, expiry time.Time,
+	) error
+	ListStockAdjustments(
+		ctx context.Context, limit, offset int,
+	) ([]types.StockAdjustment, int, error)
+	CreateStockFlagTx(
+		ctx context.Context, tx *sqlx.Tx, flag types.StockFlagRequest, userID int,
+	) (int, error)
+	ListOpenStockFlags(ctx context.Context) ([]types.StockFlag, error)
+	CountOpenStockFlags(ctx context.Context) (int, error)
+	GetStockFlagsForUpdateTx(ctx context.Context, tx *sqlx.Tx, ids []int) ([]types.StockFlag, error)
+	ResolveStockFlagsTx(ctx context.Context, tx *sqlx.Tx, ids []int, adjustmentID, userID int) error
+	DismissStockFlagTx(ctx context.Context, tx *sqlx.Tx, id, userID int, note string) error
+}
+
 type SaleRepository interface {
 	CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (int, error)
 	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
@@ -147,4 +179,5 @@ type PharmacyRepository interface {
 	StockTakingRepository
 	DashboardRepository
 	AdminRepository
+	StockAdjustmentRepository
 }

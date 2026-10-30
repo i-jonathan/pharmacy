@@ -43,6 +43,27 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 		mayApprove(http.HandlerFunc(inventoryController.ClosePurchaseOrder)))
 	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/move-outstanding",
 		mayApprove(http.HandlerFunc(inventoryController.MovePurchaseOrderOutstanding)))
+	// Stock adjustments are for managers (stock:adjust); flagging a product for a manager to
+	// check is open to anyone who can flag or adjust.
+	mayAdjustStock := middleware.RequirePermissions(
+		constant.RequireAllPermissions, constant.AdjustStockPermissionKey,
+	)
+	mayFlagStock := middleware.RequirePermissions(
+		constant.RequireAnyPermissions,
+		constant.FlagStockPermissionKey, constant.AdjustStockPermissionKey,
+	)
+	inventoryMux.Handle(http.MethodPost+" /stock-adjustments",
+		mayAdjustStock(http.HandlerFunc(inventoryController.CreateStockAdjustment)))
+	inventoryMux.Handle(http.MethodGet+" /stock-adjustments",
+		mayAdjustStock(http.HandlerFunc(inventoryController.ListStockAdjustments)))
+	inventoryMux.Handle(http.MethodPost+" /stock-flags",
+		mayFlagStock(http.HandlerFunc(inventoryController.FlagStock)))
+	inventoryMux.Handle(http.MethodGet+" /stock-flags",
+		mayAdjustStock(http.HandlerFunc(inventoryController.ListStockFlags)))
+	inventoryMux.Handle(http.MethodGet+" /stock-flags/count",
+		mayAdjustStock(http.HandlerFunc(inventoryController.CountStockFlags)))
+	inventoryMux.Handle(http.MethodPost+" /stock-flags/{id}/dismiss",
+		mayAdjustStock(http.HandlerFunc(inventoryController.DismissStockFlag)))
 	inventoryMux.HandleFunc(http.MethodPost+" /receive-items/hold", inventoryController.HoldReceivingItems)
 	inventoryMux.HandleFunc(http.MethodGet+" /receive-items/held/api", inventoryController.FetchHeldReceivingItemsJSON)
 	inventoryMux.HandleFunc(http.MethodDelete+" /receive-items/held/{reference}", inventoryController.DeleteHeldReceivingItems)

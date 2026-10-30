@@ -4,6 +4,14 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 ## 2026-10
 
+### T-050 Manual stock management
+
+- feature: Inventory control
+- done: 2026-10-28
+- prs: #34
+
+The app had no way to change stock except a full stock take; the product edit form had dropped its stock field, though the API still accepted a silent one. Managers (`stock:adjust`) now adjust stock in Inventory → Stock Adjustments. They can set a counted quantity or add/remove an amount, for several products at once, optionally correcting the expiry date. Every adjustment needs a reason (expired, damaged, theft or loss, count correction, opening stock, internal use, other) and records who, when, before and after, and the cost at the time. It's audited, products are locked so concurrent changes queue, stock can't go below zero, a retried save is applied once (the form locks after an unconfirmed save), and products already counted in an open stock taking are refused. Cashiers (`stock:flag`) flag products for checking, optionally with the count they saw; one open flag per person per product. When a manager adjusts from a flag, the count is carried forward by the sales, receipts and returns since (not by corrections such as a stock taking). Managers adjust from it (resolving it) or dismiss it; a product's open flags also show when it's added another way, and resolve only if the manager ticks that the adjustment answers them. Product edit no longer takes a stock value. Also fixed: `RequirePermissions` in "any" mode let requests with none of the permissions through. Follow-ups: T-107 to T-111. Plan: `docs/plans/T-050-manual-stock-management.md`.
+
 ### T-018 Lock down public user registration
 
 - feature: Security hardening
