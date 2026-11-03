@@ -323,6 +323,7 @@ import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
 import { useRouter } from "vue-router";
 import { useStockFlags } from "../composables/useStockFlags.js";
+import { readError } from "../lib/api.js";
 
 const API = "";
 
@@ -358,10 +359,7 @@ async function submitFlag() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ product_id: detailProduct.value.id, note: flagForm.value.note.trim(), counted_quantity: counted }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error((await readError(res, `HTTP ${res.status}`)).message);
     flagging.value = false;
     showToast("Flagged for a manager to check");
     refreshFlagCount(); // a manager flagging sees their own badge update straight away
