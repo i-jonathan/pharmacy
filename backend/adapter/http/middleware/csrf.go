@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"pharmacy/config"
+	"pharmacy/httperror"
 	"strings"
 
 	"github.com/gorilla/csrf"
@@ -22,14 +23,13 @@ func csrfAuthKey() []byte {
 	return key[:]
 }
 
+// csrfErrorHandler answers an app call in JSON with the code the SPA retries on (csrf_failed);
+// a page load gets plain text. API calls are told apart the same way as in AuthMiddleware.
 func csrfErrorHandler(w http.ResponseWriter, r *http.Request) {
-	if strings.Contains(r.Header.Get("Accept"), "application/json") {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"code":  "csrf_failed",
-			"error": "Your session token expired. Try the request again.",
-		})
+	if !wantsPage(r) {
+		refusal := httperror.Forbidden("Your session token expired. Try the request again.", nil)
+		refusal.Reason = "csrf_failed"
+		refusal.JSONRespond(w)
 		return
 	}
 	http.Error(w, "Forbidden - CSRF token validation failed", http.StatusForbidden)

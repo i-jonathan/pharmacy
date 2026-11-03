@@ -11,6 +11,9 @@ type HTTPError struct {
 	Code    int
 	Message string
 	Err     error
+	// Reason, when set, is sent as "code" so the page can act on a refusal without reading
+	// its message.
+	Reason string
 }
 
 func NewHttpError(code int, message string, err error) *HTTPError {
@@ -32,7 +35,11 @@ func (e *HTTPError) Unwrap() error {
 func (e *HTTPError) JSONRespond(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(e.Code)
-	json.NewEncoder(w).Encode(map[string]string{"error": e.Message})
+	body := map[string]string{"error": e.Message}
+	if e.Reason != "" {
+		body["code"] = e.Reason
+	}
+	json.NewEncoder(w).Encode(body)
 }
 
 func (e *HTTPError) Render(w http.ResponseWriter, tmpl *template.Template) {
@@ -62,6 +69,10 @@ func NotFound(msg string, err error) *HTTPError {
 
 func Unauthorized(msg string, err error) *HTTPError {
 	return NewHttpError(http.StatusUnauthorized, msg, err)
+}
+
+func Conflict(msg string, err error) *HTTPError {
+	return NewHttpError(http.StatusConflict, msg, err)
 }
 
 func Forbidden(msg string, err error) *HTTPError {
