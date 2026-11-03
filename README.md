@@ -153,12 +153,12 @@ Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to 
 
 ## Database Schema
 
-44 migrations covering:
+46 migrations covering:
 
 - `users`, `roles`, `permissions`, `role_permissions`
 - `categories`, `products`, `product_prices`
 - `receiving_batches`, `product_batches`
-- `stock_movements` (ledger with movement types)
+- `stock_movements` (ledger with movement types; indexed on product, migration 45)
 - `sales`, `sale_items`, `sale_payments`
 - `returns`, `return_items`
 - `held_transactions`
@@ -167,7 +167,7 @@ Seeded by migrations: `stock:view`, `stock:complete` and `inventory:edit` go to 
 - `idempotency_keys`
 - `supplier` (one row per supplier name, unique ignoring case and spaces; referenced by `receiving_batch.supplier_id` and `purchase_order.supplier_id`, which also keep the name as written on the document)
 - `purchase_order`, `purchase_order_item`
-- `stock_adjustment`, `stock_adjustment_item` (manual corrections with reason, before/after and cost), `stock_flag` (products flagged for checking)
+- `stock_adjustment`, `stock_adjustment_item` (manual corrections with reason, before/after and cost; a retry key and request fingerprint per save, migration 46), `stock_flag` (products flagged for checking)
 
 ### Movement Types
 

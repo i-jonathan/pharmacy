@@ -103,6 +103,8 @@ The check has to lock the products first, the way stock adjustments do (`LockPro
 
 Permissions are cached in the session cookie at login (`RequirePermissions` reads `session.Values["permissions"]`), so revoking a role or permission only takes effect after re-login or the 3am expiry. Load from DB (cached briefly) per request; add a way to end a user's sessions.
 
+Since T-050 a signed-out API call gets 401 JSON. Add one shared handler in the SPA: on a 401, show "You've been signed out. Sign in again" with a link, keep the page's state, and stop the badge polls. Today only Stock Adjustments shows the server's message; other screens say "Server error (401)" or "Failed to load data".
+
 ### T-024 Login rate limiting & cookie hardening
 
 - priority: P0
@@ -119,7 +121,7 @@ Also cap request body size on every JSON endpoint (one middleware or shared help
 - feature: Security hardening
 - created: 2026-10-28
 
-`AuthMiddleware` stores the page you were trying to open in the session as `next`, and sign-in sends you there. Visiting `/user/logout` while signed out stores `/user/logout`, and the next sign-in then lands on a 404. An API call made after the session ends (an open page's background fetch) does the same, and sign-in then shows raw JSON. Ignore `next` for sign-out, `/api` and other non-page paths, and clear it after use. Found in T-050's browser check.
+`AuthMiddleware` stores the page you were trying to open in the session as `next`, and sign-in sends you there. Visiting `/user/logout` while signed out stores `/user/logout`, and the next sign-in then lands on a 404. An API call made after the session ends (an open page's background fetch) does the same, and sign-in then shows raw JSON. Ignore `next` for sign-out and clear it after use. (Since T-050, API calls get a 401 and are no longer saved as `next`; the sign-out case remains.) Found in T-050's browser check.
 
 ### T-111 Sales and receipts during a stock take are counted twice
 
