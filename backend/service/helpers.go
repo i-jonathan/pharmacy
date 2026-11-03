@@ -41,18 +41,29 @@ func calculateStockDifference(item types.StockTakingItemData) (int, model.Moveme
 		return 0, "", true
 	}
  
-	movementType := model.MovementTypeInStockTaking
-	if diff < 0 {
-		movementType = model.MovementTypeOutStockTaking
-		diff = -diff
-	}
- 
-	return diff, movementType, false
+	quantity, movementType := stockDirection(
+		diff, model.MovementTypeInStockTaking, model.MovementTypeOutStockTaking,
+	)
+	return quantity, movementType, false
 }
 
 // badRequest is a 400 whose message is shown to the user as is.
 func badRequest(msg string) error {
 	return httperror.BadRequest(msg, errors.New(msg))
+}
+
+// conflict is a 409 whose message is shown to the user as is.
+func conflict(msg string) error {
+	return httperror.Conflict(msg, errors.New(msg))
+}
+
+// stockDirection turns a signed stock change into a positive quantity and the in or out
+// movement type.
+func stockDirection(change int, in, out model.MovementType) (int, model.MovementType) {
+	if change < 0 {
+		return -change, out
+	}
+	return change, in
 }
 
 // inTx runs fn in a transaction, committing when it returns nil and rolling back otherwise.

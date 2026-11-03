@@ -22,7 +22,8 @@ type fakeStockRepo struct {
 
 	products  map[int]types.ProductStock
 	flags     map[int]types.StockFlag
-	existing  int // id returned for an idempotency key already used
+	saved     *types.SavedStockAdjustment // an earlier save under the request's retry key
+	raced     *types.SavedStockAdjustment // a save that takes the key while this one runs
 	flagErr   error
 	items     []types.NewStockAdjustmentItem
 	movements []model.StockMovement
@@ -69,16 +70,22 @@ func (r *fakeStockRepo) LockProductStockTx(
 	return out, nil
 }
 
-func (r *fakeStockRepo) StockAdjustmentIDByKeyTx(
-	_ context.Context, _ *sqlx.Tx, _ int, _ string,
-) (int, error) {
-	return r.existing, nil
+func (r *fakeStockRepo) StockAdjustmentByKeyTx(
+	_ context.Context, _ *sqlx.Tx, _ string,
+) (*types.SavedStockAdjustment, error) {
+	if r.raced != nil && len(r.adjusted) > 0 {
+		return r.raced, nil // after this request's insert lost the race
+	}
+	return r.saved, nil
 }
 
 func (r *fakeStockRepo) CreateStockAdjustmentTx(
 	_ context.Context, _ *sqlx.Tx, adj types.NewStockAdjustment,
 ) (int, bool, error) {
 	r.adjusted = append(r.adjusted, adj)
+	if r.raced != nil {
+		return 0, false, nil
+	}
 	return 70, true, nil
 }
 
@@ -334,12 +341,24 @@ func TestStockAdjustmentCanCorrectOnlyTheExpiry(t *testing.T) {
 	}
 }
 
+// savedAs is an earlier save of req by user, as the repository would return it.
+func savedAs(t *testing.T, req types.StockAdjustmentRequest, user int) *types.SavedStockAdjustment {
+	t.Helper()
+	normalized, _, err := normalizeStockAdjustment(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &types.SavedStockAdjustment{
+		ID: 55, CreatedByID: user, RequestHash: stockAdjustmentFingerprint(normalized),
+	}
+}
+
 func TestStockAdjustmentRetryReturnsTheFirstAdjustment(t *testing.T) {
 	repo := newStockRepo()
-	repo.existing = 55
 	// Stock already reflects the first save, so re-checking the items would refuse them.
 	req := adjust(item(paracetamol, "remove", 3))
 	req.IdempotencyKey = "key-1"
+	repo.saved = savedAs(t, req, 4)
 
 	id, err := NewInventoryService(repo).CreateStockAdjustment(managerContext(), req, 4)
 
@@ -348,6 +367,37 @@ func TestStockAdjustmentRetryReturnsTheFirstAdjustment(t *testing.T) {
 	}
 	if len(repo.items) != 0 || len(repo.movements) != 0 || len(repo.audit) != 0 {
 		t.Fatal("a retry must not write anything again")
+	}
+}
+
+// A used key is only a retry when the same person sends the same thing. Anything else is refused,
+// so an edited form or another user can't be told "saved" while nothing they sent was applied,
+// nor apply a second adjustment the page meant as a retry.
+func TestStockAdjustmentRefusesAUsedKeyForADifferentSave(t *testing.T) {
+	first := adjust(item(amoxil, "remove", 3))
+	first.IdempotencyKey = "key-1"
+
+	edited := adjust(item(amoxil, "remove", 5))
+	edited.IdempotencyKey = "key-1"
+	repo := newStockRepo()
+	repo.saved = savedAs(t, first, 4)
+	_, err := NewInventoryService(repo).CreateStockAdjustment(managerContext(), edited, 4)
+	requireHTTPStatus(t, err, http.StatusConflict)
+	if !strings.Contains(err.Error(), "#55") || repo.commits != 0 {
+		t.Fatalf("an edited form should be refused naming #55, got %v", err)
+	}
+	// The page ends the form on this code instead of asking for the lines again.
+	var refusal *httperror.HTTPError
+	if !errors.As(err, &refusal) || refusal.Reason != "already_saved" {
+		t.Fatalf("the refusal should carry the code already_saved, got %v", err)
+	}
+
+	repo = newStockRepo()
+	repo.saved = savedAs(t, first, 4)
+	_, err = NewInventoryService(repo).CreateStockAdjustment(managerContext(), first, 9)
+	requireHTTPStatus(t, err, http.StatusConflict)
+	if !strings.Contains(err.Error(), "another user") || repo.commits != 0 {
+		t.Fatalf("another user's retry should be refused, got %v", err)
 	}
 }
 
@@ -547,4 +597,87 @@ func errorStatus(err error) int {
 		return httperr.Code
 	}
 	return 0
+}
+
+// Sales can take stock below zero (T-022). Adding to such a product, or fixing only its expiry,
+// must still work; only a change that lowers stock is held to "never below zero".
+func TestStockAdjustmentOnNegativeStock(t *testing.T) {
+	oversold := func() *fakeStockRepo {
+		repo := newStockRepo()
+		repo.products[amoxil] = types.ProductStock{ID: amoxil, Name: "Amoxil", Stock: -5}
+		return repo
+	}
+
+	repo := oversold()
+	if _, err := NewInventoryService(repo).CreateStockAdjustment(
+		managerContext(), adjust(item(amoxil, "add", 2)), 4,
+	); err != nil || repo.commits != 1 || repo.items[0].QuantityChange != 2 {
+		t.Fatalf("adding 2 to stock -5 should save +2, got %v (%+v)", err, repo.items)
+	}
+
+	repo = oversold()
+	expiryOnly := types.StockAdjustmentItemRequest{
+		ProductID: amoxil, Mode: "add", Quantity: 0, Expiry: strPtr("2027-03-31"),
+	}
+	if _, err := NewInventoryService(repo).CreateStockAdjustment(
+		managerContext(), adjust(expiryOnly), 4,
+	); err != nil || repo.commits != 1 || repo.items[0].QuantityChange != 0 {
+		t.Fatalf("an expiry-only fix on stock -5 should save, got %v (%+v)", err, repo.items)
+	}
+
+	_, err := NewInventoryService(oversold()).CreateStockAdjustment(
+		managerContext(), adjust(item(amoxil, "remove", 1)), 4,
+	)
+	requireHTTPStatus(t, err, http.StatusBadRequest)
+}
+
+// A "set" line carries the stock the manager saw. If it moved before the save (a sale, a
+// receipt), the target is stale and setting it would undo that movement, so the save is refused.
+func TestStockAdjustmentSetRefusesWhenStockMovedSinceItWasSeen(t *testing.T) {
+	seen := func(n int) *int { return &n }
+	stale := types.StockAdjustmentItemRequest{
+		ProductID: amoxil, Mode: "set", Quantity: 12, ExpectedStock: seen(14),
+	}
+	repo := newStockRepo()
+
+	_, err := NewInventoryService(repo).CreateStockAdjustment(managerContext(), adjust(stale), 4)
+
+	requireHTTPStatus(t, err, http.StatusConflict)
+	if !strings.Contains(err.Error(), "Amoxil") || repo.commits != 0 {
+		t.Fatalf("expected a refusal naming Amoxil and nothing saved, got %v", err)
+	}
+
+	current := types.StockAdjustmentItemRequest{
+		ProductID: amoxil, Mode: "set", Quantity: 10, ExpectedStock: seen(12),
+	}
+	repo = newStockRepo()
+	if _, err := NewInventoryService(repo).CreateStockAdjustment(
+		managerContext(), adjust(current), 4,
+	); err != nil || repo.items[0].QuantityChange != -2 {
+		t.Fatalf("a set with the stock as seen should save -2, got %v (%+v)", err, repo.items)
+	}
+}
+
+// Another save can take the key between this request's lookup and its insert. The insert then
+// does nothing, and the request is answered as if the lookup had found that save.
+func TestStockAdjustmentLosingTheKeyRaceIsAnsweredLikeALookup(t *testing.T) {
+	req := adjust(item(amoxil, "remove", 3))
+	req.IdempotencyKey = "key-1"
+
+	repo := newStockRepo()
+	repo.raced = savedAs(t, req, 4)
+	id, err := NewInventoryService(repo).CreateStockAdjustment(managerContext(), req, 4)
+	if err != nil || id != 55 || repo.commits != 1 || len(repo.items) != 0 {
+		t.Fatalf("the same save should get #55 back and write nothing, got %d, %v", id, err)
+	}
+
+	other := adjust(item(amoxil, "remove", 2))
+	other.IdempotencyKey = "key-1"
+	repo = newStockRepo()
+	repo.raced = savedAs(t, req, 4)
+	_, err = NewInventoryService(repo).CreateStockAdjustment(managerContext(), other, 4)
+	var refusal *httperror.HTTPError
+	if !errors.As(err, &refusal) || refusal.Reason != "already_saved" || len(repo.items) != 0 {
+		t.Fatalf("a different save should be refused as already_saved, got %v", err)
+	}
 }

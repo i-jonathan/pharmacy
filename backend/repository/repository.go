@@ -72,9 +72,9 @@ type StockAdjustmentRepository interface {
 	LockProductStockTx(
 		ctx context.Context, tx *sqlx.Tx, productIDs []int,
 	) ([]types.ProductStock, error)
-	StockAdjustmentIDByKeyTx(
-		ctx context.Context, tx *sqlx.Tx, userID int, key string,
-	) (int, error)
+	StockAdjustmentByKeyTx(
+		ctx context.Context, tx *sqlx.Tx, key string,
+	) (*types.SavedStockAdjustment, error)
 	CreateStockAdjustmentTx(
 		ctx context.Context, tx *sqlx.Tx, adj types.NewStockAdjustment,
 	) (int, bool, error)

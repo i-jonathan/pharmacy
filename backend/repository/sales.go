@@ -167,10 +167,7 @@ func (r *repo) CreateReturnTx(ctx context.Context, tx *sqlx.Tx, rtn model.Return
 		ctx, createReturnQuery, rtn.SaleID, rtn.CashierID, rtn.TotalRefunded, rtn.Notes,
 	).Scan(&id)
 
-	if err != nil {
-		return 0, nil
-	}
-	return id, nil
+	return id, err
 }
 
 func (r *repo) BulkCreateReturnItemsTx(ctx context.Context, tx *sqlx.Tx, returnItems []model.ReturnItems) error {

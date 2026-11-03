@@ -8,7 +8,6 @@ import (
 	"pharmacy/internal/types"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -57,43 +56,39 @@ func (r *repo) ProductsInActiveStockTakingTx(
 	return ids, err
 }
 
-// StockAdjustmentIDByKeyTx returns the id of the user's adjustment with that retry key, or 0.
-func (r *repo) StockAdjustmentIDByKeyTx(
-	ctx context.Context, tx *sqlx.Tx, userID int, key string,
-) (int, error) {
-	var id int
-	err := tx.GetContext(ctx, &id, stockAdjustmentByKeyQuery, userID, key)
+// StockAdjustmentByKeyTx returns the adjustment saved under a retry key, or nil.
+func (r *repo) StockAdjustmentByKeyTx(
+	ctx context.Context, tx *sqlx.Tx, key string,
+) (*types.SavedStockAdjustment, error) {
+	var saved types.SavedStockAdjustment
+	err := tx.GetContext(ctx, &saved, `
+		SELECT id, created_by_id, COALESCE(request_hash, '') AS request_hash
+		FROM stock_adjustment WHERE idempotency_key = $1`, key)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, nil
+		return nil, nil
 	}
-	return id, err
+	return &saved, err
 }
 
 const createStockAdjustmentQuery = `
-	INSERT INTO stock_adjustment (reason, note, created_by_id, idempotency_key)
-	VALUES ($1, $2, $3, $4)
-	ON CONFLICT (created_by_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+	INSERT INTO stock_adjustment (reason, note, created_by_id, idempotency_key, request_hash)
+	VALUES ($1, $2, $3, $4, $5)
+	ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 	RETURNING id
 `
 
-const stockAdjustmentByKeyQuery = `
-	SELECT id FROM stock_adjustment WHERE created_by_id = $1 AND idempotency_key = $2`
-
-// CreateStockAdjustmentTx inserts the adjustment: its id and true, or the existing adjustment's
-// id and false when the user already used the key.
+// CreateStockAdjustmentTx inserts the adjustment and returns its id and true, or 0 and false when
+// another save already used the key (the caller looks that one up).
 func (r *repo) CreateStockAdjustmentTx(
 	ctx context.Context, tx *sqlx.Tx, adj types.NewStockAdjustment,
 ) (int, bool, error) {
 	var id int
 	err := tx.GetContext(
 		ctx, &id, createStockAdjustmentQuery,
-		adj.Reason, adj.Note, adj.CreatedByID, adj.IdempotencyKey,
+		adj.Reason, adj.Note, adj.CreatedByID, adj.IdempotencyKey, adj.RequestHash,
 	)
 	if errors.Is(err, sql.ErrNoRows) && adj.IdempotencyKey != nil {
-		err = tx.GetContext(
-			ctx, &id, stockAdjustmentByKeyQuery, adj.CreatedByID, *adj.IdempotencyKey,
-		)
-		return id, false, err
+		return 0, false, nil
 	}
 	return id, err == nil, err
 }
@@ -206,26 +201,18 @@ func (r *repo) CreateStockFlagTx(
 	err := tx.GetContext(
 		ctx, &id, createStockFlagQuery, flag.ProductID, flag.Note, flag.CountedQuantity, userID,
 	)
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	if isUniqueViolation(err) {
 		return 0, ErrAlreadyFlagged
 	}
 	return id, mapForeignKeyError(err)
 }
 
-// stockFlagColumns sums stock for the flagged products only. moved_since counts shelf movements
-// (sales, receipts, returns) since the flag; corrections change the system's number, not the shelf.
+// stockFlagColumns sums stock for the flagged products only, not every product through
+// inventory_view.
 var stockFlagColumns = `
 	SELECT f.id, f.product_id, p.name AS product_name,
 		COALESCE(p.manufacturer, '') AS manufacturer, f.note, f.counted_quantity,
 		f.stock_at_flag, ` + fmt.Sprintf(productStockSQL, "f.product_id") + ` AS current_stock,
-		COALESCE((
-			SELECT SUM(CASE WHEN sm.movement_type LIKE 'IN%' THEN sm.quantity ELSE -sm.quantity END)
-			FROM stock_movement sm
-			WHERE sm.product_id = f.product_id AND sm.created_at > f.created_at
-				AND sm.movement_type NOT LIKE '%STOCK_TAKING'
-				AND sm.movement_type NOT LIKE '%MANUAL_ADJUSTMENT'
-		), 0) AS moved_since,
 		COALESCE(u.username, '') AS flagged_by, f.created_at, f.status
 	FROM stock_flag f
 	JOIN product p ON p.id = f.product_id

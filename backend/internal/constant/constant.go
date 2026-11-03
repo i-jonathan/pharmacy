@@ -69,6 +69,13 @@ const (
 	AuditDismissed = "dismissed"
 )
 
+// Stock flag statuses (stock_flag.status).
+const (
+	StockFlagOpen      = "open"
+	StockFlagResolved  = "resolved"
+	StockFlagDismissed = "dismissed"
+)
+
 type RequirePermissionMode string
 
 const RequireAllPermissions RequirePermissionMode = "ALL"

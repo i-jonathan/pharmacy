@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
@@ -48,6 +50,67 @@ type plannedStockItem struct {
 	mode      string
 	quantity  int
 	expiry    *time.Time
+	expected  *int
+}
+
+// earlierSave answers a request whose key was already used: found is false when nothing was saved
+// under it; otherwise it returns that save (a retry) or a 409 (see retryOf).
+func (s *inventoryService) earlierSave(
+	ctx context.Context, tx *sqlx.Tx, key string, userID int, fingerprint string,
+) (int, bool, error) {
+	saved, err := s.repo.StockAdjustmentByKeyTx(ctx, tx, key)
+	if err != nil {
+		return 0, true, httperror.ServerError("failed to check for a repeated request", err)
+	}
+	if saved == nil {
+		return 0, false, nil
+	}
+	id, err := retryOf(saved, userID, fingerprint)
+	return id, true, err
+}
+
+// retryOf returns the earlier save when it is this exact request from this user, and refuses
+// anything else sent under the same key: answering "saved" would hide that nothing new was applied.
+func retryOf(saved *types.SavedStockAdjustment, userID int, fingerprint string) (int, error) {
+	if saved.CreatedByID != userID {
+		return 0, alreadySaved(fmt.Sprintf(
+			"this form was already saved by another user as adjustment #%d; check History",
+			saved.ID,
+		))
+	}
+	if saved.RequestHash != fingerprint {
+		return 0, alreadySaved(fmt.Sprintf(
+			"this form was already saved as adjustment #%d; check History before saving again",
+			saved.ID,
+		))
+	}
+	return saved.ID, nil
+}
+
+// alreadySaved is a 409 whose code tells the page the form is done: resending it can never
+// succeed.
+func alreadySaved(msg string) error {
+	refusal := httperror.Conflict(msg, nil)
+	refusal.Reason = "already_saved"
+	return refusal
+}
+
+// flagHandledElsewhere refuses acting on a flag another manager has already resolved or dismissed.
+func flagHandledElsewhere() error {
+	return conflict("this flag was already handled by someone else")
+}
+
+// stockAdjustmentFingerprint identifies what a normalized request asks for, so a reused retry key
+// can be told apart from a retry of the same save.
+func stockAdjustmentFingerprint(req types.StockAdjustmentRequest) string {
+	body, _ := json.Marshal(struct {
+		Reason  string
+		Note    string
+		Items   []types.StockAdjustmentItemRequest
+		FlagIDs []int
+	}{req.Reason, req.Note, req.Items, req.FlagIDs})
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:])
 }
 
 // normalizeStockNote trims a note and checks its length; missing is the error for an empty
@@ -101,13 +164,15 @@ func normalizeStockAdjustment(
 			return req, nil, badRequest(line + ": that product is already in this adjustment")
 		}
 		seen[in.ProductID] = true
+		hasExpiry := in.Expiry != nil && strings.TrimSpace(*in.Expiry) != ""
 		switch in.Mode {
 		case "set":
 			if in.Quantity < 0 {
 				return req, nil, badRequest(line + ": the counted quantity can't be negative")
 			}
 		case "add", "remove":
-			if in.Quantity < 1 {
+			// "add 0" is how the page sends an expiry-only fix: no stock target to go stale.
+			if in.Quantity < 1 && !(in.Quantity == 0 && hasExpiry) {
 				return req, nil, badRequest(line + ": enter a quantity of at least 1")
 			}
 		default:
@@ -118,8 +183,13 @@ func normalizeStockAdjustment(
 				fmt.Sprintf("%s: the quantity is limited to %d", line, maxStockQuantity),
 			)
 		}
-		item := plannedStockItem{productID: in.ProductID, mode: in.Mode, quantity: in.Quantity}
-		if in.Expiry != nil && strings.TrimSpace(*in.Expiry) != "" {
+		item := plannedStockItem{
+			productID: in.ProductID,
+			mode:      in.Mode,
+			quantity:  in.Quantity,
+			expected:  in.ExpectedStock,
+		}
+		if hasExpiry {
 			expiry, err := time.Parse("2006-01-02", strings.TrimSpace(*in.Expiry))
 			if err != nil {
 				return req, nil, badRequest(line + ": the expiry date must be YYYY-MM-DD")
@@ -176,13 +246,11 @@ func (s *inventoryService) createStockAdjustmentTx(
 		return 0, httperror.ServerError("failed to read stock", err)
 	}
 	// After the locks, so a copy that committed while this one waited is found and returned.
+	fingerprint := stockAdjustmentFingerprint(req)
 	if req.IdempotencyKey != "" {
-		existing, err := s.repo.StockAdjustmentIDByKeyTx(ctx, tx, userID, req.IdempotencyKey)
-		if err != nil {
-			return 0, httperror.ServerError("failed to check for a repeated request", err)
-		}
-		if existing != 0 {
-			return existing, nil
+		id, found, err := s.earlierSave(ctx, tx, req.IdempotencyKey, userID, fingerprint)
+		if found {
+			return id, err
 		}
 	}
 	products := make(map[int]types.ProductStock, len(locked))
@@ -199,6 +267,15 @@ func (s *inventoryService) createStockAdjustmentTx(
 		if !ok {
 			return 0, badRequest(fmt.Sprintf("line %d: product not found", i+1))
 		}
+		if p.mode == "set" && p.expected != nil && *p.expected != product.Stock {
+			return 0, conflict(fmt.Sprintf(
+				"%s: stock changed from %d to %d since you added it; check the count and "+
+					"save again",
+				product.Name,
+				*p.expected,
+				product.Stock,
+			))
+		}
 		change := p.quantity
 		switch p.mode {
 		case "set":
@@ -206,7 +283,9 @@ func (s *inventoryService) createStockAdjustmentTx(
 		case "remove":
 			change = -p.quantity
 		}
-		if product.Stock+change < 0 {
+		// Only a change that lowers stock is held to "never below zero": sales can already have
+		// taken it below (T-022), and adding to it must still work.
+		if change < 0 && product.Stock+change < 0 {
 			return 0, badRequest(
 				fmt.Sprintf("%s: only %d in stock", product.Name, product.Stock),
 			)
@@ -241,14 +320,19 @@ func (s *inventoryService) createStockAdjustmentTx(
 	header := types.NewStockAdjustment{Reason: req.Reason, Note: req.Note, CreatedByID: userID}
 	if req.IdempotencyKey != "" {
 		header.IdempotencyKey = &req.IdempotencyKey
+		header.RequestHash = &fingerprint
 	}
 	adjustmentID, created, err := s.repo.CreateStockAdjustmentTx(ctx, tx, header)
 	if err != nil {
 		return 0, httperror.ServerError("failed to save stock adjustment", err)
 	}
 	if !created {
-		// The same request already went through; don't apply it twice.
-		return adjustmentID, nil
+		// Another copy saved under the key while this one ran.
+		id, found, err := s.earlierSave(ctx, tx, req.IdempotencyKey, userID, fingerprint)
+		if !found {
+			return 0, httperror.ServerError("failed to check for a repeated request", err)
+		}
+		return id, err
 	}
 
 	var movements []model.StockMovement
@@ -258,17 +342,12 @@ func (s *inventoryService) createStockAdjustmentTx(
 			return 0, httperror.ServerError("failed to save stock adjustment", err)
 		}
 		if item.QuantityChange != 0 {
-			movement := model.StockMovement{
-				ProductID:    item.ProductID,
-				Quantity:     item.QuantityChange,
-				ReferenceID:  adjustmentID,
-				MovementType: model.MovementTypeInManualAdjustment,
-			}
-			if item.QuantityChange < 0 {
-				movement.Quantity = -item.QuantityChange
-				movement.MovementType = model.MovementTypeOutManualAdjustment
-			}
-			movements = append(movements, movement)
+			quantity, movementType := stockDirection(item.QuantityChange,
+				model.MovementTypeInManualAdjustment, model.MovementTypeOutManualAdjustment)
+			movements = append(movements, model.StockMovement{
+				ProductID: item.ProductID, Quantity: quantity,
+				ReferenceID: adjustmentID, MovementType: movementType,
+			})
 		}
 		if item.ExpiryAfter != nil {
 			err = s.repo.SetProductCurrentExpiryTx(ctx, tx, item.ProductID, *item.ExpiryAfter)
@@ -348,10 +427,8 @@ func (s *inventoryService) lockFlagsForAdjustment(
 		return nil, httperror.NotFound("flag not found", nil)
 	}
 	for _, f := range flags {
-		if f.Status != "open" {
-			return nil, httperror.NewHttpError(
-				http.StatusConflict, "a flag was already handled by someone else", nil,
-			)
+		if f.Status != constant.StockFlagOpen {
+			return nil, flagHandledElsewhere()
 		}
 		if _, ok := products[f.ProductID]; !ok {
 			return nil, badRequest("a flag is for a product that isn't in this adjustment")
@@ -385,10 +462,10 @@ func (s *inventoryService) refuseProductsBeingCounted(
 	for i, id := range counting {
 		names[i] = products[id].Name
 	}
-	return httperror.NewHttpError(http.StatusConflict, fmt.Sprintf(
+	return conflict(fmt.Sprintf(
 		"%s already counted in the open stock taking; correct the count there, "+
 			"or adjust after the stock taking is completed", strings.Join(names, ", "),
-	), nil)
+	))
 }
 
 func (s *inventoryService) ListStockAdjustments(
@@ -456,7 +533,7 @@ func (s *inventoryService) flagStockTx(
 		return 0, badRequest("product not found")
 	}
 	if errors.Is(err, repository.ErrAlreadyFlagged) {
-		return 0, httperror.NewHttpError(http.StatusConflict,
+		return 0, httperror.Conflict(
 			"you already flagged this product; it's waiting for a manager to check", err)
 	}
 	if err != nil {
@@ -520,10 +597,8 @@ func (s *inventoryService) dismissStockFlagTx(
 	if len(flags) == 0 {
 		return httperror.NotFound("flag not found", nil)
 	}
-	if flags[0].Status != "open" {
-		return httperror.NewHttpError(
-			http.StatusConflict, "this flag was already handled by someone else", nil,
-		)
+	if flags[0].Status != constant.StockFlagOpen {
+		return flagHandledElsewhere()
 	}
 	if err = s.repo.DismissStockFlagTx(ctx, tx, id, userID, note); err != nil {
 		return httperror.ServerError("failed to dismiss flag", err)

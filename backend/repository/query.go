@@ -335,26 +335,15 @@ const getStockTakingByIDQuery = `
 	JOIN users u ON u.id = st.created_by_id
 	WHERE st.id = $1;
 `
-const getStockTakingItemsQuery = `
+
+var getStockTakingItemsQuery = `
 	SELECT
 	    p.id AS product_id,
 	    sti.id AS stock_taking_item_id,
 	    p.name AS product_name,
 	    p.manufacturer,
 	    c.name AS category,
-	    COALESCE(sti.snapshot_quantity,
-	        COALESCE((SELECT SUM(
-	            CASE
-	                WHEN sm2.movement_type LIKE 'IN%'  THEN sm2.quantity
-	                WHEN sm2.movement_type LIKE 'OUT%' THEN -sm2.quantity
-	                ELSE 0
-	            END
-            )
-	            FROM stock_movement sm2
-	            WHERE sm2.product_id = p.id
-	        )
-	        , 0)
-	    ) AS snapshot_quantity,
+	    COALESCE(sti.snapshot_quantity, ` + fmt.Sprintf(productStockSQL, "p.id") + `) AS snapshot_quantity,
 	    sti.dispensary_count,
 	    sti.store_count,
 	    COALESCE(p.current_expiry, MIN(pb.expiry_date)) AS earliest_expiry,
@@ -389,6 +378,7 @@ const getStockTakingItemsQuery = `
 	    u.username
 	ORDER BY c.name, p.name
 `
+
 const checkIfActiveStockTaking = `
 	SELECT EXISTS (
 		SELECT 1 FROM stock_taking WHERE status = $1
@@ -450,18 +440,10 @@ const deleteProductPriceQuery = `
 	DELETE FROM product_price WHERE id = $1
 `
 
-const fetchProductByIDWithPricesQuery = `
+var fetchProductByIDWithPricesQuery = `
 	SELECT
 		p.id, p.name, p.barcode, p.cost_price, p.manufacturer, p.category_id, p.reorder_level, p.default_price_id,
-		COALESCE(
-			(SELECT SUM(
-				CASE
-					WHEN movement_type LIKE 'IN%'  THEN quantity
-					WHEN movement_type LIKE 'OUT%' THEN -quantity
-					ELSE 0
-				END
-			) FROM stock_movement WHERE product_id = p.id), 0
-		) AS stock,
+		` + fmt.Sprintf(productStockSQL, "p.id") + ` AS stock,
 		pp.id as "default_price.id", pp.selling_price as "default_price.selling_price",
 		pp.name as "default_price.name", pp.quantity_per_unit as "default_price.quantity_per_unit",
 		COALESCE(

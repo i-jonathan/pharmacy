@@ -18,6 +18,8 @@ const (
 	approvalMigration        = 42
 	permissionsMigration     = 43
 	stockAdjustmentMigration = 44
+	movementIndexMigration   = 45
+	requestHashMigration     = 46
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -329,4 +331,52 @@ func TestStockAdjustmentMigration(t *testing.T) {
 
 	testdb.Migrate(t, db, stockAdjustmentMigration-1, stockAdjustmentMigration)
 	db.MustExec(addAdjustment, "expired")
+}
+
+func TestStockMovementProductIndexMigration(t *testing.T) {
+	db := testdb.New(t, movementIndexMigration-1)
+	index := `SELECT count(*) FROM pg_indexes
+		WHERE tablename = 'stock_movement' AND indexname = 'stock_movement_product_idx'`
+
+	testdb.Migrate(t, db, movementIndexMigration-1, movementIndexMigration)
+	if n := count(t, db, index); n != 1 {
+		t.Fatalf("expected the product index on stock_movement, found %d", n)
+	}
+
+	testdb.Rollback(t, db, movementIndexMigration)
+	if n := count(t, db, index); n != 0 {
+		t.Fatalf("rollback should drop the index, found %d", n)
+	}
+	testdb.Migrate(t, db, movementIndexMigration-1, movementIndexMigration)
+}
+
+func TestStockAdjustmentRequestHashMigration(t *testing.T) {
+	db := testdb.New(t, requestHashMigration-1)
+	column := `SELECT count(*) FROM information_schema.columns
+		WHERE table_name = 'stock_adjustment' AND column_name = 'request_hash'`
+	globalKey := `SELECT count(*) FROM pg_indexes
+		WHERE indexname = 'stock_adjustment_idempotency_key_unique'
+		AND indexdef NOT LIKE '%created_by_id%'`
+
+	// Migration 44 allowed one key for two users; 46 keeps it on the earliest save only.
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('a', 'x'), ('b', 'x')`)
+	db.MustExec(`INSERT INTO stock_adjustment (reason, created_by_id, idempotency_key)
+		SELECT 'other', id, 'shared-key' FROM users ORDER BY id`)
+
+	testdb.Migrate(t, db, requestHashMigration-1, requestHashMigration)
+	kept := `SELECT count(*) FROM stock_adjustment WHERE idempotency_key = 'shared-key'
+		AND id = (SELECT min(id) FROM stock_adjustment)`
+	if count(t, db, kept) != 1 ||
+		count(t, db, `SELECT count(*) FROM stock_adjustment WHERE idempotency_key IS NULL`) != 1 {
+		t.Fatal("a key shared by two users should stay only on the earliest save")
+	}
+	if count(t, db, column) != 1 || count(t, db, globalKey) != 1 {
+		t.Fatal("expected request_hash and a retry key unique across users")
+	}
+
+	testdb.Rollback(t, db, requestHashMigration)
+	if count(t, db, column) != 0 || count(t, db, globalKey) != 0 {
+		t.Fatal("rollback should drop request_hash and restore the per-user key index")
+	}
+	testdb.Migrate(t, db, requestHashMigration-1, requestHashMigration)
 }

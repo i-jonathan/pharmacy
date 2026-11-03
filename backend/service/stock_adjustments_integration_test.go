@@ -9,6 +9,7 @@ import (
 
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
+	"pharmacy/model"
 	"pharmacy/repository"
 )
 
@@ -247,37 +248,6 @@ func TestAFlagRemembersTheStockWhenItWasRaised(t *testing.T) {
 	}
 }
 
-func TestAFlagEstimateCountsSalesNotCorrections(t *testing.T) {
-	f := newFixture(t)
-	manager := asUser(constant.AdjustStockPermissionKey, constant.FlagStockPermissionKey)
-	product := f.product(t, "Vitamin C")
-	if _, err := f.svc.CreateStockAdjustment(manager, types.StockAdjustmentRequest{
-		Reason: "opening_stock",
-		Items:  []types.StockAdjustmentItemRequest{stockItem(product, "add", 12)},
-	}, f.uid); err != nil {
-		t.Fatal(err)
-	}
-	counted := 10
-	if _, err := f.svc.FlagStock(manager, types.StockFlagRequest{
-		ProductID: product, Note: "short", CountedQuantity: &counted,
-	}, f.uid); err != nil {
-		t.Fatal(err)
-	}
-	// After the count: 3 sold and 5 received (shelf movements) and a stock-taking correction of
-	// -2, which isn't one.
-	f.db.MustExec(`INSERT INTO stock_movement (product_id, reference_id, movement_type, quantity)
-		VALUES ($1, 1, 'OUT_SALE', 3), ($1, 1, 'IN_PURCHASE', 5), ($1, 1, 'OUT_STOCK_TAKING', 2)`,
-		product)
-
-	flags, err := f.svc.ListStockFlags(manager)
-	if err != nil || len(flags) != 1 {
-		t.Fatalf("expected one open flag, got %v, %v", flags, err)
-	}
-	if flags[0].MovedSince != 2 {
-		t.Fatalf("expected +2 moved since the count (5 in, 3 sold), got %d", flags[0].MovedSince)
-	}
-}
-
 func TestOnePersonHasOneOpenFlagPerProduct(t *testing.T) {
 	f := newFixture(t)
 	cashier := asUser(constant.FlagStockPermissionKey)
@@ -358,7 +328,9 @@ func TestAProductCountedInAnOpenStockTakingCannotBeAdjusted(t *testing.T) {
 	}
 }
 
-func TestARetryKeyBelongsToThePersonWhoSentIt(t *testing.T) {
+// A retry key is used once. The same person resending the same save gets it back; another user,
+// or an edited form under the same key, is refused rather than told "saved" or applied twice.
+func TestAUsedRetryKeyIsOnlyARetryOfTheSameSave(t *testing.T) {
 	f := newFixture(t)
 	manager := asUser(constant.AdjustStockPermissionKey)
 	product := f.product(t, "Amoxil")
@@ -371,28 +343,41 @@ func TestARetryKeyBelongsToThePersonWhoSentIt(t *testing.T) {
 		Reason: "opening_stock", IdempotencyKey: "same-key",
 		Items: []types.StockAdjustmentItemRequest{stockItem(product, "add", 5)},
 	}
-
 	first, err := f.svc.CreateStockAdjustment(manager, req, f.uid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Another manager's save that happens to carry the same key is their own adjustment, not a
-	// retry of the first one.
-	second, err := f.svc.CreateStockAdjustment(manager, req, other)
-	if err != nil || second == first {
-		t.Fatalf("expected a second adjustment, got %d (first %d), %v", second, first, err)
-	}
-	if got := f.stock(t, product); got != 10 {
-		t.Fatalf("both adjustments should apply, stock is %d", got)
-	}
-	// The same person's retry still returns their adjustment.
+
 	if again, err := f.svc.CreateStockAdjustment(
 		manager,
 		req,
-		other,
+		f.uid,
 	); err != nil ||
-		again != second {
-		t.Fatalf("a retry should return %d, got %d, %v", second, again, err)
+		again != first {
+		t.Fatalf("the same save resent should return %d, got %d, %v", first, again, err)
+	}
+	if _, err := f.svc.CreateStockAdjustment(
+		manager,
+		req,
+		other,
+	); status(
+		err,
+	) != http.StatusConflict {
+		t.Fatalf("another user's save under the key should be a 409, got %v", err)
+	}
+	edited := req
+	edited.Items = []types.StockAdjustmentItemRequest{stockItem(product, "add", 7)}
+	if _, err := f.svc.CreateStockAdjustment(
+		manager,
+		edited,
+		f.uid,
+	); status(
+		err,
+	) != http.StatusConflict {
+		t.Fatalf("an edited save under the key should be a 409, got %v", err)
+	}
+	if got := f.stock(t, product); got != 5 {
+		t.Fatalf("only the first save applies, stock is %d", got)
 	}
 }
 
@@ -427,5 +412,106 @@ func TestAnAdjustmentLockDoesNotBlockSalesOfTheProduct(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("a sale's movement waited on the adjustment's product lock")
+	}
+}
+
+// Adjustments lock products in id order. A receipt listing them in another order used to update
+// the later one first, so the two could each hold a product the other was waiting for.
+func TestAReceiptAndAnAdjustmentDoNotDeadlock(t *testing.T) {
+	f := newFixture(t)
+	first, second := f.product(t, "Amoxil"), f.product(t, "Paracetamol")
+	store := repository.NewStore(f.db)
+	ctx := context.Background()
+
+	// An adjustment of both products has locked the first.
+	tx, err := store.BeginTx(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback() //nolint:errcheck // already rolled back on the happy path
+	if _, err := tx.Exec(
+		`SELECT id FROM product WHERE id = $1 FOR NO KEY UPDATE`,
+		first,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	// A receipt lists the second product first.
+	received := make(chan error, 1)
+	go func() {
+		received <- f.receive("deadlock-receipt", "Emzor", 0,
+			types.ReceiveItem{ID: second, Quantity: 1}, types.ReceiveItem{ID: first, Quantity: 1})
+	}()
+	time.Sleep(300 * time.Millisecond)
+
+	// The adjustment now locks the second product: it must not find the receipt holding it.
+	if _, err := tx.Exec(
+		`SELECT id FROM product WHERE id = $1 FOR NO KEY UPDATE`,
+		second,
+	); err != nil {
+		t.Fatalf("the adjustment's second lock failed: %v", err)
+	}
+	tx.Rollback() //nolint:errcheck
+	if err := <-received; err != nil {
+		t.Fatalf("the receipt failed: %v", err)
+	}
+}
+
+// Two saves under one key for different products don't wait on each other's locks, so both can
+// get past the key lookup; the unique key still lets only one of them apply.
+func TestTwoSavesRacingForOneKeyApplyOnce(t *testing.T) {
+	f := newFixture(t)
+	manager := asUser(constant.AdjustStockPermissionKey)
+	products := []int{f.product(t, "Amoxil"), f.product(t, "Paracetamol")}
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	for i, p := range products {
+		wg.Add(1)
+		go func(i, p int) {
+			defer wg.Done()
+			_, errs[i] = f.svc.CreateStockAdjustment(manager, types.StockAdjustmentRequest{
+				Reason: "opening_stock", IdempotencyKey: "shared",
+				Items: []types.StockAdjustmentItemRequest{stockItem(p, "add", 5)},
+			}, f.uid)
+		}(i, p)
+	}
+	wg.Wait()
+
+	saved, refused := 0, 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			saved++
+		case status(err) == http.StatusConflict:
+			refused++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	applied := f.stock(t, products[0]) + f.stock(t, products[1])
+	if saved != 1 || refused != 1 || applied != 5 {
+		t.Fatalf(
+			"expected one save and one refusal applying 5, got %d, %d, %d",
+			saved,
+			refused,
+			applied,
+		)
+	}
+}
+
+// A failed return insert must say so, not hand back id 0 and let the next insert fail instead.
+func TestCreateReturnReportsItsOwnError(t *testing.T) {
+	f := newFixture(t)
+	store := repository.NewStore(f.db)
+	tx, err := store.BeginTx(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.RollbackTx(tx)
+	if _, err := store.CreateReturnTx(context.Background(), tx, model.Return{
+		SaleID: 999999, CashierID: f.uid,
+	}); err == nil {
+		t.Fatal("a return for a sale that doesn't exist should fail")
 	}
 }

@@ -4,12 +4,14 @@ import "time"
 
 // StockAdjustmentItemRequest changes one product's stock: "set" to a counted quantity, or "add"
 // or "remove" a quantity, in base units. Expiry, as YYYY-MM-DD, optionally corrects the
-// product's current expiry date.
+// product's current expiry date. ExpectedStock is the stock the manager saw; a "set" whose stock
+// has moved since is refused.
 type StockAdjustmentItemRequest struct {
-	ProductID int     `json:"product_id"`
-	Mode      string  `json:"mode"`
-	Quantity  int     `json:"quantity"`
-	Expiry    *string `json:"expiry"`
+	ProductID     int     `json:"product_id"`
+	Mode          string  `json:"mode"`
+	Quantity      int     `json:"quantity"`
+	Expiry        *string `json:"expiry"`
+	ExpectedStock *int    `json:"expected_stock"`
 }
 
 // StockAdjustmentRequest is a manager correcting stock for one reason. FlagIDs are open flags
@@ -31,12 +33,21 @@ type ProductStock struct {
 	Stock         int        `db:"stock"`
 }
 
-// NewStockAdjustment is the header row of an adjustment.
+// NewStockAdjustment is the header row of an adjustment. RequestHash fingerprints what was sent
+// under IdempotencyKey, so a reused key can be told apart from a retry.
 type NewStockAdjustment struct {
 	Reason         string
 	Note           string
 	CreatedByID    int
 	IdempotencyKey *string
+	RequestHash    *string
+}
+
+// SavedStockAdjustment is an earlier save found by its retry key.
+type SavedStockAdjustment struct {
+	ID          int    `db:"id"`
+	CreatedByID int    `db:"created_by_id"`
+	RequestHash string `db:"request_hash"`
 }
 
 // NewStockAdjustmentItem is one product's change within an adjustment.
@@ -85,8 +96,7 @@ type StockFlagRequest struct {
 	CountedQuantity *int   `json:"counted_quantity"`
 }
 
-// StockFlag is an open flag with the product's current stock. MovedSince is the change from sales,
-// receipts and returns since the flag (corrections left out).
+// StockFlag is an open flag with the product's stock now and when it was raised.
 type StockFlag struct {
 	ID              int       `json:"id"               db:"id"`
 	ProductID       int       `json:"product_id"       db:"product_id"`
@@ -96,7 +106,6 @@ type StockFlag struct {
 	CountedQuantity *int      `json:"counted_quantity" db:"counted_quantity"`
 	CurrentStock    int       `json:"current_stock"    db:"current_stock"`
 	StockAtFlag     int       `json:"stock_at_flag"    db:"stock_at_flag"`
-	MovedSince      int       `json:"moved_since"      db:"moved_since"`
 	FlaggedBy       string    `json:"flagged_by"       db:"flagged_by"`
 	CreatedAt       time.Time `json:"created_at"       db:"created_at"`
 	Status          string    `json:"status"           db:"status"`

@@ -10,6 +10,7 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/repository"
+	"sort"
 	"strings"
 	"time"
 )
@@ -224,6 +225,11 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	}
 	log.Printf("Receiving batch created with ID: %d", receivingBatchID)
 
+	// Product rows are updated in id order, as stock adjustments lock them, so the two can't
+	// each hold a product the other is waiting for.
+	sort.SliceStable(params.Products, func(i, j int) bool {
+		return params.Products[i].ID < params.Products[j].ID
+	})
 	var updatePriceData []map[string]any
 	productBatch := make([]model.ProductBatch, len(params.Products))
 

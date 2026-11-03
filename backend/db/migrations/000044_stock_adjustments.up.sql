@@ -45,7 +45,7 @@ CREATE TABLE stock_flag (
     product_id INTEGER NOT NULL REFERENCES product(id),
     note TEXT NOT NULL CHECK (btrim(note) <> ''),
     counted_quantity INTEGER CHECK (counted_quantity >= 0),
-    -- The system stock when the flag was raised, so the count can be read against what moved since.
+    -- The system stock when the flag was raised, shown beside the cashier's count.
     stock_at_flag INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'open'
         CONSTRAINT stock_flag_status_check CHECK (status IN ('open', 'resolved', 'dismissed')),

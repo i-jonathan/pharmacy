@@ -24,6 +24,12 @@ type purchaseOrderItemRow struct {
 	PurchaseOrderID int `db:"purchase_order_id"`
 }
 
+// isUniqueViolation reports whether err is a unique constraint violation.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
 func mapForeignKeyError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
