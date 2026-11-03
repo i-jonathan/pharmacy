@@ -22,7 +22,7 @@
     <p
       v-if="notice"
       ref="noticeEl"
-      class="rounded-md border px-3 py-2 text-sm"
+      class="scroll-mt-20 rounded-md border px-3 py-2 text-sm"
       :class="notice.error ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-border bg-muted/40'"
       role="status"
     >
@@ -147,7 +147,10 @@
           </tbody>
         </table>
       </div>
-      <p v-else class="text-sm text-muted-foreground">No products yet. Search above to add one.</p>
+      <p v-else-if="!loadingProducts.length" class="text-sm text-muted-foreground">No products yet. Search above to add one.</p>
+      <p v-if="loadingProducts.length" class="text-sm text-muted-foreground" role="status">
+        Loading {{ loadingProducts.join(", ") }}…
+      </p>
 
       <div class="grid gap-3 md:grid-cols-2">
         <label class="block text-sm">
@@ -169,7 +172,7 @@
       </div>
 
       <div class="flex justify-end">
-        <Button :disabled="saving || !lines.length" @click="save">
+        <Button :disabled="saving || loadingProducts.length > 0 || !lines.length" @click="save">
           {{ saving ? "Saving..." : "Save adjustment" }}
         </Button>
       </div>
@@ -323,6 +326,11 @@ const lines = ref([]);
 const reason = ref("");
 const note = ref("");
 const saving = ref(false);
+// Names of products still loading for the open form. Save waits for them, so the confirmation
+// always lists every line that will be sent; startNew clears it with the old form.
+const loadingProducts = ref([]);
+// Bumped for each new form, so a product that finishes loading after its form closed is dropped.
+let formGeneration = 0;
 const query = ref("");
 const results = ref([]);
 let searchTimer = null;
@@ -340,10 +348,6 @@ function showNotice(text, error = false) {
   noticeTimer = setTimeout(() => { notice.value = null; }, error ? 8000 : 4000);
   // On a phone the notice can be far above the button that caused it.
   if (error) nextTick(() => noticeEl.value?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-}
-
-async function apiError(r, fallback) {
-  return (await readError(r, fallback)).message;
 }
 
 function reasonLabel(key) {
@@ -370,13 +374,13 @@ function formatDateTime(d) {
 // ===== lists =====
 async function loadFlags() {
   const r = await fetch("/inventory/stock-flags");
-  if (!r.ok) throw new Error(await apiError(r, "Could not load flagged products."));
+  if (!r.ok) throw new Error((await readError(r, "Could not load flagged products.")).message);
   flags.value = (await r.json()) || [];
 }
 
 async function loadHistory() {
   const r = await fetch(`/inventory/stock-adjustments?page=${historyPage.value}`);
-  if (!r.ok) throw new Error(await apiError(r, "Could not load stock adjustments."));
+  if (!r.ok) throw new Error((await readError(r, "Could not load stock adjustments.")).message);
   const page = await r.json();
   history.value = page.data || [];
   historyTotal.value = page.total_count || 0;
@@ -409,7 +413,7 @@ async function dismiss(f) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note: dismissNote.value.trim() }),
     });
-    if (!r.ok) throw new Error(await apiError(r, "Could not dismiss the flag."));
+    if (!r.ok) throw new Error((await readError(r, "Could not dismiss the flag.")).message);
     dismissing.value = null;
     showNotice(`Flag on ${f.product_name} dismissed.`);
     refreshFlagCount();
@@ -433,6 +437,8 @@ function startNew() {
   note.value = "";
   query.value = "";
   results.value = [];
+  formGeneration += 1;
+  loadingProducts.value = [];
   idempotencyKey = newRetryKey();
   editing.value = true;
 }
@@ -474,11 +480,11 @@ function searchProducts() {
   }, 200);
 }
 
-// Search results don't carry stock, so a product picked from search is loaded first.
 // Search results don't carry stock (they say 0), so the product is loaded for its real stock.
 async function loadProduct(id) {
-  const r = await fetch(`/inventory/product/${id}`);
-  if (!r.ok) throw new Error(`Could not load product ${id}.`);
+  // A request that hangs would otherwise keep Save disabled until the page is reloaded.
+  const r = await fetch(`/inventory/product/${id}`, { signal: AbortSignal.timeout(15000) });
+  if (!r.ok) throw new Error();
   const p = await r.json();
   return { id: p.id, name: p.name, manufacturer: p.manufacturer, stock: p.stock };
 }
@@ -486,10 +492,20 @@ async function loadProduct(id) {
 async function addFromSearch(p) {
   query.value = "";
   results.value = [];
+  const generation = formGeneration;
+  // Only a load for the form still open may add a line, report an error or hold up Save.
+  const current = () => editing.value && generation === formGeneration;
+  loadingProducts.value = [...loadingProducts.value, p.name];
   try {
-    addProduct(await loadProduct(p.id));
+    const product = await loadProduct(p.id);
+    if (current()) addProduct(product);
   } catch {
-    showNotice(`Could not load ${p.name}.`, true);
+    if (current()) showNotice(`Could not load ${p.name}.`, true);
+  } finally {
+    if (generation === formGeneration) {
+      const i = loadingProducts.value.indexOf(p.name);
+      if (i >= 0) loadingProducts.value = loadingProducts.value.filter((_, j) => j !== i);
+    }
   }
 }
 
@@ -724,9 +740,14 @@ onMounted(async () => {
     router.replace({ path: route.path });
     try {
       const p = await loadProduct(productID);
-      // Lines started while the page loaded are kept; the product joins them.
-      if (!editing.value) startNew();
-      addProduct(p);
+      if (editing.value) {
+        // A form was started while the page loaded; adding to it could change a save already
+        // being confirmed, so leave it to the manager.
+        showNotice(`To adjust ${p.name}, add it from the search.`);
+      } else {
+        startNew();
+        addProduct(p);
+      }
     } catch {
       showNotice("Could not load that product.", true);
     }

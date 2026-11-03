@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"time"
 
@@ -219,17 +220,20 @@ var stockFlagColumns = `
 	LEFT JOIN users u ON u.id = f.flagged_by_id
 `
 
+// openFlagFilter writes the status into the SQL text rather than binding it, so the planner can
+// always use the partial indexes on status = 'open', whatever plan caching does.
+var openFlagFilter = ` WHERE f.status = '` + constant.StockFlagOpen + `'`
+
 func (r *repo) ListOpenStockFlags(ctx context.Context) ([]types.StockFlag, error) {
 	flags := []types.StockFlag{}
-	err := r.Data.SelectContext(
-		ctx, &flags, stockFlagColumns+` WHERE f.status = 'open' ORDER BY f.created_at DESC`,
-	)
+	err := r.Data.SelectContext(ctx, &flags, stockFlagColumns+openFlagFilter+
+		` ORDER BY f.created_at DESC`)
 	return flags, err
 }
 
 func (r *repo) CountOpenStockFlags(ctx context.Context) (int, error) {
 	var n int
-	err := r.Data.GetContext(ctx, &n, `SELECT count(*) FROM stock_flag WHERE status = 'open'`)
+	err := r.Data.GetContext(ctx, &n, `SELECT count(*) FROM stock_flag f`+openFlagFilter)
 	return n, err
 }
 
@@ -249,9 +253,8 @@ func (r *repo) ResolveStockFlagsTx(
 ) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE stock_flag
-		SET status = 'resolved', resolved_by_id = $2, resolved_at = NOW(),
-			stock_adjustment_id = $3
-		WHERE id = ANY($1)`, pq.Array(ids), userID, adjustmentID)
+		SET status = $4, resolved_by_id = $2, resolved_at = NOW(), stock_adjustment_id = $3
+		WHERE id = ANY($1)`, pq.Array(ids), userID, adjustmentID, constant.StockFlagResolved)
 	return err
 }
 
@@ -260,7 +263,7 @@ func (r *repo) DismissStockFlagTx(
 ) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE stock_flag
-		SET status = 'dismissed', resolved_by_id = $2, resolved_at = NOW(), resolution_note = $3
-		WHERE id = $1`, id, userID, note)
+		SET status = $4, resolved_by_id = $2, resolved_at = NOW(), resolution_note = $3
+		WHERE id = $1`, id, userID, note, constant.StockFlagDismissed)
 	return err
 }
