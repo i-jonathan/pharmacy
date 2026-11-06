@@ -8,7 +8,7 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 - feature: Point of sale
 - done: 2026-11-06
-- prs: PRNUM
+- prs: #35
 
 Sales History has a "Reprint receipt" button on every sale (also fully returned ones). It opens a preview and prints a copy marked `*** REPRINT <time> ***`, laid out for an 80mm thermal roll, with returned items listed; the reprint is recorded in the audit log (`sale` / `receipt_reprinted`) before anything prints. POS and reprint slips now share one template (`lib/receipt.js`, escaped, printed through a hidden frame so no popup is blocked) and the POS slip carries the server's real receipt number instead of a made-up one; `POST /sales/` returns it, and a retried sale returns the first save's number. A failed print at the POS no longer leaves the cart full. Also fixed: a sold product with no manufacturer crashed Sales History. The customer name is not on reprints (not stored, T-040). Split from T-048. Plan: `docs/plans/T-112-reprint-receipt.md`.
 
