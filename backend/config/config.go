@@ -14,6 +14,7 @@ type Config struct {
 	DBPass        string `env:"POSTGRES_PASSWORD"`
 	DBHost        string `env:"DB_HOST" env-default:"localhost"`
 	DBPort        string `env:"DB_PORT" env-default:"5432"`
+	Port          string `env:"PHARMACY_PORT" env-default:"8000"`
 	CSRFKey       string `env:"CSRF_KEY"`
 	SessionSecret string `env:"SESSION_SECRET"`
 }
