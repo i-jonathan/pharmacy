@@ -36,7 +36,7 @@
         </div>
         <p v-if="state.detail" class="mb-4 text-sm font-medium text-foreground">{{ state.detail }}</p>
         <ul v-if="state.lines.length" class="mb-5 space-y-1 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-          <li v-for="line in state.lines" :key="line">{{ line }}</li>
+          <li v-for="(line, i) in state.lines" :key="i">{{ line }}</li>
         </ul>
         <p
           v-if="state.error"

@@ -5,8 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"pharmacy/config"
+	"pharmacy/httperror"
 	"pharmacy/internal/constant"
+	"strings"
 )
+
+// wantsPage reports whether the browser is loading a page rather than the app calling an API.
+func wantsPage(r *http.Request) bool {
+	return r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/html")
+}
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -19,6 +26,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		val, ok := session.Values[constant.UserSessionKey]
 		userID, castOk := val.(int)
 		if !ok || !castOk {
+			// A call from the app gets 401: a redirect would be followed to the 200 login
+			// page, which the caller would take for success. Only page loads are remembered
+			// and sent to sign in.
+			if !wantsPage(r) {
+				httperror.Unauthorized("Your session has ended; sign in again.", nil).
+					JSONRespond(w)
+				return
+			}
 			session.Values["next"] = r.URL.RequestURI()
 			session.Save(r, w)
 			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
@@ -28,6 +43,18 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), constant.UserIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// forbid refuses a request without the permission. The app shows the server's message, so an API
+// call gets one in JSON; a page load keeps the plain refusal.
+func forbid(w http.ResponseWriter, r *http.Request) {
+	if wantsPage(r) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	httperror.Forbidden(
+		"You don't have permission to do this. If it was just given to you, sign in again.", nil,
+	).JSONRespond(w)
 }
 
 func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions ...string) func(http.Handler) http.Handler {
@@ -41,13 +68,13 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 
 			permJSON, ok := session.Values["permissions"].(string)
 			if !ok {
-				http.Error(w, "Forbidden", http.StatusForbidden)
+				forbid(w, r)
 				return
 			}
 
 			var userPermissions map[string]bool
 			if err := json.Unmarshal([]byte(permJSON), &userPermissions); err != nil {
-				http.Error(w, "Forbidden", http.StatusForbidden)
+				forbid(w, r)
 				return
 			}
 
@@ -55,7 +82,7 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 			case constant.RequireAllPermissions:
 				for _, p := range requiredPermissions {
 					if !userPermissions[p] {
-						http.Error(w, "Forbidden", http.StatusForbidden)
+						forbid(w, r)
 						return
 					}
 				}
@@ -67,8 +94,12 @@ func RequirePermissions(mode constant.RequirePermissionMode, requiredPermissions
 						return
 					}
 				}
+				// None of the permissions matched: refuse, don't fall through to the handler.
+				forbid(w, r)
+				return
 			default:
 				http.Error(w, "Server Error", http.StatusInternalServerError)
+				return
 			}
 
 			ctx := context.WithValue(r.Context(), constant.PermissionsSessionKey, userPermissions)

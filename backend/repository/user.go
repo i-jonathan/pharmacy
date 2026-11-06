@@ -5,7 +5,6 @@ import (
 	"errors"
 	"pharmacy/model"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -41,8 +40,7 @@ func (r *repo) CreateUserTx(ctx context.Context, tx *sqlx.Tx, user model.User) (
 	err := tx.GetContext(
 		ctx, &id, createUserWithRoleQuery, user.UserName, user.Password, user.RoleID,
 	)
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	if isUniqueViolation(err) {
 		return 0, ErrUsernameTaken
 	}
 	return id, mapForeignKeyError(err)

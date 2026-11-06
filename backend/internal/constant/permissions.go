@@ -10,3 +10,8 @@ const AdminAccessPermissionKey = "admin:access"
 // draft, approve or reject, and close or move orders that are already open.
 const DraftPurchaseOrderPermissionKey = "purchaseorder:draft"
 const ApprovePurchaseOrderPermissionKey = "purchaseorder:approve"
+
+// AdjustStockPermissionKey lets a user correct stock directly (managers by default).
+// FlagStockPermissionKey lets a user flag a product for a manager to check.
+const AdjustStockPermissionKey = "stock:adjust"
+const FlagStockPermissionKey = "stock:flag"

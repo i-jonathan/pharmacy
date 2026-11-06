@@ -17,35 +17,19 @@ import (
 func (s *inventoryService) inPurchaseOrderTx(
 	ctx context.Context, id, version int, fn func(tx *sqlx.Tx, order types.PurchaseOrder) error,
 ) error {
-	tx, err := s.repo.BeginTx(ctx)
-	if err != nil {
-		return httperror.ServerError("failed to start transaction", err)
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			s.repo.RollbackTx(tx)
+	return s.inTx(ctx, "failed to save purchase order", func(tx *sqlx.Tx) error {
+		order, err := s.repo.GetPurchaseOrderForUpdateTx(ctx, tx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return purchaseOrderNotFound(err)
 		}
-	}()
-
-	order, err := s.repo.GetPurchaseOrderForUpdateTx(ctx, tx, id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return purchaseOrderNotFound(err)
-	}
-	if err != nil {
-		return httperror.ServerError("failed to fetch purchase order", err)
-	}
-	if order.Version != version {
-		return purchaseOrderChangedElsewhere()
-	}
-	if err = fn(tx, order); err != nil {
-		return err
-	}
-	if err = s.repo.CommitTx(tx); err != nil {
-		return httperror.ServerError("failed to save purchase order", err)
-	}
-	committed = true
-	return nil
+		if err != nil {
+			return httperror.ServerError("failed to fetch purchase order", err)
+		}
+		if order.Version != version {
+			return purchaseOrderChangedElsewhere()
+		}
+		return fn(tx, order)
+	})
 }
 
 // SubmitPurchaseOrder is the drafter saying "I'm done": the draft goes to the managers for
@@ -68,7 +52,7 @@ func (s *inventoryService) SubmitPurchaseOrder(ctx context.Context, id, version,
 				)
 			}
 			if len(order.Items) == 0 {
-				return purchaseOrderBadRequest("add at least one item before submitting")
+				return badRequest("add at least one item before submitting")
 			}
 			err := s.repo.SetPurchaseOrderStatusTx(ctx, tx, id, constant.PurchaseOrderPending)
 			if err != nil {
@@ -100,7 +84,7 @@ func (s *inventoryService) ApprovePurchaseOrder(
 				)
 			}
 			if len(order.Items) == 0 {
-				return purchaseOrderBadRequest("a purchase order needs at least one item")
+				return badRequest("a purchase order needs at least one item")
 			}
 			if err := s.repo.ApprovePurchaseOrderTx(ctx, tx, id, userID); err != nil {
 				return httperror.ServerError("failed to approve purchase order", err)

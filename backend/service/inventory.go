@@ -10,6 +10,7 @@ import (
 	"pharmacy/internal/types"
 	"pharmacy/model"
 	"pharmacy/repository"
+	"sort"
 	"strings"
 	"time"
 )
@@ -224,6 +225,11 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	}
 	log.Printf("Receiving batch created with ID: %d", receivingBatchID)
 
+	// Product rows are updated in id order, as stock adjustments lock them, so the two can't
+	// each hold a product the other is waiting for.
+	sort.SliceStable(params.Products, func(i, j int) bool {
+		return params.Products[i].ID < params.Products[j].ID
+	})
 	var updatePriceData []map[string]any
 	productBatch := make([]model.ProductBatch, len(params.Products))
 
@@ -504,32 +510,6 @@ func (s *inventoryService) UpdateProduct(ctx context.Context, id int, params typ
 			log.Println(err)
 			s.repo.RollbackTx(tx)
 			return httperror.ServerError("failed to update default price", err)
-		}
-	}
-
-	// Handle stock adjustment (only when stock is explicitly provided)
-	if params.Stock != nil {
-		stockDiff := *params.Stock - currentProduct.Stock
-		if stockDiff != 0 {
-			movementType := model.MovementTypeInManualAdjustment
-			absDiff := stockDiff
-			if stockDiff < 0 {
-				movementType = model.MovementTypeOutManualAdjustment
-				absDiff = -stockDiff
-			}
-
-			movement := model.StockMovement{
-				ProductID:    id,
-				Quantity:     absDiff,
-				MovementType: movementType,
-				ReferenceID:  id,
-			}
-
-			if err := s.repo.CreateStockMovementTx(ctx, tx, movement); err != nil {
-				log.Println(err)
-				s.repo.RollbackTx(tx)
-				return httperror.ServerError("failed to record stock adjustment", err)
-			}
 		}
 	}
 

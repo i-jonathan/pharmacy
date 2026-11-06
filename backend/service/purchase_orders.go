@@ -41,10 +41,6 @@ type purchaseOrderPlan struct {
 	deletes []int
 }
 
-func purchaseOrderBadRequest(msg string) error {
-	return httperror.BadRequest(msg, errors.New(msg))
-}
-
 // purchaseOrderActive reports whether an approved order is still waiting for stock. Only those
 // can be received against, closed or moved.
 func purchaseOrderActive(status string) bool {
@@ -118,16 +114,16 @@ func normalizePurchaseOrderRequest(
 ) (types.PurchaseOrderRequest, error) {
 	order.Supplier = strings.TrimSpace(order.Supplier)
 	if utf8.RuneCountInString(order.Supplier) > maxPurchaseOrderText {
-		return order, purchaseOrderBadRequest("supplier name is too long")
+		return order, badRequest("supplier name is too long")
 	}
 	order.Note = strings.TrimSpace(order.Note)
 	if utf8.RuneCountInString(order.Note) > maxPurchaseOrderNote {
-		return order, purchaseOrderBadRequest(
+		return order, badRequest(
 			fmt.Sprintf("notes are limited to %d characters", maxPurchaseOrderNote),
 		)
 	}
 	if len(order.Items) == 0 {
-		return order, purchaseOrderBadRequest("add at least one item")
+		return order, badRequest("add at least one item")
 	}
 
 	items := make([]types.PurchaseOrderItem, len(order.Items))
@@ -138,19 +134,19 @@ func normalizePurchaseOrderRequest(
 		item.Manufacturer = strings.TrimSpace(item.Manufacturer)
 		item.Note = strings.TrimSpace(item.Note)
 		if utf8.RuneCountInString(item.Note) > maxPurchaseOrderItemNote {
-			return order, purchaseOrderBadRequest(fmt.Sprintf(
+			return order, badRequest(fmt.Sprintf(
 				"item %d: notes are limited to %d characters", i+1, maxPurchaseOrderItemNote,
 			))
 		}
 		if item.Name == "" {
-			return order, purchaseOrderBadRequest(fmt.Sprintf("item %d needs a name", i+1))
+			return order, badRequest(fmt.Sprintf("item %d needs a name", i+1))
 		}
 		if utf8.RuneCountInString(item.Name) > maxPurchaseOrderText ||
 			utf8.RuneCountInString(item.Manufacturer) > maxPurchaseOrderText {
-			return order, purchaseOrderBadRequest(fmt.Sprintf("item %d: text is too long", i+1))
+			return order, badRequest(fmt.Sprintf("item %d: text is too long", i+1))
 		}
 		if item.Quantity < 1 || item.Quantity > maxPurchaseOrderQuantity {
-			return order, purchaseOrderBadRequest(
+			return order, badRequest(
 				fmt.Sprintf(
 					"item %d: quantity must be between 1 and %d",
 					i+1,
@@ -160,7 +156,7 @@ func normalizePurchaseOrderRequest(
 		}
 		if item.ProductID != nil {
 			if seenProducts[*item.ProductID] {
-				return order, purchaseOrderBadRequest(
+				return order, badRequest(
 					fmt.Sprintf("%s is listed more than once", item.Name),
 				)
 			}
@@ -168,7 +164,7 @@ func normalizePurchaseOrderRequest(
 		} else {
 			key := strings.ToLower(item.Name + "\x00" + item.Manufacturer)
 			if seenNewItems[key] {
-				return order, purchaseOrderBadRequest(
+				return order, badRequest(
 					fmt.Sprintf("%s is listed more than once", item.Name),
 				)
 			}
@@ -200,11 +196,11 @@ func planPurchaseOrderEdit(
 		}
 		current, ok := stored[item.ID]
 		if !ok || kept[item.ID] {
-			return plan, purchaseOrderBadRequest("an item does not belong to this purchase order")
+			return plan, badRequest("an item does not belong to this purchase order")
 		}
 		kept[item.ID] = true
 		if item.Quantity < current.ReceivedQuantity {
-			return plan, purchaseOrderBadRequest(fmt.Sprintf(
+			return plan, badRequest(fmt.Sprintf(
 				"%s: quantity cannot be lower than the %d already received",
 				current.Name, current.ReceivedQuantity,
 			))
@@ -222,7 +218,7 @@ func planPurchaseOrderEdit(
 			continue
 		}
 		if current.ReceivedQuantity > 0 {
-			return plan, purchaseOrderBadRequest(fmt.Sprintf(
+			return plan, badRequest(fmt.Sprintf(
 				"%s already has stock received and cannot be removed", current.Name,
 			))
 		}
@@ -239,7 +235,7 @@ func planPurchaseOrderEdit(
 			// already checked against each other when the request was normalized.
 			key := strings.ToLower(item.Name + "\x00" + item.Manufacturer)
 			if seenNew[key] && item.ID == 0 {
-				return plan, purchaseOrderBadRequest(
+				return plan, badRequest(
 					fmt.Sprintf("%s is listed more than once", item.Name),
 				)
 			}
@@ -247,7 +243,7 @@ func planPurchaseOrderEdit(
 			continue
 		}
 		if seen[*item.ProductID] {
-			return plan, purchaseOrderBadRequest(
+			return plan, badRequest(
 				fmt.Sprintf("%s is listed more than once", item.Name),
 			)
 		}
@@ -447,7 +443,7 @@ func (s *inventoryService) editPurchaseOrder(
 
 func purchaseOrderItemError(err error) error {
 	if errors.Is(err, repository.ErrInvalidReference) {
-		return purchaseOrderBadRequest("an item refers to a product that no longer exists")
+		return badRequest("an item refers to a product that no longer exists")
 	}
 	return httperror.ServerError("failed to save purchase order item", err)
 }
@@ -597,7 +593,7 @@ func (s *inventoryService) MovePurchaseOrderOutstanding(
 		return 0, err
 	}
 	if strings.TrimSpace(supplierName) == "" {
-		return 0, purchaseOrderBadRequest("choose the supplier for the outstanding items")
+		return 0, badRequest("choose the supplier for the outstanding items")
 	}
 	reason, err := normalizeAuditReason(reason)
 	if err != nil {
@@ -640,7 +636,7 @@ func (s *inventoryService) MovePurchaseOrderOutstanding(
 		return 0, err
 	}
 	if order.SupplierID != nil && *order.SupplierID == supplier.ID {
-		return 0, purchaseOrderBadRequest("choose a different supplier from the one on this order")
+		return 0, badRequest("choose a different supplier from the one on this order")
 	}
 
 	newID, err := s.insertPurchaseOrder(
@@ -701,7 +697,7 @@ func groupPurchaseOrderReceipts(
 		}
 		receipt := receipts[item.PurchaseOrderItemID]
 		if receipt.productID != 0 && receipt.productID != item.ID {
-			return nil, purchaseOrderBadRequest(
+			return nil, badRequest(
 				"a purchase order item was received as two different products",
 			)
 		}
@@ -726,7 +722,7 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 		return nil
 	}
 	if params.PurchaseOrderID == 0 {
-		return purchaseOrderBadRequest("purchase order is required to receive its items")
+		return badRequest("purchase order is required to receive its items")
 	}
 
 	order, err := s.repo.GetPurchaseOrderForUpdateTx(ctx, tx, params.PurchaseOrderID)
@@ -755,15 +751,15 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 		receipt := receipts[itemID]
 		line, ok := lines[itemID]
 		if !ok {
-			return purchaseOrderBadRequest("an item does not belong to this purchase order")
+			return badRequest("an item does not belong to this purchase order")
 		}
 		if line.ProductID != nil && *line.ProductID != receipt.productID {
-			return purchaseOrderBadRequest(
+			return badRequest(
 				fmt.Sprintf("%s was received as a different product", line.Name),
 			)
 		}
 		if outstanding := line.Quantity - line.ReceivedQuantity; receipt.quantity > outstanding {
-			return purchaseOrderBadRequest(fmt.Sprintf(
+			return badRequest(fmt.Sprintf(
 				"%s: only %d still outstanding on this purchase order", line.Name, outstanding,
 			))
 		}
@@ -771,7 +767,7 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 			ctx, tx, order.ID, itemID, receipt.productID, receipt.quantity,
 		)
 		if errors.Is(err, repository.ErrPurchaseOrderItemNotReceivable) {
-			return purchaseOrderBadRequest(
+			return badRequest(
 				fmt.Sprintf("%s: quantity no longer fits this purchase order", line.Name),
 			)
 		}
