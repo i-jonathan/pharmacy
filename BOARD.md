@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-114 -->
+<!-- next-id: T-116 -->
 
 <details>
 <summary>How this board works</summary>
@@ -844,3 +844,28 @@ After a release, show each user a short "What's new" panel once after they log i
 - created: 2026-10-26
 
 Currency and formatting per tenant (money is kobo-only today), translations.
+
+### T-114 Require expected_stock for "set" stock adjustments
+
+- priority: P2
+- feature: Inventory control
+- created: 2026-11-06
+
+CLAUDE.md says a "set" line sends `expected_stock` and is refused (409) if stock moved, but `CreateStockAdjustment` only checks it when the field is present (`service/stock_adjustments.go`, the `p.expected != nil` guard). The page always sends it; an API caller that omits it applies the absolute count over whatever stock is current, so a sale or receipt between the count and the save is overwritten. Raised by the review of T-113; the code was merged in T-050.
+
+- [ ] Refuse a "set" line without `expected_stock` (400, plain message)
+- [ ] Test: set without expected_stock is refused; with a stale value it is a 409; with the current value it is applied
+
+### T-115 Check the unverified findings from the T-113 review
+
+- priority: P2
+- feature: Reliability & operations
+- created: 2026-11-06
+
+The review of T-113 also flagged merged code that was not part of that PR. None of these was checked; for each, confirm in code, then fix it or close it with a line saying why.
+
+- [ ] `retryOf` (`service/stock_adjustments.go`) names another user's adjustment id when a retry key was already used by someone else; decide whether that should be a plain "already saved" message
+- [ ] `productStockSQL` (`repository/stock_adjustments.go`) is a Sprintf template with `%%` escapes; check every use goes through Sprintf, or turn it into a function that takes the id expression
+- [ ] `middleware/csrf.go` and `AuthMiddleware` now send JSON for anything but an HTML page load; check a PDF opened in an embed or iframe, and a classic form POST, still behave (5e3839a made this change on purpose)
+- [ ] The comment in `service/inventory.go` (receiving) says products are locked in id order; check that the sort gives the lock order it claims, and that sorting `params.Products` in place does not matter to a caller
+- [ ] `usePolledCounts` `start()` does nothing when the permission is not yet loaded; permissions come from `window.__PERMISSIONS__` at load, so this is probably fine, but confirm
