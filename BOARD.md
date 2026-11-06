@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-113 -->
+<!-- next-id: T-114 -->
 
 <details>
 <summary>How this board works</summary>
