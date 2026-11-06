@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-112 -->
+<!-- next-id: T-113 -->
 
 <details>
 <summary>How this board works</summary>
@@ -411,7 +411,7 @@ Make the two busiest screens fully usable without a mouse.
 - feature: Point of sale
 - created: 2026-10-26
 
-ESC/POS thermal printer support (58/80mm), reprint from sales history, receipts by WhatsApp/SMS/email.
+ESC/POS thermal printer support (58/80mm), receipts by WhatsApp/SMS/email. Reprint from sales history was split out to T-112.
 
 ### T-049 Batch tracking & FEFO
 

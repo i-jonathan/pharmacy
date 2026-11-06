@@ -73,6 +73,13 @@ type SaleResponse struct {
 	Returns       []ReturnItemResponse  `json:"returns"`
 }
 
+// ReceiptReprint is the server's answer to a reprint: the sale's number and when it was
+// reprinted, so the copy can say so.
+type ReceiptReprint struct {
+	ReceiptNumber string `json:"receipt_number"`
+	ReprintedAt   string `json:"reprinted_at"`
+}
+
 type SaleHistory struct {
 	TotalAmount float64        `json:"total"`
 	Data        []SaleResponse `json:"data"`

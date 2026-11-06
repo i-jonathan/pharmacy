@@ -195,7 +195,7 @@ async function runAction(action, successMessage) {
   actionMessage.value = "";
   try {
     await action();
-    actionMessage.value = successMessage;
+    actionMessage.value = typeof successMessage === "function" ? successMessage() : successMessage;
     actionMessageTimer = setTimeout(() => {
       actionMessage.value = "";
     }, 5000);
@@ -232,11 +232,20 @@ async function handleComplete() {
 }
 
 async function handleCompleteAndPrint() {
+  let printed = true;
   await runAction(async () => {
-    await pos.completeSale();
-    pos.printReceipt();
+    const saved = await pos.completeSale();
+    try {
+      await pos.printReceipt(saved?.receipt_number || "");
+    } catch {
+      // The sale is saved; a failed print must not leave the cart full or invite a second sale.
+      printed = false;
+    }
     pos.clearCart();
     await returnToSearch();
-  }, "Sale completed. Receipt sent to print.");
+  }, () => (printed ? "Sale completed. Receipt sent to print." : "Sale completed."));
+  if (!printed) {
+    actionError.value = "Sale completed, but the receipt could not be printed. Reprint it from Sales History.";
+  }
 }
 </script>

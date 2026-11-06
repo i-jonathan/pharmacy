@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -23,11 +25,11 @@ func NewSaleService(repo repository.PharmacyRepository) *saleService {
 	return &saleService{repo: repo}
 }
 
-func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) error {
+func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (string, error) {
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("could not begin transcation", err)
+		return "", httperror.ServerError("could not begin transcation", err)
 	}
 	committed := false
 	defer func() {
@@ -54,11 +56,16 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	saleID, err := s.repo.CreateSaleTx(ctx, tx, sale)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("failed to create sale", err)
+		return "", httperror.ServerError("failed to create sale", err)
 	}
 	if saleID == 0 {
 		log.Printf("duplicate sale idempotency key ignored: %s", idempotencyKey)
-		return nil
+		// The sale is saved, so a retry succeeds as it always did; only the number may be missing.
+		receipt, err := s.repo.FetchSaleReceiptNumberByKeyTx(ctx, tx, idempotencyKey)
+		if err != nil {
+			log.Println(err)
+		}
+		return receipt, nil
 	}
 
 	saleItems := make([]model.SaleItem, len(saleParams.Items))
@@ -76,7 +83,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 		selectedPrice, err := s.repo.FetchPriceByID(ctx, v.PriceID)
 		if err != nil {
 			log.Println(err)
-			return httperror.ServerError("failed to fetch product price", err)
+			return "", httperror.ServerError("failed to fetch product price", err)
 		}
 		saleItems[i].StockQuantityPerUnit = selectedPrice.QuantityPerUnit
 
@@ -91,7 +98,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	err = s.repo.BulkCreateSaleItemsTx(ctx, tx, saleItems)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("Failed to create sale items", err)
+		return "", httperror.ServerError("Failed to create sale items", err)
 	}
 
 	salePayments := make([]model.SalePayment, len(saleParams.Payments))
@@ -106,14 +113,14 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	err = s.repo.BulkCreateSalePaymentsTX(ctx, tx, salePayments)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("Failed to bulk create payments", err)
+		return "", httperror.ServerError("Failed to bulk create payments", err)
 	}
 
 	// create bulk stock movements
 	err = s.repo.BulkCreateStockMovementTx(ctx, tx, stockMovement)
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("Failed to bulk create stock movements", err)
+		return "", httperror.ServerError("Failed to bulk create stock movements", err)
 	}
 
 	// Delete held sale tx
@@ -127,10 +134,10 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) err
 	err = tx.Commit()
 	if err != nil {
 		log.Println(err)
-		return httperror.ServerError("failed to commit transaction", err)
+		return "", httperror.ServerError("failed to commit transaction", err)
 	}
 	committed = true
-	return nil
+	return sale.ReceiptNumber, nil
 }
 
 func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFilter) (types.SaleHistory, error) {
@@ -262,7 +269,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			items = append(items, types.SaleItemResponse{
 				ID:               item.ID,
 				ProductName:      p.Name,
-				Manufacturer:     *p.Manufacturer,
+				Manufacturer:     manufacturerName(p),
 				Quantity:         item.Quantity,
 				ReturnedQuantity: returnedQuantityBySaleItemID[item.ID],
 				UnitPrice:        float64(item.UnitPrice) / 100,
@@ -289,7 +296,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			returnsResp = append(returnsResp, types.ReturnItemResponse{
 				SaleItemID:   r.SaleItemID,
 				Name:         p.Name,
-				Manufacturer: *p.Manufacturer,
+				Manufacturer: manufacturerName(p),
 				UnitPrice:    float64(item.UnitPrice) / 100,
 				Quantity:     r.Quantity,
 			})
@@ -329,6 +336,59 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	return history, nil
+}
+
+// manufacturerName is a product's manufacturer, or empty when none was recorded.
+func manufacturerName(p model.Product) string {
+	if p.Manufacturer == nil {
+		return ""
+	}
+	return *p.Manufacturer
+}
+
+func (s *saleService) ReprintReceipt(
+	ctx context.Context, saleID, userID int,
+) (types.ReceiptReprint, error) {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return types.ReceiptReprint{}, httperror.ServerError("could not begin transaction", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.repo.RollbackTx(tx)
+		}
+	}()
+
+	receipt, err := s.repo.FetchSaleReceiptNumberByID(ctx, tx, saleID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return types.ReceiptReprint{}, httperror.NotFound("sale was not found", err)
+	}
+	if err != nil {
+		return types.ReceiptReprint{}, httperror.ServerError("failed to load the sale", err)
+	}
+
+	details, err := json.Marshal(map[string]any{"receipt_number": receipt})
+	if err != nil {
+		return types.ReceiptReprint{}, httperror.ServerError("failed to record the reprint", err)
+	}
+	err = s.repo.InsertAuditLogTx(ctx, tx, types.AuditEntry{
+		ActorID: userID, EntityType: constant.AuditEntitySale, EntityID: saleID,
+		Action: constant.AuditActionReceiptReprinted, Details: details,
+	})
+	if err != nil {
+		return types.ReceiptReprint{}, httperror.ServerError("failed to record the reprint", err)
+	}
+	reprintedAt := time.Now()
+	if err := s.repo.CommitTx(tx); err != nil {
+		return types.ReceiptReprint{}, httperror.ServerError("failed to commit transaction", err)
+	}
+	committed = true
+
+	return types.ReceiptReprint{
+		ReceiptNumber: receipt,
+		ReprintedAt:   reprintedAt.Format(time.RFC3339),
+	}, nil
 }
 
 func (s *saleService) HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error {

@@ -50,7 +50,11 @@ type StockAdjustmentService interface {
 }
 
 type SaleService interface {
-	CreateSale(ctx context.Context, saleParams types.Sale) error
+	// CreateSale returns the sale's receipt number; a repeat of a saved sale returns the first
+	// save's number.
+	CreateSale(ctx context.Context, saleParams types.Sale) (string, error)
+	// ReprintReceipt records that userID reprinted a sale's receipt and says when.
+	ReprintReceipt(ctx context.Context, saleID, userID int) (types.ReceiptReprint, error)
 	FetchSalesHistory(ctx context.Context, filter types.SaleFilter) (types.SaleHistory, error)
 	HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error
 	FetchHeldSaleTransactions(ctx context.Context) ([]types.HeldTransactionResponse, error)

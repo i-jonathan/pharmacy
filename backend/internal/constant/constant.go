@@ -51,6 +51,7 @@ const (
 const (
 	AuditEntityPurchaseOrder = "purchase_order"
 	AuditEntityUser          = "user"
+	AuditEntitySale          = "sale"
 
 	AuditEntityStockAdjustment = "stock_adjustment"
 	AuditEntityStockFlag       = "stock_flag"
@@ -67,6 +68,8 @@ const (
 	AuditRejected  = "rejected"
 	AuditResolved  = "resolved"
 	AuditDismissed = "dismissed"
+
+	AuditActionReceiptReprinted = "receipt_reprinted"
 )
 
 // Stock flag statuses (stock_flag.status).

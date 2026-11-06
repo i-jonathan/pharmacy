@@ -1,5 +1,6 @@
 import { reactive, computed, ref, onMounted, onUnmounted } from "vue";
 import { csrfFetch } from "../lib/csrf.js";
+import { buildReceiptHtml, printReceiptHtml } from "../lib/receipt.js";
 
 const API_BASE = "";
 export function discardPersistedPosState() {
@@ -253,52 +254,28 @@ export function usePos() {
     return resp.json();
   }
 
-  function printReceipt() {
-    const now = new Date();
-    const receiptNumber = "POS-" + now.getTime().toString(36).toUpperCase();
-    const itemsHtml = cart
-      .map(
-        (item) => {
-          const lineTotal = (item.price * item.qty) - (item.discount || 0);
-          const disc = item.discount ? `<td style="text-align:right">${item.discount.toLocaleString()}</td>` : "<td></td>";
-          return `
-          <tr>
-            <td>${item.name}</td>
-            <td style="text-align:center">${item.qty}</td>
-            <td style="text-align:right">${item.price.toLocaleString()}</td>
-            ${disc}
-            <td style="text-align:right">${lineTotal.toLocaleString()}</td>
-          </tr>`;
-        }
-      )
-      .join("");
-
-    const hasDiscount = totalDiscount.value > 0;
-    const html = `
-      <html>
-      <head><title>Receipt ${receiptNumber}</title></head>
-      <body style="font-family:monospace;max-width:300px;margin:0 auto;padding:10px;">
-        <h3 style="text-align:center">Primocrest Pharmacy</h3>
-        <p style="text-align:center;font-size:12px;">${now.toLocaleString()}</p>
-        <p style="text-align:center">Receipt: ${receiptNumber}</p>
-        <hr/>
-        <table style="width:100%;font-size:13px;">
-          <tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Disc</th><th style="text-align:right">Total</th></tr>
-          ${itemsHtml}
-        </table>
-        <hr/>
-        ${hasDiscount ? `<p style="text-align:right;font-size:11px;">Discount: &#8358;${totalDiscount.value.toLocaleString()}</p>` : ""}
-        <p style="text-align:right;font-weight:bold">Total: &#8358;${total.value.toLocaleString()}</p>
-        <p style="text-align:right">Paid: &#8358;${amountPaid.value.toLocaleString()}</p>
-        <p style="text-align:right">Change: &#8358;${change.value.toLocaleString()}</p>
-        <p style="text-align:center;font-size:11px;">${customer.value}</p>
-        <script>window.onload=function(){window.print();window.close();}</` + `script>
-      </body>
-      </html>`;
-
-    const w = window.open("", "_blank");
-    w.document.write(html);
-    w.document.close();
+  // printReceipt prints the cart as a receipt. Call it before the cart is cleared, with the number
+  // the server gave the saved sale (the same one Sales History shows).
+  function printReceipt(receiptNumber) {
+    return printReceiptHtml(
+      buildReceiptHtml({
+        receiptNumber,
+        date: new Date(),
+        customer: customer.value,
+        items: cart.map((item) => ({
+          name: item.name,
+          qty: item.qty,
+          price: item.price,
+          discount: item.discount || 0,
+        })),
+        discount: totalDiscount.value,
+        total: total.value,
+        payments: Object.entries(payments)
+          .filter(([, amount]) => Number(amount) > 0)
+          .map(([method, amount]) => ({ method, amount: Number(amount) })),
+        change: change.value,
+      }),
+    );
   }
 
   async function deleteHeldTransaction(reference) {

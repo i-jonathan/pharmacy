@@ -38,7 +38,7 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 
 	saleParams.CashierID = uID
 
-	err := c.service.CreateSale(r.Context(), saleParams)
+	receipt, err := c.service.CreateSale(r.Context(), saleParams)
 	if err != nil {
 		var httperr *httperror.HTTPError
 		if errors.As(err, &httperr) {
@@ -50,7 +50,10 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.JSONResponse(w, http.StatusOK, map[string]any{"msg": "Saved Successfully"})
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"msg":            "Saved Successfully",
+		"receipt_number": receipt,
+	})
 }
 
 func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +96,25 @@ func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helper.JSONResponse(w, http.StatusOK, salesData)
+}
+
+func (c *saleController) ReprintReceipt(w http.ResponseWriter, r *http.Request) {
+	saleID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || saleID <= 0 {
+		httperror.BadRequest("Invalid sale id", err).JSONRespond(w)
+		return
+	}
+	reply, err := c.service.ReprintReceipt(r.Context(), saleID, requestUserID(r))
+	if err != nil {
+		var httperr *httperror.HTTPError
+		if errors.As(err, &httperr) {
+			httperr.JSONRespond(w)
+			return
+		}
+		httperror.ServerError("could not record the reprint", err).JSONRespond(w)
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, reply)
 }
 
 func (c *saleController) HoldSaleTransaction(w http.ResponseWriter, r *http.Request) {

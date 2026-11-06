@@ -111,6 +111,8 @@ type SaleRepository interface {
 	DeleteHeldTransactionByReference(ctx context.Context, reference string) error
 	DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.Tx, reference string) error
 	FetchSaleByID(ctx context.Context, tx *sqlx.Tx, saleID int) (model.Sale, error)
+	FetchSaleReceiptNumberByID(ctx context.Context, tx *sqlx.Tx, saleID int) (string, error)
+	FetchSaleReceiptNumberByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (string, error)
 
 	ReturnRepository
 }
