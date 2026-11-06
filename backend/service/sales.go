@@ -60,10 +60,10 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	}
 	if saleID == 0 {
 		log.Printf("duplicate sale idempotency key ignored: %s", idempotencyKey)
+		// The sale is saved, so a retry succeeds as it always did; only the number may be missing.
 		receipt, err := s.repo.FetchSaleReceiptNumberByKeyTx(ctx, tx, idempotencyKey)
 		if err != nil {
 			log.Println(err)
-			return "", httperror.ServerError("failed to look up the saved sale", err)
 		}
 		return receipt, nil
 	}

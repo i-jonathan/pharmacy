@@ -21,13 +21,16 @@ func TestReceiptNumberAndReprintAgainstTheDatabase(t *testing.T) {
 	pid := f.product(t, "Panadol")
 	f.db.MustExec(`UPDATE product SET manufacturer = NULL WHERE id = $1`, pid)
 	var priceID int
-	if err := f.db.Get(&priceID, `SELECT id FROM product_price WHERE product_id = $1`, pid); err != nil {
+	err := f.db.Get(&priceID, `SELECT id FROM product_price WHERE product_id = $1`, pid)
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	sale := types.Sale{
 		CashierID: f.uid, IdempotencyKey: "till-1", Subtotal: 150, Total: 150,
-		Items:    []types.SaleItem{{ProductID: pid, Quantity: 1, PriceID: priceID, UnitPrice: 150, Total: 150}},
+		Items: []types.SaleItem{
+			{ProductID: pid, Quantity: 1, PriceID: priceID, UnitPrice: 150, Total: 150},
+		},
 		Payments: []types.SalePayment{{Amount: 150, PaymentMethod: "Cash"}},
 	}
 	first, err := sales.CreateSale(ctx, sale)

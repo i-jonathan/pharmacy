@@ -123,10 +123,13 @@ export function printReceiptHtml(html) {
     const mine = document.createElement("iframe");
     frame = mine;
     mine.setAttribute("aria-hidden", "true");
-    mine.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    mine.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:80mm;height:100vh;border:0;visibility:hidden;";
     // A frame that never loads must not leave the caller waiting; a frame replaced by a newer
     // print is simply done.
     const giveUp = setTimeout(() => {
+      mine.onload = null; // a frame that loads late must not print after the caller gave up
+      mine.remove();
       if (frame === mine) reject(new Error("The receipt did not load for printing."));
       else resolve();
     }, 5000);

@@ -197,14 +197,18 @@ func (r *repo) FetchSaleByID(ctx context.Context, tx *sqlx.Tx, saleID int) (mode
 }
 
 // FetchSaleReceiptNumberByID reads a sale's receipt number without locking the sale.
-func (r *repo) FetchSaleReceiptNumberByID(ctx context.Context, tx *sqlx.Tx, saleID int) (string, error) {
+func (r *repo) FetchSaleReceiptNumberByID(
+	ctx context.Context, tx *sqlx.Tx, saleID int,
+) (string, error) {
 	var number string
 	err := tx.GetContext(ctx, &number, fetchSaleReceiptNumberByIDQuery, saleID)
 	return number, err
 }
 
 // FetchSaleReceiptNumberByKeyTx finds the sale a retry key was first used for.
-func (r *repo) FetchSaleReceiptNumberByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (string, error) {
+func (r *repo) FetchSaleReceiptNumberByKeyTx(
+	ctx context.Context, tx *sqlx.Tx, key string,
+) (string, error) {
 	var number string
 	err := tx.GetContext(ctx, &number, fetchSaleReceiptNumberByKeyQuery, key)
 	return number, err

@@ -50,7 +50,10 @@ func (c *saleController) CreateSale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.JSONResponse(w, http.StatusOK, map[string]any{"msg": "Saved Successfully", "receipt_number": receipt})
+	helper.JSONResponse(w, http.StatusOK, map[string]any{
+		"msg":            "Saved Successfully",
+		"receipt_number": receipt,
+	})
 }
 
 func (c *saleController) FilterSales(w http.ResponseWriter, r *http.Request) {

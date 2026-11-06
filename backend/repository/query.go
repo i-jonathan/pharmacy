@@ -161,7 +161,9 @@ const createSaleQuery = `
 	RETURNING id;
 `
 const fetchSaleReceiptNumberByIDQuery = `SELECT receipt_number FROM sales WHERE id = $1`
-const fetchSaleReceiptNumberByKeyQuery = `SELECT receipt_number FROM sales WHERE idempotency_key = $1`
+const fetchSaleReceiptNumberByKeyQuery = `
+	SELECT receipt_number FROM sales WHERE idempotency_key = $1
+`
 const createSaleItemQuery = `
 	INSERT INTO sales_item (sale_id, product_id, quantity, stock_quantity_per_unit, unit_price, discount, total_price)
 	VALUES ($1, $2, $3, $4, $5, $6, $7);

@@ -195,7 +195,7 @@ async function runAction(action, successMessage) {
   actionMessage.value = "";
   try {
     await action();
-    actionMessage.value = successMessage;
+    actionMessage.value = typeof successMessage === "function" ? successMessage() : successMessage;
     actionMessageTimer = setTimeout(() => {
       actionMessage.value = "";
     }, 5000);
@@ -243,10 +243,9 @@ async function handleCompleteAndPrint() {
     }
     pos.clearCart();
     await returnToSearch();
-  }, "Sale completed. Receipt sent to print.");
+  }, () => (printed ? "Sale completed. Receipt sent to print." : "Sale completed."));
   if (!printed) {
     actionError.value = "Sale completed, but the receipt could not be printed. Reprint it from Sales History.";
-    actionMessage.value = "";
   }
 }
 </script>
