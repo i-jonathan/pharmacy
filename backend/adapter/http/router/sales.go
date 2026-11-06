@@ -17,6 +17,7 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 	saleMux.Handle(http.MethodGet+" /filter", middleware.AddPermissionsToContext(
 		http.HandlerFunc(saleController.FilterSales),
 	))
+	saleMux.HandleFunc(http.MethodPost+" /{id}/reprint", saleController.ReprintReceipt)
 	saleMux.HandleFunc(http.MethodPost+" /hold", saleController.HoldSaleTransaction)
 	saleMux.HandleFunc(http.MethodDelete+" /held/{reference}", saleController.DeleteHeldSale)
 	saleMux.HandleFunc(http.MethodPost+" /returns", saleController.ReturnItems)

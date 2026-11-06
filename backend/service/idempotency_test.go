@@ -40,6 +40,15 @@ func (r *duplicateSaleRepo) CreateSaleTx(_ context.Context, _ *sqlx.Tx, sale mod
 	return 0, nil
 }
 
+func (r *duplicateSaleRepo) FetchSaleReceiptNumberByKeyTx(
+	_ context.Context, _ *sqlx.Tx, key string,
+) (string, error) {
+	if key != "sale-key-1" {
+		r.t.Fatalf("expected the normalized key, got %q", key)
+	}
+	return "2490-7777", nil
+}
+
 func (r *duplicateSaleRepo) BulkCreateSaleItemsTx(context.Context, *sqlx.Tx, []model.SaleItem) error {
 	r.createSaleItemCalls++
 	r.t.Fatal("duplicate sale should not create sale items")
@@ -62,7 +71,7 @@ func TestCreateSaleDuplicateIdempotencyKeyShortCircuits(t *testing.T) {
 	repo := &duplicateSaleRepo{t: t}
 	svc := NewSaleService(repo)
 
-	err := svc.CreateSale(context.Background(), types.Sale{
+	receipt, err := svc.CreateSale(context.Background(), types.Sale{
 		CashierID:      1,
 		IdempotencyKey: "  sale-key-1  ",
 		Subtotal:       100,
@@ -76,6 +85,9 @@ func TestCreateSaleDuplicateIdempotencyKeyShortCircuits(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("CreateSale returned error: %v", err)
+	}
+	if receipt != "2490-7777" {
+		t.Fatalf("a repeat should answer with the stored receipt number, got %q", receipt)
 	}
 
 	if repo.beginCalls != 1 {
