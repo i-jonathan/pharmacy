@@ -8,7 +8,7 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 - feature: Notifications
 - done: 2026-11-06
-- prs: PRNUM
+- prs: #36
 
 A "What's new" button in the sidebar opens a slideshow of the newest release's features, each with a real screenshot, with a "New" badge (a dot when the sidebar is collapsed) until that person opens it. It is remembered per person in the browser and never pops up at sign-in. Slides are filtered by permission (an admin sees 5 for v0.3.0, a manager 4, a cashier 3), and the dialog has Back/Next, dots, arrow keys, Esc, a focus trap and works at phone width. The pictures are screens of the app running on made-up data: `go run ./cmd/demoseed` fills a local, empty database (it refuses anything else), and `docs/whats-new/` explains how to add a release's slides and retake the pictures. Also: `PHARMACY_PORT` sets the listen port (default 8000) and a failed listen now stops the server with the error. Plan: `docs/plans/T-113-whats-new.md`.
 
