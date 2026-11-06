@@ -88,7 +88,8 @@ until they open it. No popup in front of the till.
   fills a database with made-up users (owner, manager, cashier), about 30 products, a day of sales
   including a partly returned one, a pending purchase order, an open stock flag and one adjustment.
   Refuses to run unless the database host is this machine (and no connection setting other than `sslmode` is given, since pgx lets `host=` override the address) and the database has no users yet, so it
-  can never be pointed at real data by mistake. (A "name ends in demo" rule would not work: the
+  can never be pointed at real data by mistake. It also needs an explicit `-throwaway` flag, since a
+  tunnel to a real database looks local. (A "name ends in demo" rule would not work: the
   embedded config fixes the database name.)
 - The demo database runs as a throwaway container on port 5544 with the credentials the embedded
   config expects; stopped and removed afterwards.

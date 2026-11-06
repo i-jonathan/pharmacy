@@ -39,10 +39,10 @@ Pictures are real screens of the app running on made-up data, light mode, 1100×
      -e POSTGRES_USER -e POSTGRES_PASSWORD -e POSTGRES_DB postgres:latest
    DSN="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5544/$POSTGRES_DB?sslmode=disable"
    make migrate-up DB_URL="$DSN"
-   (cd backend && go run ./cmd/demoseed -dsn "$DSN")
+   (cd backend && go run ./cmd/demoseed -throwaway -dsn "$DSN")
    ```
 
-   `demoseed` creates three users (`owner` Admin, `amaka` Manager, `tunde` Cashier, all with the
+   `demoseed` needs `-throwaway` (a tunnel to a real database also looks local), and creates three users (`owner` Admin, `amaka` Manager, `tunde` Cashier, all with the
    password it prints) and a believable shop. It refuses any database that is not on this machine
    or that already has users, so it cannot touch real data.
 

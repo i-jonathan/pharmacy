@@ -94,7 +94,10 @@ function preload(i) {
 // Keys are heard on the window while the dialog is open: swapping Next for Done on the last slide
 // removes the focused button, and a keydown handler on the dialog would stop hearing Esc.
 function onKeydown(e) {
+  if (e.defaultPrevented) return; // another overlay already took this key
   if (e.key === "Tab") return trapTab(e);
+  // Arrow keys belong to a field when one has focus.
+  if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
   if (e.key === "Escape") close();
   else if (e.key === "ArrowLeft") go(index.value - 1);
   else if (e.key === "ArrowRight") go(index.value + 1);
@@ -122,16 +125,20 @@ function trapTab(e) {
 }
 
 let opener = null; // what had focus before the dialog opened, so closing gives it back
+let pageOverflow = ""; // the page's scrolling before the dialog locked it
 
 watch(open, async (isOpen) => {
   if (!isOpen) {
     window.removeEventListener("keydown", onKeydown);
+    document.body.style.overflow = pageOverflow;
     await nextTick();
-    opener?.focus?.();
+    if (opener?.isConnected) opener.focus();
     opener = null;
     return;
   }
   opener = document.activeElement;
+  pageOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden"; // the page behind the backdrop must not scroll
   index.value = 0;
   preload(1);
   window.addEventListener("keydown", onKeydown);
@@ -139,7 +146,10 @@ watch(open, async (isOpen) => {
   panel.value?.focus();
 });
 
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown);
+  if (open.value) document.body.style.overflow = pageOverflow;
+});
 </script>
 
 <style scoped>

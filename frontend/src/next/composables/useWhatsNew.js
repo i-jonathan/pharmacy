@@ -16,12 +16,12 @@ function readSeen(key) {
 }
 
 const open = ref(false);
-let seen = null; // created on first use; signing in as someone else reloads the page
+const seenByKey = {}; // one ref per storage key, created on first use
 
 export function useWhatsNew() {
   const { hasPermission } = usePermissions();
   const key = `${SEEN_KEY}:${unref(useUser())?.id ?? 0}`;
-  if (!seen) seen = ref(readSeen(key));
+  const seen = (seenByKey[key] ??= ref(readSeen(key)));
   const release = releases[0];
   const slides = computed(() => visibleSlides(release, hasPermission));
   // Nothing to show (no slides for this person) means no menu item and no dot.
