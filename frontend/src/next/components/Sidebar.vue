@@ -86,6 +86,27 @@
       </PermissionGate>
 
       <button
+        v-if="whatsNewAvailable"
+        :aria-label="whatsNewLabel"
+        :title="whatsNewLabel"
+        class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        @click="$emit('close-mobile'); showWhatsNew()"
+      >
+        <span class="relative shrink-0">
+          <Sparkles :stroke-width="1.5" :size="18" />
+          <span
+            v-if="whatsNewUnseen && collapsed && !mobileOpen"
+            class="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-500"
+          ></span>
+        </span>
+        <span v-if="!collapsed || mobileOpen">What's new</span>
+        <span
+          v-if="whatsNewUnseen && (!collapsed || mobileOpen)"
+          class="ml-auto rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white"
+        >New</span>
+      </button>
+
+      <button
         class="hidden w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
         @click="$emit('toggle-collapse')"
       >
@@ -112,12 +133,13 @@ import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
   Package, Truck, ClipboardCheck, ClipboardList, Shield, SlidersHorizontal,
   PillBottle, PanelLeftClose, PanelRightOpen, Moon, Sun,
-  ChevronDown,
+  ChevronDown, Sparkles,
 } from "lucide-vue-next";
 import PermissionGate from "./PermissionGate.vue";
 import { usePermissions } from "../composables/usePermissions.js";
 import { usePendingPurchaseOrders } from "../composables/usePendingPurchaseOrders.js";
 import { useStockFlags } from "../composables/useStockFlags.js";
+import { useWhatsNew } from "../composables/useWhatsNew.js";
 
 defineProps({
   collapsed: { type: Boolean, default: false },
@@ -136,6 +158,9 @@ const { counts: pendingCounts, start: watchPending, stop: stopWatchingPending } 
 onMounted(watchPending);
 onUnmounted(stopWatchingPending);
 const canAdjustStock = computed(() => hasPermission("stock:adjust"));
+const { available: whatsNewAvailable, unseen: whatsNewUnseen, show: showWhatsNew } = useWhatsNew();
+// The collapsed sidebar shows only an icon, so the button needs a name (and says when it is new).
+const whatsNewLabel = computed(() => (whatsNewUnseen.value ? "What's new (new)" : "What's new"));
 const { counts: stockFlags, start: watchFlags, stop: stopWatchingFlags } = useStockFlags();
 onMounted(watchFlags);
 onUnmounted(stopWatchingFlags);

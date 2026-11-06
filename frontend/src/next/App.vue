@@ -29,6 +29,7 @@
     </PermissionGate>
 
     <ConfirmDialog />
+    <WhatsNewDialog />
   </div>
 </template>
 
@@ -40,6 +41,7 @@ import TopNav from "./components/TopNav.vue";
 import PermissionGate from "./components/PermissionGate.vue";
 import AdminPanel from "./components/AdminPanel.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
+import WhatsNewDialog from "./components/WhatsNewDialog.vue";
 
 const sidebarCollapsed = ref(false);
 const mobileNavOpen = ref(false);
