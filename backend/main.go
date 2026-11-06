@@ -136,11 +136,11 @@ func main() {
 	})
 
 	server := http.Server{
-		Addr:    "0.0.0.0:8000",
+		Addr:    "0.0.0.0:" + config.Conf.Port,
 		Handler: finalHandler,
 	}
-	log.Println("Listening on port 8000...")
-	server.ListenAndServe()
+	log.Println("Listening on port " + config.Conf.Port + "...")
+	log.Fatal(server.ListenAndServe())
 }
 
 func parseTemplates() {
