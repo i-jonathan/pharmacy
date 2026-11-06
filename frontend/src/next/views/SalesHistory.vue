@@ -271,7 +271,11 @@
             </div>
           </div>
 
-          <div class="border-t border-border px-4 py-4">
+          <div class="flex flex-wrap items-center gap-2 border-t border-border px-4 py-4">
+            <Button class="w-full sm:w-auto" variant="outline" @click="openReceiptPreview">
+              <Printer :size="15" class="mr-2" />
+              Reprint receipt
+            </Button>
             <Button
               v-if="hasReturnableItems"
               class="w-full sm:w-auto"
@@ -281,7 +285,7 @@
               <Undo2 :size="15" class="mr-2" />
               Return items
             </Button>
-            <p v-else class="text-xs text-muted-foreground">All items on this sale have been returned.</p>
+            <p v-else class="w-full text-xs text-muted-foreground">All items on this sale have been returned.</p>
           </div>
         </div>
       </div>
@@ -379,6 +383,50 @@
       </section>
     </div>
 
+    <div
+      v-if="previewHtml && detailSale"
+      class="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 sm:items-center sm:p-6"
+      @click.self="closeReceiptPreview"
+    >
+      <section
+        ref="receiptDialogRef"
+        tabindex="-1"
+        @keydown.esc="closeReceiptPreview"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="receipt-dialog-title"
+        class="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl"
+      >
+        <header class="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 id="receipt-dialog-title" class="text-base font-semibold text-foreground">Reprint receipt</h2>
+            <p class="mt-0.5 text-xs text-muted-foreground">Receipt {{ detailSale.receipt_number }} · printed as a marked copy</p>
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close" :disabled="reprinting" @click="closeReceiptPreview">
+            <X :size="16" />
+          </Button>
+        </header>
+
+        <div class="min-h-0 flex-1 overflow-y-auto bg-muted/30 p-4">
+          <iframe
+            :srcdoc="previewHtml"
+            title="Receipt preview"
+            class="mx-auto block h-[420px] w-[302px] max-w-full rounded border border-border bg-white"
+          ></iframe>
+          <p v-if="reprintError" role="alert" class="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ reprintError }}</p>
+        </div>
+
+        <footer class="flex flex-col-reverse gap-2 border-t border-border bg-muted/20 px-5 py-4 sm:flex-row sm:justify-end">
+          <Button variant="outline" :disabled="reprinting" @click="closeReceiptPreview">Cancel</Button>
+          <Button :disabled="reprinting" @click="printReceiptCopy">
+            <RotateCw v-if="reprinting" :size="15" class="mr-2 animate-spin" />
+            <Printer v-else :size="15" class="mr-2" />
+            {{ reprinting ? 'Printing…' : 'Print' }}
+          </Button>
+        </footer>
+      </section>
+    </div>
+
     <div v-if="toast" class="fixed bottom-5 right-5 z-[80] rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-xl" role="status">
       {{ toast }}
     </div>
@@ -386,10 +434,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
-import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X, Undo2 } from "lucide-vue-next";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X, Undo2, Printer } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
+import { readError } from "../lib/api.js";
+import { buildReceiptHtml, printReceiptHtml } from "../lib/receipt.js";
 import {
   Table,
   TableBody,
@@ -681,6 +731,99 @@ async function submitReturn() {
     returnError.value = e.message || "Failed to process return";
   } finally {
     returnSubmitting.value = false;
+  }
+}
+
+// --- Reprint ---
+const previewHtml = ref("");
+const reprinting = ref(false);
+const reprintError = ref("");
+const receiptDialogRef = ref(null);
+
+// receiptFor reads only the sale it is given, so a copy stays correct if the selection moves
+// while it is being recorded and printed.
+function receiptFor(sale, reprint) {
+  const paid = (sale.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const returnedByItem = new Map();
+  for (const r of sale.returns || []) {
+    returnedByItem.set(r.sale_item_id, (returnedByItem.get(r.sale_item_id) || 0) + Number(r.quantity));
+  }
+  return {
+    receiptNumber: sale.receipt_number,
+    date: sale.created_at,
+    items: sale.items.map((item) => ({
+      name: item.product_name,
+      qty: item.quantity,
+      price: item.unit_price,
+      discount: item.discount || 0,
+    })),
+    discount: sale.discount,
+    total: sale.total,
+    payments: (sale.payments || []).map((p) => ({ method: p.method_name, amount: p.amount })),
+    change: Math.max(0, paid - Number(sale.total)),
+    // One line per item, refunded the way the return flow rounds it: on the item's total quantity.
+    returns: [...returnedByItem].map(([itemID, qty]) => {
+      const item = sale.items.find((i) => i.id === itemID);
+      return {
+        name: item?.product_name ?? "Item",
+        qty,
+        refund: item ? returnRefundAmount(item, qty, 0) : 0,
+      };
+    }),
+    reprint,
+  };
+}
+
+// The preview belongs to one sale; moving to another closes it.
+watch(
+  () => detailSale.value?.id,
+  () => {
+    if (!reprinting.value) previewHtml.value = "";
+  },
+);
+
+function openReceiptPreview() {
+  if (!detailSale.value) return;
+  reprintError.value = "";
+  previewHtml.value = buildReceiptHtml(receiptFor(detailSale.value, true));
+  nextTick(() => receiptDialogRef.value?.focus());
+}
+
+function closeReceiptPreview() {
+  if (reprinting.value) return;
+  previewHtml.value = "";
+  reprintError.value = "";
+}
+
+// printReceiptCopy records the reprint on the server first, so a copy is never printed that
+// nobody can trace, then prints it stamped with the server's time.
+async function printReceiptCopy() {
+  const sale = detailSale.value;
+  if (!sale || reprinting.value) return;
+  reprinting.value = true;
+  reprintError.value = "";
+  try {
+    const res = await csrfFetch(`${API}/sales/${sale.id}/reprint`, { method: "POST" });
+    if (!res.ok) {
+      const { message } = await readError(res, `Could not record the reprint (${res.status})`);
+      throw new Error(message);
+    }
+    const stamp = await res.json();
+    try {
+      await printReceiptHtml(
+        buildReceiptHtml(receiptFor(sale, { at: stamp.reprinted_at })),
+      );
+    } catch {
+      throw new Error("The reprint was recorded, but the browser could not print it. Try again.");
+    }
+    previewHtml.value = "";
+    toast.value = `Receipt ${sale.receipt_number} sent to print`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.value = ""; }, 3500);
+  } catch (e) {
+    reprintError.value = e.message || "Could not reprint the receipt.";
+  } finally {
+    reprinting.value = false;
   }
 }
 
