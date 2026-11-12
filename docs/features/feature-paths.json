@@ -1,4 +1,14 @@
 {
+  "customers": [
+    "frontend/src/next/views/Customers.vue",
+    "backend/service/customers*.go",
+    "backend/repository/customers.go",
+    "backend/adapter/http/controller/customers.go",
+    "backend/adapter/http/router/customers*.go",
+    "backend/model/phone*.go",
+    "backend/internal/types/customer.go",
+    "backend/db/migrations/*customers*"
+  ],
   "purchase-orders": [
     "frontend/src/next/views/PurchaseOrders.vue",
     "frontend/src/next/composables/usePendingPurchaseOrders.js",

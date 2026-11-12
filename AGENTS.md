@@ -54,7 +54,7 @@ Architecture: `main.go` → router → controller (HTTP handlers) → service (b
 - **Session-based auth**, not JWT. `gorilla/sessions` with Argon2id password hashing.
 - **CSRF** is enabled (gorilla/csrf via `middleware.CSRFMiddleware` in the `main.go` stack, keyed by `CSRF_KEY` or `SESSION_SECRET`). The SPA fetches a token from `GET /csrf-token` (`frontend/src/next/lib/csrf.js`).
 - **WebSocket endpoint `/ws` bypasses the main middleware stack** (handled before middleware wrapping).
-- **Permission keys** in `internal/constant/permissions.go`: `salestotal:view`, `stock:complete`, `inventory:edit`, `admin:access` (`/admin/` requires the last), `purchaseorder:draft` (write purchase order drafts and submit them) and `purchaseorder:approve` (managers: approve/reject drafts, create/edit/close/move orders).
+- **Permission keys** in `internal/constant/permissions.go`: `salestotal:view`, `stock:complete`, `inventory:edit`, `admin:access` (`/admin/` requires the last), `purchaseorder:draft` (write purchase order drafts and submit them) and `purchaseorder:approve` (managers: approve/reject drafts, create/edit/close/move orders), `customer:view` and `customer:manage` (see and change the customer list).
 - **Config** loaded from embedded `config/.env` via `godotenv` + `cleanenv`. `DB_HOST` default is `localhost`. `.env` overrides at build time.
 - **2 Vite entry points** (vite.config.js `rollupOptions.input`): `next` (main SPA, served at `/app/*` via `next-dashboard.html`) and `login`. Go templates are only `next-dashboard.html`, `login-v2.html`, `error.html`.
 - **Frontend assets are embedded** in the Go binary (`dist/` is untracked): run `make build-frontend` and restart after frontend changes, and before `docker compose build server`.
