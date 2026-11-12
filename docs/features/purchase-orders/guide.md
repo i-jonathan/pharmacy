@@ -8,7 +8,7 @@ Purchase orders are how the shop plans what to reorder. An order is built from c
 
 | Role | Can do |
 |---|---|
-| Cashier | Start an order, edit it while it's still a draft, and submit it for approval. Sees only their own orders. |
+| Cashier | Start an order, edit any draft (their own or a colleague's), submit any draft for approval, and pull a submitted order back to a draft. Sees everyone's orders, so nobody writes the same order twice. |
 | Manager, Admin | Everything a cashier can, plus: edit any draft or open order, approve or reject, export the PDF to send, receive deliveries against an order, close an order, and move what's still outstanding to another supplier. Sees everyone's orders. |
 
 Anyone without either permission sees "You do not have permission to use purchase orders. Ask an administrator for access."
@@ -38,9 +38,10 @@ Every week, sometimes several times a week, a cashier starts an order from what'
 
 ### Save and submit (cashier)
 
-- **Save as draft** keeps it so you can come back to it. It appears under **My drafts**.
-- **Save and submit for approval** sends it to a manager. Once submitted you can't change it; the card says "Submitted. A manager will review it; you cannot change it now."
-- A draft you saved earlier can be submitted from its card with **Submit for approval**.
+- **Save as draft** keeps it so you can come back to it. It appears under **Drafts**, where everyone who writes orders can see it. The card says who started it.
+- Before starting a new order, look under **Drafts**: a colleague may already have one for the same supplier. Open it with **Edit** and add to it.
+- **Save and submit for approval** sends it to a manager. A draft saved earlier, by you or a colleague, can be submitted from its card with **Submit for approval**.
+- Once submitted you can't edit it; the card says "Submitted. A manager will review it. To change it, pull it back to a draft first." Click **Pull back to draft** and confirm to make it a draft again, then edit and submit it. Once a manager has approved it, only a manager can change it.
 
 ### Check and approve (manager)
 
@@ -80,7 +81,7 @@ Click **View** for the full list of items with Ordered, Received and Outstanding
 - **Receiving** adds the stock to your products straight away and updates the order's progress bar ("*N* of *N* units received"). The order shows as **partial** until everything arrives, then **received** and moves to **Completed**.
 - Items ordered but not delivered show as "on order" when anyone builds the next order, so the same thing isn't ordered twice by mistake.
 - **Closing** or **moving** keeps everything already received; only the outstanding part is dropped or moved.
-- Every step (created, edited, submitted, approved, rejected, received, closed, moved) is recorded with who did it and when.
+- Every step (created, edited, submitted, pulled back, approved, rejected, received, closed, moved) is recorded with who did it and when.
 
 ## Rules and limits
 
@@ -90,7 +91,7 @@ Click **View** for the full list of items with Ordered, Received and Outstanding
 - Once some of an item has been received, its quantity can't go below what arrived, and it can't be removed.
 - Closing, cancelling, rejecting and moving all need a reason.
 - Only approved orders can be received against. Drafts and submitted orders can't.
-- A cashier can only change their own order, and only while it's a draft.
+- A cashier can change any draft, whoever started it, but not a submitted order until it is pulled back to a draft, and never an approved one. If two people have the same draft open, the second to save is told "This order was changed by someone else" and reloads the latest.
 - Notes on an order are limited to 1,000 characters, and notes on an item to 500.
 
 ## When something goes wrong
@@ -105,7 +106,7 @@ Click **View** for the full list of items with Ordered, Received and Outstanding
 
 ## Questions people ask
 
-**I submitted the wrong quantities. Can I fix them?** Not after submitting. Ask a manager to edit the order before approving it, or to reject it so you can start again.
+**I submitted the wrong quantities. Can I fix them?** Yes, until a manager approves it: click **Pull back to draft** on the card, fix the quantities and submit again. The pull back and the second submit are both in the order's activity. If it is already approved, ask a manager.
 
 **Can I send the order to the supplier before it's approved?** A draft's PDF is stamped DRAFT. Wait for approval, then send the approved PDF.
 

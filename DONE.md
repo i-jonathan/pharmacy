@@ -4,6 +4,14 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 ## 2026-11
 
+### T-116 Shared purchase order drafts
+
+- feature: Purchasing & receiving
+- done: 2026-11-12
+- prs: #38
+
+Cashiers (anyone with `purchaseorder:draft`) now share purchase order drafts so two people do not write the same order. They see every order in every tab (Drafts, Waiting for stock, Completed), edit any draft and submit any draft; managers keep approving. A submitted order can be pulled back to a draft by any drafter or manager (new `POST /inventory/purchase-orders/{id}/withdraw`, `WithdrawPurchaseOrder`, audited `withdrawn`, confirm dialog, version-checked), so a mistake found after submitting no longer needs a manager to reject the order. A submitted order is still edited only by a manager. Cards show "Started by <name>", the cashier tab is now "Drafts", and drafters can read the activity of any order they can see. Someone with neither permission still sees only their own orders. No migration or new permission; on deploy cashiers suddenly see every order. Follow-up: T-117 (warn in the editor when a product is already on another order). Plan: `docs/plans/T-116-shared-po-drafts.md`.
+
 ### T-113 What's new: release slideshow
 
 - feature: Notifications
