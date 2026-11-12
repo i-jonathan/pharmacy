@@ -1,6 +1,6 @@
 # T-018 Lock down public user registration
 
-Card: BOARD.md T-018 · Branch: fix/T-018-lock-down-registration
+Card: T-018 · Branch: fix/T-018-lock-down-registration
 
 ## Goal
 

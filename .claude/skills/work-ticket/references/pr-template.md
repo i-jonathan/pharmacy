@@ -2,12 +2,14 @@
 
 Load at the start of phase 6.
 
-## Board, in the PR
+## Board and docs
 
-1. Move the card from `BOARD.md` to the top of the current month in `DONE.md`: drop `priority` and `depends`, add `done:` (today) and `prs:`.
-2. If the card's feature already has docs in `docs/features/`, refresh them with the `document-feature` skill (update mode) and include them in the PR. If it has none, offer to create them; don't create them unasked. A hook blocks `gh pr create` when a documented feature's code changed without its docs; if the owner confirms the docs are still accurate, record that with a commit trailer `Feature-Docs-Unchanged: <slug>` instead of editing them.
-3. Add approved follow-up cards to the Backlog at their priority, using and bumping `next-id`.
-4. Ask the owner once to approve the shipping bundle. Show the board commit (files and message), the commits that will be pushed, and the PR title. The bundle is: commit the board changes, push the branch, open the PR, then commit and push the `prs:` number. On yes, do exactly that. Anything beyond it needs its own approval.
+The board lives outside the repo (Waypoint, project `Primocrest`), so nothing about it goes in the PR's files.
+
+1. If the card's feature already has docs in `docs/features/`, refresh them with the `document-feature` skill (update mode) and include them in the PR. If it has none, offer to create them; don't create them unasked. A hook blocks `gh pr create` when a documented feature's code changed without its docs; if the owner confirms the docs are still accurate, record that with a commit trailer `Feature-Docs-Unchanged: <slug>` instead of editing them.
+2. Tick the card's remaining checklist items (`waypoint check`) and add approved follow-up cards with `waypoint add` at their priority and group; the ids are assigned for you.
+3. Ask the owner once to approve the shipping bundle. Show the commits that will be pushed and the PR title. The bundle is: push the branch and open the PR. On yes, do exactly that. Anything beyond it needs its own approval.
+4. After the PR is open, record it on the card: `waypoint set <ID> prs=#N --project Primocrest`. Move the card to Done (`waypoint done <ID> --project Primocrest`) when the owner merges the PR, not before.
 
 ## PR
 
@@ -17,7 +19,7 @@ Title: `T-NNN: <card title>`. Body:
 ## Summary
 What changes for the people using the shop, in 2–4 bullets.
 
-Card: T-NNN (moved to DONE.md) · Plan: docs/plans/T-NNN-slug.md
+Card: T-NNN · Plan: docs/plans/T-NNN-slug.md
 
 ## Changes
 - Backend: …

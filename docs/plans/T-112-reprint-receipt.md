@@ -1,6 +1,6 @@
 # T-112 Reprint a receipt from sales history
 
-Card: BOARD.md T-112 (split from T-048) · Branch: feat/T-112-reprint-receipt
+Card: T-112 (split from T-048) · Branch: feat/T-112-reprint-receipt
 
 ## Goal
 

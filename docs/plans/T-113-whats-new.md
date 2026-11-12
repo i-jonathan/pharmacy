@@ -1,6 +1,6 @@
 # T-113 What's new: release slideshow
 
-Card: BOARD.md T-113 · Branch: feat/T-113-whats-new
+Card: T-113 · Branch: feat/T-113-whats-new
 
 ## Goal
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `AGENTS.md` in the repo root has the quick-start and a fuller facts list; read it too. This file covers what that one doesn't.
 
-Planned and in-flight work is tracked in `BOARD.md` (kanban columns, card format explained at the top); finished cards move to `DONE.md`.
+Planned and in-flight work is tracked on the Waypoint board (project `Primocrest`); see Task board below.
 
 ## Commands
 
@@ -60,24 +60,16 @@ Vite builds to `backend/template/static/dist/` (base `/static/dist/`); Go embeds
 
 ## Task board
 
-This project's board is managed by Waypoint. Prefer the CLI over editing the board file.
+The board is a Waypoint project named `Primocrest` (a SQLite database in `~/.local/share/waypoint/`, outside the repo). The repo holds no board file, so run every command with `--project Primocrest` (from here, plain `waypoint ls` finds nothing). Use the CLI; never edit the `.db` file directly. Card changes are made on the board straight away, not in a pull request.
 
-- See what to work on next: `waypoint ls --next --json`
-- Add a card: `waypoint add "Title" --group "Group" --priority P1`
-- Move a card: `waypoint move <ID> "<Column>"`
-- Change a field: `waypoint set <ID> key=value`
-- Finish a card: `waypoint done <ID>`
-- `waypoint ls --json` and `waypoint show <ID> --json` for reading all cards and one card.
+- See what to work on next: `waypoint ls --next --json --project Primocrest`
+- Read cards: `waypoint ls --json --project Primocrest` (add `--column Done` or `--archived` for finished ones), `waypoint show <ID> --json --project Primocrest`
+- Add a card: `waypoint add "Title" --group "Group" --priority P1 --depends T-1,T-2 --body "..." --project Primocrest` (the id is assigned for you)
+- Move a card: `waypoint move <ID> "<Column>" --project Primocrest`
+- Change a field: `waypoint set <ID> key=value --project Primocrest` (title, group, priority, depends, body, or an extra field such as `prs=#39`)
+- Tick a checklist item: `waypoint check <ID> <N> --project Primocrest`
+- Finish a card: `waypoint done <ID> --project Primocrest`, with `prs=#N` set when its pull request was opened
 
-If the board is a Markdown file such as BOARD.md and you edit it directly, follow the format printed by "waypoint help format"; a card heading without an id gets one automatically. Never edit a SQLite board (a .db file) directly: use the CLI.
+Groups, priorities and columns must already exist on the board: `waypoint ls --json --project Primocrest` shows the ones in use. Columns are Up Next, In Progress, Backlog and Done. Priorities: P0 blocks taking on a second customer, P1 needed to compete, P2 nice to have.
 
-Run waypoint from inside this project's folder, or pass --project NAME. "waypoint project ls" shows where the board is: a file's path, or host:port/database for a database server.
-
-If the board is in a Postgres database, its password is not stored anywhere: it must be in the environment of every program that runs waypoint, as WAYPOINT_DB_PASSWORD_<NAME> (this project; NAME is the project name in capitals, other characters as _) or WAYPOINT_DB_PASSWORD (all projects). For an MCP agent, put it in the server's "env" in the MCP config, for example {"mcpServers":{"waypoint":{"command":"waypoint","args":["mcp","--project","NAME"],"env":{"WAYPOINT_DB_PASSWORD":"..."}}}}.
-
-Groups, priorities and columns must already exist on the board. On a Markdown board, read them from the file's front matter before using them.
-
-If your agent speaks MCP and has no shell, run "waypoint mcp" as an MCP server instead; it offers the same board through seven tools. Add it to the agent's MCP config:
-
-```json
-{"mcpServers":{"waypoint":{"command":"waypoint","args":["mcp"]}}}
+If your agent speaks MCP and has no shell, run `waypoint mcp --project Primocrest` as an MCP server instead; it offers the same board through its tools.

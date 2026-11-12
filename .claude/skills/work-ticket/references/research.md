@@ -44,7 +44,7 @@ Memories reflect when they were written. Check any file, function or flag a memo
 - For every claim on the card (a file, a function, "X is not checked", "Y is hard-coded"), find the code and confirm it. Record `path:line` for each. A claim you can't confirm is wrong until shown otherwise; say so in the plan and fix the card.
 - Trace the request path the change touches: router → controller → service → repository → migration → Vue view/composable. Note existing patterns to copy (e.g. how purchase orders do versioning, audit entries and permissions).
 - Look for the same concept elsewhere (other screens, other services) so the change is made everywhere it applies, not in one copy.
-- Check `DONE.md` and git history for earlier work on the same area.
+- Check the Done column (`waypoint ls --column Done --project Primocrest`, and `--archived`) and git history for earlier work on the same area.
 
 ## 4. The web
 

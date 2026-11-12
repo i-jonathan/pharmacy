@@ -26,7 +26,7 @@ Trace every user action from the guide end to end, in the order a request travel
 - **Concurrency and retries**: what happens with two users at once, a double click, a retry after a lost response.
 - **Configuration and constants**: hard-coded limits and windows, with their location.
 - **Tests**: unit and integration tests covering the feature (`backend/service/*_test.go`, `internal/testdb`), and what isn't covered.
-- **Recent history**: `git log --oneline -10 -- <feature paths>` and the related cards in `DONE.md`.
+- **Recent history**: `git log --oneline -10 -- <feature paths>` and the related done cards on the board (`waypoint ls --column Done --project Primocrest`).
 - **Known gaps**: anything the trace found missing or risky, each linked to a board card or offered as one.
 
 Never write a path, function, table or permission from memory. Grep for it, and use the name the code uses.

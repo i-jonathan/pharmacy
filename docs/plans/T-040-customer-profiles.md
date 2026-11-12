@@ -1,6 +1,6 @@
 # T-040 Customer profiles
 
-Card: BOARD.md T-040 · Branch: feat/T-040-customer-profiles
+Card: T-040 · Branch: feat/T-040-customer-profiles
 
 ## Goal
 

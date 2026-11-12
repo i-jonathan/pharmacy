@@ -76,4 +76,4 @@ flowchart LR
 
 ## History
 
-- <Recent PRs and DONE.md cards that shaped this feature.>
+- <Recent PRs and done board cards that shaped this feature.>

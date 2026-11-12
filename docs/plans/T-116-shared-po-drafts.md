@@ -1,6 +1,6 @@
 # T-116 Shared purchase order drafts
 
-Card: BOARD.md T-116 · Branch: feat/T-116-shared-po-drafts
+Card: T-116 · Branch: feat/T-116-shared-po-drafts
 
 ## Goal
 
