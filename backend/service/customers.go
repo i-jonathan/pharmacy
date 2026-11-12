@@ -84,6 +84,10 @@ func tidyCustomerRequest(req types.CustomerRequest) (types.CustomerRequest, erro
 	req.Name = strings.TrimSpace(req.Name)
 	req.Email = strings.TrimSpace(req.Email)
 	req.Notes = strings.TrimSpace(req.Notes)
+	// Postgres refuses NUL in text, which would otherwise surface as a server error.
+	if strings.ContainsRune(req.Name+req.Email+req.Notes, 0) {
+		return req, badRequest("the name, email and notes can't contain control characters")
+	}
 	switch {
 	case req.Name == "":
 		return req, badRequest("the customer's name is required")
@@ -303,9 +307,10 @@ func (s *customerService) ListCustomers(
 }
 
 // customerFilter reads what was typed in the search box. Text with a letter in it looks for a
-// name. Otherwise it is part of a phone number. A number written from its start (0803, +234 803,
-// 234803) is matched from the start of the stored number, so "0803" does not find numbers that
-// merely contain 803; digits that don't begin a number match anywhere inside it.
+// name. Otherwise it is part of a phone number. A number written from its start with a leading 0
+// or + (0803, +234 803) is matched from the start of the stored number, so "0803" does not find
+// numbers that merely contain 803. Any other digits match anywhere inside the number, so the last
+// digits of a number are always findable, even when they happen to begin 234.
 func customerFilter(search string) types.CustomerFilter {
 	search = strings.TrimSpace(search)
 	if r := []rune(search); len(r) > maxCustomerQuery {
@@ -333,9 +338,6 @@ func customerFilter(search string) types.CustomerFilter {
 		return types.CustomerFilter{PhonePrefix: "+", PhoneDigits: number}
 	}
 	if national, ok := strings.CutPrefix(number, "0"); ok {
-		return types.CustomerFilter{PhonePrefix: "+234", PhoneDigits: national}
-	}
-	if national, ok := strings.CutPrefix(number, "234"); ok {
 		return types.CustomerFilter{PhonePrefix: "+234", PhoneDigits: national}
 	}
 	return types.CustomerFilter{PhoneDigits: number}

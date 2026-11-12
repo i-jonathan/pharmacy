@@ -204,6 +204,8 @@ func TestCreateCustomerRefusesInputThatCanNeverBeValid(t *testing.T) {
 		"email no at":   {Name: "Ada", Email: "ada.example.com"},
 		"email display": {Name: "Ada", Email: "Ada <ada@example.com>"},
 		"long notes":    {Name: "Ada", Notes: strings.Repeat("n", 1001)},
+		"nul in name":   {Name: "Ada\x00"},
+		"nul in notes":  {Name: "Ada", Notes: "n\x00"},
 	} {
 		repo := &fakeCustomerRepo{}
 		_, err := newCustomerService(repo).CreateCustomer(managerOfCustomers(), req, 4)
@@ -419,7 +421,11 @@ func TestListCustomersSearchesNamesByTextAndPhonesByDigits(t *testing.T) {
 		{"0803 123", types.CustomerFilter{PhonePrefix: "+234", PhoneDigits: "803123"}},
 		{"+234 803", types.CustomerFilter{PhonePrefix: "+234", PhoneDigits: "803"}},
 		{"+234 0803", types.CustomerFilter{PhonePrefix: "+234", PhoneDigits: "803"}},
-		{"23480", types.CustomerFilter{PhonePrefix: "+234", PhoneDigits: "80"}},
+		// Without a + or a leading 0 nothing says it is the start, so it matches anywhere: the
+		// last digits of +2348032345678 must be findable even when they begin 234.
+		{"23480", types.CustomerFilter{PhoneDigits: "23480"}},
+		{"2345678", types.CustomerFilter{PhoneDigits: "2345678"}},
+		{"234 803", types.CustomerFilter{PhoneDigits: "234803"}},
 		{"0", types.CustomerFilter{PhonePrefix: "+234"}},
 		{"+44 20", types.CustomerFilter{PhonePrefix: "+", PhoneDigits: "4420"}},
 		// Digits that do not start a number match anywhere inside it.

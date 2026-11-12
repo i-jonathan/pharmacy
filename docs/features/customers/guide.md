@@ -37,12 +37,14 @@ Type in **Search by name or phone**. Letters search names. Numbers search phone 
 
 ### Change a customer's details
 
-1. Choose the customer's name in the list.
+1. Choose the customer in the list (anywhere on their row).
 2. Change what you need and choose **Save changes**.
 
 **You'll see:** "Saved <name>." If nothing was changed, nothing is saved.
 
 When you change **Agreed to be contacted by the pharmacy**, the panel shows the date it last changed. Untick it if a customer asks not to be contacted.
+
+If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click.
 
 ### Deactivate a customer
 
@@ -74,6 +76,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 | Enter a Nigerian number with 11 digits starting 0 (e.g. 0803 123 4567), or a number starting with + and the country code | The phone number has the wrong number of digits or a stray character. | Check the number with the customer and type it again. |
 | This phone number is already saved for <name> | Another customer already has this number. | Search for that customer and change them instead. |
 | This phone number is already saved for <name> (deactivated; reactivate them instead) | The number belongs to a deactivated customer. | Search with **Show deactivated** ticked, open them and choose **Reactivate**. |
+| The name, email and notes can't contain control characters | Something invisible was pasted into a box. | Retype the text instead of pasting it. |
 | Enter a valid email address, or leave it empty | The email is not written like an address. | Correct it or clear the box. |
 | This customer was changed by someone else; reload and try again. Your changes are still in the form. Save again to replace theirs, or close this panel to keep theirs. | Another person saved a change first. | Your typing is kept. Look at the list to see what they changed, then either save again to replace their change or close the panel to keep theirs. |
 | You are not allowed to change customers | Your role may see customers but not change them. | Ask a manager or an administrator. |

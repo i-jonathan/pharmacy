@@ -89,9 +89,10 @@
                 :key="c.id"
                 class="cursor-pointer border-b border-border last:border-0 hover:bg-muted/20"
                 :class="{ 'bg-primary/5': form && form.id === c.id }"
+                @click="open(c)"
               >
                 <td class="px-4 py-3">
-                  <button type="button" class="text-left font-medium hover:underline focus-visible:underline focus-visible:outline-none disabled:cursor-wait disabled:opacity-60" :disabled="saving" @click="open(c)">
+                  <button type="button" class="text-left font-medium hover:underline focus-visible:underline focus-visible:outline-none disabled:cursor-wait disabled:opacity-60" :disabled="saving">
                     {{ c.name }}
                   </button>
                   <span v-if="!c.active" class="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Deactivated</span>
@@ -122,7 +123,7 @@
           <h2 class="text-sm font-semibold">{{ form.id ? (canManage ? "Edit customer" : "Customer") : "New customer" }}</h2>
           <p v-if="form.id && !form.active" class="text-xs text-muted-foreground">Deactivated</p>
         </div>
-        <Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" aria-label="Close" @click="closePanel">
+        <Button variant="ghost" size="icon" class="h-7 w-7 text-muted-foreground" aria-label="Close" @click="closeClicked">
           <X :size="15" />
         </Button>
       </div>
@@ -250,6 +251,28 @@ const nameInput = ref(null);
 const panel = ref(null);
 const panelOpen = computed(() => !!form.value);
 
+// What the person can type, compared with how it was when the panel opened, so leaving the panel
+// can ask before throwing typing away.
+const editable = (f) =>
+  JSON.stringify([f.name, f.phone, f.email, f.notes, !!f.contact_consent]);
+let openedAs = "";
+const dirty = computed(() => !!form.value && editable(form.value) !== openedAs);
+
+// true when it is fine to replace or close the panel.
+async function canLeavePanel() {
+  if (!dirty.value) return true;
+  return (
+    (await confirm({
+      title: "Discard your changes?",
+      message: "The changes in this panel have not been saved.",
+      detail: form.value.name || "New customer",
+      tone: "warning",
+      confirmLabel: "Discard changes",
+      cancelLabel: "Keep editing",
+    })) === true
+  );
+}
+
 // A slow reply to an earlier search must not replace the answer to the latest one.
 let loadCount = 0;
 async function load() {
@@ -334,20 +357,34 @@ function showPanel() {
   });
 }
 
-function open(c) {
+async function open(c) {
+  if (saving.value || (form.value && form.value.id === c.id)) return;
+  if (!(await canLeavePanel())) return;
   formError.value = "";
   form.value = formFrom(c);
+  openedAs = editable(form.value);
   showPanel();
 }
 
-function startNew() {
+async function startNew() {
+  if (saving.value) return;
+  if (form.value?.id === 0 && !dirty.value) {
+    nameInput.value?.focus();
+    return;
+  }
+  if (!(await canLeavePanel())) return;
   formError.value = "";
   form.value = {
     id: 0, version: 0, name: "", phone: "", email: "", notes: "",
     contact_consent: false, consent_updated_at: null, active: true,
   };
+  openedAs = editable(form.value);
   nextTick(() => nameInput.value?.focus());
   showPanel();
+}
+
+async function closeClicked() {
+  if (await canLeavePanel()) closePanel();
 }
 
 function closePanel() {
@@ -424,9 +461,11 @@ function toggleActive() {
   const stopping = f.active;
   return confirm({
     title: stopping ? "Deactivate customer?" : "Reactivate customer?",
-    message: stopping
-      ? "They will no longer show in the list or be found at the till. Their record and phone number are kept."
-      : "They will show in the list again.",
+    message:
+      (stopping
+        ? "They will no longer show in the list or be found at the till. Their record and phone number are kept."
+        : "They will show in the list again.") +
+      (dirty.value ? " The changes you have typed in the panel will not be saved." : ""),
     detail: f.name,
     tone: "warning",
     confirmLabel: stopping ? "Deactivate" : "Reactivate",

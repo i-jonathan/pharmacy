@@ -45,7 +45,7 @@ flowchart LR
 | Starts | `Customers.vue` `save()` | Requires a name; sends `{version: 0, name, phone, email, notes, contact_consent}`; `saving` blocks a second click |
 | Request | `POST /customers/` | Body as above, size-limited (`decodeLimitedJSON`); no retry key |
 | Gate | `AuthMiddleware` → `AddPermissionsToContext` → `RequirePermissions(all, customer:manage)` | Service re-checks `customer:manage` |
-| Service | `CreateCustomer` | `tidyCustomerRequest` trims, validates, normalizes the phone; in one transaction (`runInTx`): `requirePhoneFree`, `CreateCustomerTx`, audit `created` |
+| Service | `CreateCustomer` | `tidyCustomerRequest` trims, validates (including refusing NUL characters, which Postgres rejects), normalizes the phone; in one transaction (`runInTx`): `requirePhoneFree`, `CreateCustomerTx`, audit `created` |
 | Data | `customer`, `audit_log` | `created_by_id` is the signed-in user (session context, never the body); `consent_updated_at` is stamped by SQL (`NOW()`) when consent is given at creation |
 | Response | `201 {id}` | The page closes the panel, shows a notice and reloads the list |
 
@@ -53,7 +53,7 @@ flowchart LR
 
 | Step | Where | Detail |
 |---|---|---|
-| Starts | `Customers.vue` `open()`, `save()` | The form is filled from the list row; the phone is shown as `0803 123 4567` and normalized again on save |
+| Starts | `Customers.vue` `open()`, `save()` | A click anywhere on the row opens it; if the panel holds unsaved typing a "Discard your changes?" confirm comes first (also for Add customer and Close); the form is filled from the list row; the phone is shown as `0803 123 4567` and normalized again on save |
 | Request | `PUT /customers/:id` | The path id wins over any `id` in the body; `version` is the one the page loaded |
 | Gate | as above | `customer:manage` |
 | Service | `UpdateCustomer` | `lockCustomer` reads the row `FOR UPDATE` and refuses a stale version (409); compares name, phone, email, notes, consent; nothing changed means no write, no version bump and no audit entry; a changed phone goes through `requirePhoneFree`; `UpdateCustomerTx` stamps `consent_updated_at` with the database's `NOW()` only when consent changes (the app never sets it); audit `updated` with `{changed: [...]}` and `contact_consent: {from, to}` when consent changed |
@@ -76,7 +76,7 @@ flowchart LR
 | Starts | `Customers.vue` `load()` | Search box is debounced 250 ms; changing the search or "Show deactivated" returns to page 1; a counter drops replies that arrive after a newer request |
 | Request | `GET /customers/?q=&page=&inactive=1` | `GET /customers/:id` reads one |
 | Gate | `RequirePermissions(all, customer:view)` | Service re-checks |
-| Service | `ListCustomers`, `customerFilter` | Text with a letter searches names. Otherwise it is a phone search: a number written from its start (`0`, `234` or `+234` first) is anchored with `PhonePrefix` `+234` (or `+` for another country) so `0803` matches only numbers that start `+234803`; other digits match anywhere in the number; no digits means no filter Pages of 25 (`customersPerPage`); a page below 1 or above `maxCustomerPage` becomes 1 |
+| Service | `ListCustomers`, `customerFilter` | Text with a letter searches names. Otherwise it is a phone search: a number written from its start with a leading `0` or `+` is anchored with `PhonePrefix` `+234` (or `+` for another country) so `0803` matches only numbers that start `+234803`; any other digits, including ones that begin `234`, match anywhere in the number so the end of a number is always findable; no digits means no filter Pages of 25 (`customersPerPage`); a page below 1 or above `maxCustomerPage` becomes 1 |
 | Data | `ListCustomers` in `repository/customers.go` | `lower(name) LIKE` with `%`, `_` and `\` escaped (`likeEscaper`), or `phone LIKE prefix || digits || '%'` / `'%' || digits || '%'`; ordered by name; count and page are separate queries; deactivated customers only with `inactive` |
 
 ## Permissions

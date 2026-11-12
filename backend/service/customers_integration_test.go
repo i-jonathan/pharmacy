@@ -90,7 +90,7 @@ func TestCustomerLifecycleAgainstTheDatabase(t *testing.T) {
 		"o_f": 0, "a%o": 0, "x%": 0,
 		"0803": 1, "+234 803 123": 1, "8031234567": 1, "09": 0,
 		// 803 not at the start of the number matches wherever it appears; 0803 only at the start.
-		"803": 2, "0703": 1, "0": 2, "+234": 2, "+44": 0,
+		"803": 2, "2348031234": 1, "0703": 1, "0": 2, "+234": 2, "+44": 0,
 	} {
 		page, err := svc.ListCustomers(customerCtx, search, false, 1)
 		if err != nil {
