@@ -172,7 +172,7 @@
             <div v-for="line in pendingPurchaseOrderItems" :key="line.id" class="flex flex-wrap items-center gap-2 text-sm">
               <span class="min-w-0 flex-1 basis-40">
                 {{ line.name }}
-                <span class="text-xs text-muted-foreground">{{ line.manufacturer }} · {{ line.quantity - line.received_quantity }} outstanding</span>
+                <span class="text-xs text-muted-foreground">{{ line.manufacturer }} · {{ outstandingOf(line) }} outstanding</span>
                 <span v-if="line.note" class="block text-xs italic text-muted-foreground">{{ line.note }}</span>
               </span>
               <Button size="sm" variant="outline" @click="openPurchaseOrderProduct(line)"><Plus :size="13" class="mr-1" />Create product</Button>
@@ -371,6 +371,7 @@ import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
 import SupplierInput from "../components/SupplierInput.vue";
 import { useConfirm } from "../composables/useConfirm.js";
+import { outstandingOf } from "../lib/purchaseOrders.js";
 import {
   Table,
   TableBody,
@@ -661,7 +662,7 @@ function claimPurchaseOrderLine(item, line) {
     showToast(line.name + " is already on this receipt", "error");
     return false;
   }
-  const outstanding = line.quantity - line.received_quantity;
+  const outstanding = outstandingOf(line);
   item.purchase_order_item_id = line.id;
   item._poOutstanding = outstanding;
   item._poNote = line.note || "";
@@ -782,10 +783,6 @@ function validate() {
     if (num(item.cost_price) <= 0) { item._errors.cost = true; valid = false; }
     if (num(item.selling_price) <= 0) { item._errors.sell = true; valid = false; }
     if (num(item.quantity) <= 0) { item._errors.qty = true; valid = false; }
-    if (item.purchase_order_item_id && item._poOutstanding !== undefined && num(item.quantity) > item._poOutstanding) {
-      item._errors.qty = true; valid = false;
-      if (!validationErrors.value.global) validationErrors.value.global = item.name + ": only " + item._poOutstanding + " still outstanding on " + purchaseOrderNumber.value + ".";
-    }
     if (!item.expiry) { item._errors.expiry = true; valid = false; }
     else {
       const days = expiryDays(item.expiry);
@@ -813,8 +810,54 @@ function currentReceiptKey() {
 // Thrown when the request got no answer at all, so the receipt may or may not have been saved.
 class NoResponse extends Error {}
 
+// A supplier may send more than was ordered. Rows for the same order line (for example different
+// expiry dates) are added up, and the person confirms the excess before it is recorded.
+function purchaseOrderExcess() {
+  const lines = new Map();
+  for (const item of items.value) {
+    if (!item.purchase_order_item_id || item._poOutstanding === undefined) continue;
+    const line = lines.get(item.purchase_order_item_id) || { name: item.name, outstanding: item._poOutstanding, arriving: 0 };
+    line.arriving += num(item.quantity);
+    lines.set(item.purchase_order_item_id, line);
+  }
+  return [...lines.values()].filter((l) => l.arriving > l.outstanding);
+}
+
+// The outstanding figures were read when the order was opened, and the server no longer refuses a
+// line that goes over. Someone else may have received against the order since, so read it again
+// before deciding whether to warn. If it cannot be read, the figures from opening are used.
+async function refreshPurchaseOrderOutstanding() {
+  if (!purchaseOrder.value || !items.value.some((i) => i.purchase_order_item_id)) return;
+  try {
+    const r = await fetch(`${API}/inventory/purchase-orders/${purchaseOrder.value.id}`);
+    if (!r.ok) return;
+    const order = await r.json();
+    const lines = new Map(order.items.map((l) => [l.id, l]));
+    for (const row of items.value) {
+      if (!row.purchase_order_item_id) continue;
+      const line = lines.get(row.purchase_order_item_id);
+      row._poOutstanding = line ? outstandingOf(line) : 0;
+    }
+  } catch {}
+}
+
 async function receiveItems() {
   if (!validate()) return;
+  await refreshPurchaseOrderOutstanding();
+  const excess = purchaseOrderExcess();
+  if (excess.length) {
+    const ok = await confirm({
+      title: "More than was ordered",
+      message: "This delivery has more than " + purchaseOrderNumber.value + " asks for. All of it will be added to stock and recorded against the order.",
+      lines: excess.slice(0, 5).map((l) => l.outstanding > 0
+        ? l.name + ": " + l.arriving + " arriving, " + l.outstanding + " outstanding (" + (l.arriving - l.outstanding) + " more)"
+        : l.name + ": " + l.arriving + " arriving, but this order already has all it asked for")
+        .concat(excess.length > 5 ? [(excess.length - 5) + " more lines"] : []),
+      confirmLabel: "Receive anyway",
+      cancelLabel: "Go back",
+    });
+    if (!ok) return;
+  }
   // The last attempt may have been saved even though no answer came back. Resending the same
   // key with different content would be treated as the earlier receipt and the edits dropped,
   // so make the user look first, then send the changes as a new receipt.
@@ -949,8 +992,8 @@ async function loadPurchaseOrder(id, { restore = false } = {}) {
   for (const row of items.value) {
     if (!row.purchase_order_item_id) continue;
     const line = outstandingLines.find((l) => l.id === row.purchase_order_item_id);
-    if (line) { row._poOutstanding = line.quantity - line.received_quantity; row._poNote = line.note || ""; }
-    else row._poOutstanding = 0; // already fully received elsewhere: validation will flag the row
+    if (line) { row._poOutstanding = outstandingOf(line); row._poNote = line.note || ""; }
+    else row._poOutstanding = 0; // already fully received elsewhere: the whole row counts as more than was ordered
   }
 
   const pending = [];
@@ -980,7 +1023,7 @@ async function reportPurchaseOrderProgress(id) {
     const r = await fetch(`${API}/inventory/purchase-orders/${id}`);
     if (!r.ok) return;
     const order = await r.json();
-    const outstanding = order.items.reduce((sum, l) => sum + l.quantity - l.received_quantity, 0);
+    const outstanding = order.items.reduce((sum, l) => sum + outstandingOf(l), 0);
     const number = "PO-" + String(order.id).padStart(5, "0");
     showToast(order.status === "received" ? number + " is now fully received" : number + " still has " + outstanding + " units outstanding");
   } catch {}
