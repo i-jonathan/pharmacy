@@ -28,6 +28,10 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      "/customers": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
       "/sales": {
         target: "http://localhost:8000",
         changeOrigin: true,

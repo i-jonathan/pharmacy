@@ -20,6 +20,7 @@ const (
 	stockAdjustmentMigration = 44
 	movementIndexMigration   = 45
 	requestHashMigration     = 46
+	customerMigration        = 47
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -379,4 +380,73 @@ func TestStockAdjustmentRequestHashMigration(t *testing.T) {
 		t.Fatal("rollback should drop request_hash and restore the per-user key index")
 	}
 	testdb.Migrate(t, db, requestHashMigration-1, requestHashMigration)
+}
+
+func TestCustomerMigration(t *testing.T) {
+	db := testdb.New(t, customerMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('cashier', 'x')`)
+	testdb.Migrate(t, db, customerMigration-1, customerMigration)
+
+	var grants []string
+	err := db.Select(&grants, `
+		SELECT r.name || ':' || p.action
+		FROM role_permissions rp
+		JOIN roles r ON r.id = rp.role_id
+		JOIN permissions p ON p.id = rp.permission_id
+		WHERE p.resource = 'Customer'
+		ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Admin:Manage,Admin:View,Cashier:Manage,Cashier:View,Manager:Manage,Manager:View"
+	if got := strings.Join(grants, ","); got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+	var keys []string
+	if err = db.Select(&keys, `SELECT lower(resource || ':' || action) FROM permissions WHERE resource = 'Customer' ORDER BY 1`); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(keys, ",") != "customer:manage,customer:view" {
+		t.Fatalf("unexpected permission keys %v", keys)
+	}
+
+	add := `INSERT INTO customer (name, phone, created_by_id)
+		VALUES ($1, NULLIF($2, ''), (SELECT id FROM users))`
+	db.MustExec(add, "Ada", "+2348031234567")
+	// Customers with no phone can be many; a phone belongs to one customer, deactivated or not.
+	db.MustExec(add, "Walk-in one", "")
+	db.MustExec(add, "Walk-in two", "")
+	mustFail(t, db, "customer_phone_unique", add, "Ada's sister", "+2348031234567")
+	db.MustExec(`UPDATE customer SET active = FALSE WHERE name = 'Ada'`)
+	mustFail(t, db, "customer_phone_unique", add, "Ada's sister", "+2348031234567")
+	// A name can't be blank.
+	mustFail(t, db, "customer_name_check", add, "   ", "")
+
+	var c struct {
+		Consent bool `db:"contact_consent"`
+		Version int  `db:"version"`
+	}
+	if err = db.Get(&c, `SELECT contact_consent, version FROM customer WHERE name = 'Walk-in one'`); err != nil {
+		t.Fatal(err)
+	}
+	if c.Consent || c.Version != 1 {
+		t.Fatalf("a new customer starts without consent at version 1, got %+v", c)
+	}
+
+	testdb.Rollback(t, db, customerMigration)
+	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'Customer'`); n != 0 {
+		t.Fatalf("rollback should remove the permissions, got %d", n)
+	}
+	mustFail(t, db, "customer", `SELECT 1 FROM customer`)
+
+	// It can be applied again after a rollback, without doubling the permissions or grants.
+	testdb.Migrate(t, db, customerMigration-1, customerMigration)
+	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'Customer'`); n != 2 {
+		t.Fatalf("expected 2 permissions after re-applying, got %d", n)
+	}
+	if n := count(t, db, `
+		SELECT count(*) FROM role_permissions rp
+		JOIN permissions p ON p.id = rp.permission_id WHERE p.resource = 'Customer'`); n != 6 {
+		t.Fatalf("expected 6 grants after re-applying, got %d", n)
+	}
 }

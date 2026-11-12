@@ -1,6 +1,6 @@
 # T-050 Manual stock management
 
-Card: BOARD.md T-050 · Branch: feat/T-050-manual-stock-management
+Card: T-050 · Branch: feat/T-050-manual-stock-management
 
 ## Goal
 

@@ -52,6 +52,8 @@ func TestSeedFillsAnEmptyDatabaseOnceOnly(t *testing.T) {
 		`SELECT COUNT(*) FROM stock_flag WHERE status = 'open'`:                 1,
 		`SELECT COUNT(*) FROM stock_adjustment`:                                 1,
 		`SELECT COUNT(*) FROM returns`:                                          1,
+		`SELECT COUNT(*) FROM customer WHERE phone LIKE '+234%'`:                5,
+		`SELECT COUNT(*) FROM customer WHERE NOT contact_consent`:               2,
 	} {
 		var got int
 		if err := db.Get(&got, query); err != nil || got != want {

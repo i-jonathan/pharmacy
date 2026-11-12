@@ -9,7 +9,7 @@ Write the plan to `docs/plans/T-NNN-short-slug.md` on the ticket branch. It is c
 ```markdown
 # T-NNN Title
 
-Card: BOARD.md T-NNN · Branch: feat/T-NNN-slug
+Card: T-NNN · Branch: feat/T-NNN-slug
 
 ## Goal
 One or two sentences: what changes for the user of the shop, and why now.

@@ -8,6 +8,7 @@ import (
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
 	"pharmacy/model"
+	"pharmacy/repository"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -71,24 +72,7 @@ func stockDirection(change int, in, out model.MovementType) (int, model.Movement
 func (s *inventoryService) inTx(
 	ctx context.Context, failure string, fn func(tx *sqlx.Tx) error,
 ) error {
-	tx, err := s.repo.BeginTx(ctx)
-	if err != nil {
-		return httperror.ServerError("failed to start transaction", err)
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			s.repo.RollbackTx(tx)
-		}
-	}()
-	if err = fn(tx); err != nil {
-		return err
-	}
-	if err = s.repo.CommitTx(tx); err != nil {
-		return httperror.ServerError(failure, err)
-	}
-	committed = true
-	return nil
+	return runInTx(ctx, s.repo, failure, fn)
 }
 
 // audit appends an audit record for any entity inside the caller's transaction.
@@ -96,11 +80,46 @@ func (s *inventoryService) audit(
 	ctx context.Context, tx *sqlx.Tx, userID int, entity string, entityID int,
 	action, reason string, details any,
 ) error {
+	return appendAudit(ctx, s.repo, tx, userID, entity, entityID, action, reason, details)
+}
+
+// runInTx runs fn in a transaction on repo, committing when it returns nil and rolling back
+// otherwise. failure is the message for a failed commit.
+func runInTx(
+	ctx context.Context, repo repository.PharmacyRepository, failure string,
+	fn func(tx *sqlx.Tx) error,
+) error {
+	tx, err := repo.BeginTx(ctx)
+	if err != nil {
+		return httperror.ServerError("failed to start transaction", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			repo.RollbackTx(tx)
+		}
+	}()
+	if err = fn(tx); err != nil {
+		return err
+	}
+	if err = repo.CommitTx(tx); err != nil {
+		return httperror.ServerError(failure, err)
+	}
+	committed = true
+	return nil
+}
+
+// appendAudit writes an audit record inside the caller's transaction, so it commits or rolls back
+// with the change it describes.
+func appendAudit(
+	ctx context.Context, repo repository.PharmacyRepository, tx *sqlx.Tx, userID int,
+	entity string, entityID int, action, reason string, details any,
+) error {
 	body, err := json.Marshal(details)
 	if err != nil {
 		return httperror.ServerError("failed to record audit entry", err)
 	}
-	err = s.repo.InsertAuditLogTx(ctx, tx, types.AuditEntry{
+	err = repo.InsertAuditLogTx(ctx, tx, types.AuditEntry{
 		ActorID: userID, EntityType: entity, EntityID: entityID,
 		Action: action, Reason: reason, Details: body,
 	})

@@ -97,6 +97,22 @@ type StockAdjustmentRepository interface {
 	DismissStockFlagTx(ctx context.Context, tx *sqlx.Tx, id, userID int, note string) error
 }
 
+type CustomerRepository interface {
+	CreateCustomerTx(ctx context.Context, tx *sqlx.Tx, customer types.NewCustomer) (int, error)
+	GetCustomerForUpdateTx(ctx context.Context, tx *sqlx.Tx, id int) (types.Customer, error)
+	// UpdateCustomerTx saves the edited fields and moves the version on by one. The consent time
+	// is the database's own and moves only when consent changes.
+	UpdateCustomerTx(ctx context.Context, tx *sqlx.Tx, customer types.Customer) error
+	// SetCustomerActiveTx also moves the version on, so a stale edit is refused.
+	SetCustomerActiveTx(ctx context.Context, tx *sqlx.Tx, id int, active bool) error
+	// CustomerByPhoneTx returns the customer with this normalized phone, or nil.
+	CustomerByPhoneTx(ctx context.Context, tx *sqlx.Tx, phone string) (*types.Customer, error)
+	GetCustomer(ctx context.Context, id int) (types.Customer, error)
+	ListCustomers(
+		ctx context.Context, filter types.CustomerFilter, limit, offset int,
+	) ([]types.Customer, int, error)
+}
+
 type SaleRepository interface {
 	CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (int, error)
 	BulkCreateSaleItemsTx(ctx context.Context, tx *sqlx.Tx, saleItems []model.SaleItem) error
@@ -182,4 +198,5 @@ type PharmacyRepository interface {
 	DashboardRepository
 	AdminRepository
 	StockAdjustmentRepository
+	CustomerRepository
 }

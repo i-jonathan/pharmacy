@@ -87,6 +87,10 @@ func main() {
 	inventoryRouter := router.InitInventoryRouter(inventoryService, tmpl)
 	r.Handle("/inventory/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(inventoryRouter)))
 
+	customerService := service.NewCustomerService(store)
+	customerRouter := router.InitCustomerRouter(customerService, tmpl)
+	r.Handle("/customers/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(customerRouter)))
+
 	saleService := service.NewSaleService(store)
 	saleRouter := router.InitSalesRouter(saleService, tmpl)
 	r.Handle("/sales/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(saleRouter)))

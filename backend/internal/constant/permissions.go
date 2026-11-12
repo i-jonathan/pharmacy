@@ -15,3 +15,9 @@ const ApprovePurchaseOrderPermissionKey = "purchaseorder:approve"
 // FlagStockPermissionKey lets a user flag a product for a manager to check.
 const AdjustStockPermissionKey = "stock:adjust"
 const FlagStockPermissionKey = "stock:flag"
+
+// ViewCustomersPermissionKey lets a user see the customer list. ManageCustomersPermissionKey lets
+// a user add, edit, deactivate and reactivate customers. Cashiers, managers and admins have both
+// by default.
+const ViewCustomersPermissionKey = "customer:view"
+const ManageCustomersPermissionKey = "customer:manage"

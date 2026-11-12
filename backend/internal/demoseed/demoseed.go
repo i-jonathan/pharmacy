@@ -59,6 +59,17 @@ type Summary struct {
 	Products, Sales int
 }
 
+var customers = []types.CustomerRequest{
+	{Name: "Adaeze Obi", Phone: "0803 555 0101", Email: "adaeze@example.com", ContactConsent: true,
+		Notes: "Prefers liquid syrups for her children"},
+	{Name: "Tunde Bakare", Phone: "0802 555 0102", ContactConsent: true},
+	{Name: "Mrs Funke Adeyemi", Phone: "0805 555 0103",
+		Notes: "Collects her mother's monthly refills"},
+	{Name: "Chinedu Okafor", Phone: "0806 555 0104", Email: "chinedu@example.com",
+		ContactConsent: true},
+	{Name: "Hauwa Musa", Phone: "0809 555 0105"},
+}
+
 type product struct {
 	price       float64
 	id, priceID int
@@ -207,6 +218,15 @@ func Run(db *sqlx.DB) (Summary, error) {
 		Products: received,
 	}); err != nil {
 		return Summary{}, fmt.Errorf("opening stock: %w", err)
+	}
+
+	// A few regular customers, added by the cashier. The numbers are made up.
+	customerSvc := service.NewCustomerService(store)
+	till := as(constant.ViewCustomersPermissionKey, constant.ManageCustomersPermissionKey)
+	for _, c := range customers {
+		if _, err := customerSvc.CreateCustomer(till, c, cashier); err != nil {
+			return Summary{}, fmt.Errorf("customer %s: %w", c.Name, err)
+		}
 	}
 
 	// A day of sales by the cashier.
