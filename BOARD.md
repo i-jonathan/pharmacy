@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-118 -->
+<!-- next-id: T-123 -->
 
 <details>
 <summary>How this board works</summary>
@@ -339,25 +339,67 @@ Hard-coded values should become settings that an admin edits on a settings scree
 - [ ] Approval badge poll interval: 60 seconds (`usePendingPurchaseOrders.js`)
 - [ ] Completed purchase orders cap: 100 (`purchaseOrderHistoryMax`)
 
-### T-040 Customer management
+### T-118 Attach a customer to a sale
 
 - priority: P1
 - feature: Customers & loyalty
-- created: 2026-10-26
+- depends: T-040
+- created: 2026-11-12
 
-The customer name is typed on the receipt but never stored.
+Split from T-040. Quick lookup by phone at the POS, `sale.customer_id`, and the customer's name on
+reprinted receipts (T-112 left it off because it was not stored). T-041 and T-084 need this.
 
-- [ ] Customer profiles: name, phone, email, notes, consent to be contacted
-- [ ] Quick lookup by phone at the POS and attach to the sale
-- [ ] Purchase history and totals per customer
-- [ ] Import, edit and merge duplicate customers
-- [ ] Balances and credit (T-041), loyalty (T-084)
+### T-119 Customer purchase history and totals
+
+- priority: P2
+- feature: Customers & loyalty
+- depends: T-118
+- created: 2026-11-12
+
+Split from T-040. Sales per customer with totals, on the customer's page.
+
+### T-120 Import and merge customers
+
+- priority: P2
+- feature: Customers & loyalty
+- depends: T-040
+- created: 2026-11-12
+
+Split from T-040. CSV import with a preview and duplicate detection by phone, and merging two
+customers into one (re-pointing sales, audited).
+
+### T-121 Erase or anonymize a customer on request
+
+- priority: P2
+- feature: Customers & loyalty
+- depends: T-118
+- created: 2026-11-12
+
+Split from T-040. The NDPA gives people the right to ask for their data to be erased or corrected.
+T-040 can only deactivate a customer; once sales reference customers (T-118), add a way to
+anonymize one (clear name, phone, email, notes; keep the sales and totals), audited, and a way to
+export what is stored about a customer. Check the exact rules with the owner's lawyer first.
+
+### T-122 Retry key for adding a customer
+
+- priority: P2
+- feature: Customers & loyalty
+- depends: T-040
+- created: 2026-11-12
+
+Split from T-040 (found in review). Adding a customer has no retry key, so when the reply to a save
+is lost and the person presses Add again, a customer who gave no phone number is saved twice (a
+phone number is unique, so only phoneless customers can double). Sales, receiving and stock
+adjustments already use a client retry key (`newRetryKey()` in `lib/api.js`); do the same for
+`POST /customers/`: key column with a unique index per user, a fingerprint of the request like
+`stock_adjustment.request_hash`, and the first save returned on a resend. Update the "Concurrency
+and retries" and "Known gaps" sections of `docs/features/customers/technical.md`.
 
 ### T-041 Credit sales & debtor balances
 
 - priority: P1
 - feature: Customers & loyalty
-- depends: T-040
+- depends: T-118
 - created: 2026-10-26
 
 Sell on account, track customer balances, record part-payments, statements and aged debt. Very common in Nigerian retail.
@@ -427,7 +469,7 @@ Track stock per batch, not just per product. Today stock is one number per produ
 - [ ] Quantity on hand per batch; sales, returns and adjustments deduct from a batch
 - [ ] First-expiry-first-out by default at the POS, with an override
 - [ ] Expiry lists and write-offs per batch
-- [ ] Recall lookup: which sales (and customers, T-040) took batch X
+- [ ] Recall lookup: which sales (and customers, T-118) took batch X
 
 Per-batch stock adjustments and lot details on write-offs belong here (T-050 adjusts at product level).
 
@@ -703,7 +745,7 @@ A native mobile app can come later through the PWA / app shell in T-094.
 
 - priority: P1
 - feature: Customers & loyalty
-- depends: T-040, T-093
+- depends: T-118, T-093
 - created: 2026-10-26
 
 Loyalty rules an admin sets up per store, instead of one fixed scheme.
