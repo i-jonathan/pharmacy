@@ -38,8 +38,8 @@ Every week, sometimes several times a week, a cashier starts an order from what'
 
 ### Save and submit (cashier)
 
-- **Save as draft** keeps it so you can come back to it. It appears under **Drafts**, where everyone who writes orders can see it. The card says who started it.
-- Before starting a new order, look under **Drafts**: a colleague may already have one for the same supplier. Open it with **Edit** and add to it.
+- **Save as draft** keeps it so you can come back to it. It appears under **Drafts & submitted**, where everyone who writes orders can see it. The card says who started it.
+- Before starting a new order, look under **Drafts & submitted**: a colleague may already have one for the same supplier. Open it with **Edit** and add to it.
 - **Save and submit for approval** sends it to a manager. A draft saved earlier, by you or a colleague, can be submitted from its card with **Submit for approval**.
 - Once submitted you can't edit it; the card says "Submitted. A manager will review it. To change it, pull it back to a draft first." Click **Pull back to draft** and confirm to make it a draft again, then edit and submit it. Once a manager has approved it, only a manager can change it.
 

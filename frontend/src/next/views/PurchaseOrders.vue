@@ -630,7 +630,7 @@ const DETAIL_PER_PAGE = 10;
 const ORDERS_PER_PAGE = 10;
 
 const tabs = computed(() => [
-  { key: "drafts", label: canApprove.value ? "Needs approval" : "Drafts" },
+  { key: "drafts", label: canApprove.value ? "Needs approval" : "Drafts & submitted" },
   { key: "active", label: "Waiting for stock" },
   { key: "history", label: "Completed" },
 ]);

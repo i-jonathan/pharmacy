@@ -88,14 +88,12 @@ func (s *inventoryService) WithdrawPurchaseOrder(
 			if err != nil {
 				return httperror.ServerError("failed to pull back purchase order", err)
 			}
+			details := map[string]any{
+				"status_before": order.Status,
+				"items":         auditItemSummaries(order.Items),
+			}
 			return s.auditPurchaseOrder(
-				ctx,
-				tx,
-				userID,
-				id,
-				constant.AuditWithdrawn,
-				"",
-				map[string]any{},
+				ctx, tx, userID, id, constant.AuditWithdrawn, "", details,
 			)
 		},
 	)

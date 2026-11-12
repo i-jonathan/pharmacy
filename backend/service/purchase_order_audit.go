@@ -160,7 +160,7 @@ func (s *inventoryService) GetPurchaseOrderHistory(
 			return nil, err
 		}
 		own := order.CreatedByID != nil && *order.CreatedByID == userID
-		if !own && !canDraftPurchaseOrders(ctx) {
+		if !own && !canWorkOnPurchaseOrders(ctx) {
 			return nil, purchaseOrderNotFound(sql.ErrNoRows)
 		}
 	}

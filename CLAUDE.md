@@ -56,3 +56,27 @@ Vite builds to `backend/template/static/dist/` (base `/static/dist/`); Go embeds
 - `README.md` and `AGENTS.md` are partly stale (migration counts, Vue entry points); trust the code and `vite.config.js`.
 - The SPA's utility classes come from the tracked `backend/template/static/css/tailwind.css`, built by `make tailwind` from the Vue sources. A new Tailwind class in a `.vue` file shows no styling until `make tailwind` (or `make assets`) is run and the result committed; `npm run build` alone is not enough.
 - `backend/template/static/dist/` is not tracked in git, and the `Dockerfile` only copies `backend/`, so run `make assets` before `docker compose build server`.
+
+## Task board
+
+This project's board is managed by Waypoint. Prefer the CLI over editing the board file.
+
+- See what to work on next: `waypoint ls --next --json`
+- Add a card: `waypoint add "Title" --group "Group" --priority P1`
+- Move a card: `waypoint move <ID> "<Column>"`
+- Change a field: `waypoint set <ID> key=value`
+- Finish a card: `waypoint done <ID>`
+- `waypoint ls --json` and `waypoint show <ID> --json` for reading all cards and one card.
+
+If the board is a Markdown file such as BOARD.md and you edit it directly, follow the format printed by "waypoint help format"; a card heading without an id gets one automatically. Never edit a SQLite board (a .db file) directly: use the CLI.
+
+Run waypoint from inside this project's folder, or pass --project NAME. "waypoint project ls" shows where the board is: a file's path, or host:port/database for a database server.
+
+If the board is in a Postgres database, its password is not stored anywhere: it must be in the environment of every program that runs waypoint, as WAYPOINT_DB_PASSWORD_<NAME> (this project; NAME is the project name in capitals, other characters as _) or WAYPOINT_DB_PASSWORD (all projects). For an MCP agent, put it in the server's "env" in the MCP config, for example {"mcpServers":{"waypoint":{"command":"waypoint","args":["mcp","--project","NAME"],"env":{"WAYPOINT_DB_PASSWORD":"..."}}}}.
+
+Groups, priorities and columns must already exist on the board. On a Markdown board, read them from the file's front matter before using them.
+
+If your agent speaks MCP and has no shell, run "waypoint mcp" as an MCP server instead; it offers the same board through seven tools. Add it to the agent's MCP config:
+
+```json
+{"mcpServers":{"waypoint":{"command":"waypoint","args":["mcp"]}}}
