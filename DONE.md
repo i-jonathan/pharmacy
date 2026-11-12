@@ -8,6 +8,7 @@ Finished cards from [BOARD.md](BOARD.md), newest first, grouped by month.
 
 - feature: Customers & loyalty
 - done: 2026-11-12
+- prs: #39
 
 First slice of customer management: the pharmacy keeps a list of customers (name, phone, email, notes, and whether they agreed to be contacted) on a new **Customers** page under Sales. Anyone who can see customers can search by name or phone (`0803…`, `+234 803…`); adding, editing, deactivating and reactivating needs `customer:manage`. Both keys (`customer:view`, `customer:manage`) are given to Cashier, Manager and Admin by migration 47. A phone is stored in one form (`+234` plus 10 digits, typed with or without the 0) and belongs to one customer for good, deactivated ones included; customers are deactivated, never deleted. Edits carry a version (409 if someone else saved first, and the page keeps what was typed). Every change is audited in the same transaction, and a change to consent to be contacted is dated. Nothing reads customers yet. Split from the original card: the till link (T-118), history and totals (T-119), import and merge (T-120), erase on request (T-121) and a retry key for adding (T-122) are their own cards. Plan: `docs/plans/T-040-customer-profiles.md`; docs: `docs/features/customers/`.
 
