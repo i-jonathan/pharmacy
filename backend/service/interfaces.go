@@ -50,6 +50,19 @@ type StockAdjustmentService interface {
 	DismissStockFlag(ctx context.Context, id int, note string, userID int) error
 }
 
+type CustomerService interface {
+	// CreateCustomer returns the new customer's id.
+	CreateCustomer(ctx context.Context, req types.CustomerRequest, userID int) (int, error)
+	UpdateCustomer(ctx context.Context, req types.CustomerRequest, userID int) error
+	// SetCustomerActive deactivates or reactivates a customer; version is the one the caller saw.
+	SetCustomerActive(ctx context.Context, id, version int, active bool, userID int) error
+	GetCustomer(ctx context.Context, id int) (types.Customer, error)
+	// ListCustomers searches names (text) or phone numbers (digits) and pages the result.
+	ListCustomers(
+		ctx context.Context, search string, includeInactive bool, page int,
+	) (types.CustomerPage, error)
+}
+
 type SaleService interface {
 	// CreateSale returns the sale's receipt number; a repeat of a saved sale returns the first
 	// save's number.
