@@ -37,6 +37,12 @@ const routes = [
     meta: { title: "Sales History", parent: "Sales" },
   },
   {
+    path: "/customers",
+    name: "customers",
+    component: () => import("./views/Customers.vue"),
+    meta: { title: "Customers", parent: "Sales" },
+  },
+  {
     path: "/held-sales",
     name: "held-sales",
     component: () => import("./views/HeldSales.vue"),
