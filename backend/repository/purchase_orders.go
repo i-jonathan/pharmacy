@@ -16,7 +16,7 @@ import (
 var ErrInvalidReference = errors.New("referenced row does not exist")
 
 // ErrPurchaseOrderItemNotReceivable is returned when a receipt does not fit a purchase order
-// line: wrong order, different product, or more than the outstanding quantity.
+// line: wrong order, different product, or a total past what the 32-bit column holds.
 var ErrPurchaseOrderItemNotReceivable = errors.New("purchase order item cannot receive quantity")
 
 type purchaseOrderItemRow struct {

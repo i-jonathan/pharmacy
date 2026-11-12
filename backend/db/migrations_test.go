@@ -21,6 +21,7 @@ const (
 	movementIndexMigration   = 45
 	requestHashMigration     = 46
 	customerMigration        = 47
+	overReceiptMigration     = 48
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -103,7 +104,9 @@ func TestPurchaseOrderMigrationConstraints(t *testing.T) {
 	var orderID int
 	db.Get(&orderID, `SELECT id FROM purchase_order LIMIT 1`)
 	mustFail(t, db, "", `INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity) VALUES ($1, 'x', 0)`, orderID)
-	mustFail(t, db, "", `INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity) VALUES ($1, 'x', 5, 6)`, orderID)
+	mustFail(t, db, "", `INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity) VALUES ($1, 'x', 5, -1)`, orderID)
+	// Migration 48 lets a line receive more than it ordered; TestOverReceiptMigration covers it.
+	db.MustExec(`INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity) VALUES ($1, 'x', 5, 6)`, orderID)
 	db.MustExec(`INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity) VALUES ($1, 'x', 5, 5)`, orderID)
 
 	// An order's leftovers can be taken over by only one other order.
@@ -449,4 +452,45 @@ func TestCustomerMigration(t *testing.T) {
 		JOIN permissions p ON p.id = rp.permission_id WHERE p.resource = 'Customer'`); n != 6 {
 		t.Fatalf("expected 6 grants after re-applying, got %d", n)
 	}
+}
+
+func TestOverReceiptMigration(t *testing.T) {
+	db := testdb.New(t, overReceiptMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('manager', 'x')`)
+	db.MustExec(`INSERT INTO purchase_order (supplier_name, created_by_id)
+		VALUES ('Emzor', (SELECT id FROM users))`)
+	addLine := `INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity)
+		VALUES ((SELECT id FROM purchase_order), 'Alpha', $1, $2)`
+
+	// Before: a line can never have received more than it ordered.
+	mustFail(t, db, "purchase_order_item_check", addLine, 10, 12)
+
+	testdb.Migrate(t, db, overReceiptMigration-1, overReceiptMigration)
+	db.MustExec(addLine, 10, 12)
+	// Nothing else about the line was loosened.
+	mustFail(t, db, "received_quantity", addLine, 10, -1)
+	mustFail(t, db, "quantity", addLine, 0, 0)
+
+	// The rollback refuses while a line is over-received instead of rewriting what arrived.
+	mustFail(t, db, "purchase_order_item_check", `
+		ALTER TABLE purchase_order_item
+		ADD CONSTRAINT purchase_order_item_check
+		CHECK (received_quantity <= quantity)`)
+	db.MustExec(`UPDATE purchase_order_item SET received_quantity = quantity`)
+	testdb.Rollback(t, db, overReceiptMigration)
+	mustFail(t, db, "purchase_order_item_check", addLine, 10, 12)
+}
+
+// The check was created unnamed in 000040. If a database ended up with it under another name,
+// the migration still finds it by what it tests.
+func TestOverReceiptMigrationFindsARenamedCheck(t *testing.T) {
+	db := testdb.New(t, overReceiptMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('manager', 'x')`)
+	db.MustExec(`INSERT INTO purchase_order (supplier_name, created_by_id)
+		VALUES ('Emzor', (SELECT id FROM users))`)
+	db.MustExec(`ALTER TABLE purchase_order_item
+		RENAME CONSTRAINT purchase_order_item_check TO some_other_name`)
+	testdb.Migrate(t, db, overReceiptMigration-1, overReceiptMigration)
+	db.MustExec(`INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity)
+		VALUES ((SELECT id FROM purchase_order), 'Alpha', 10, 12)`)
 }

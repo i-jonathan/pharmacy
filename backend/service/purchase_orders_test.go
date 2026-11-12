@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"net/http"
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
@@ -137,6 +138,26 @@ func TestPlanPurchaseOrderEdit(t *testing.T) {
 		_, err := planPurchaseOrderEdit(existing, []types.PurchaseOrderItem{
 			{ID: 1, Quantity: 4}, {ID: 2, Quantity: 5}, {ID: 3, Name: "New item", Quantity: 3},
 			{Name: "new ITEM", Quantity: 1},
+		})
+		requireHTTPStatus(t, err, http.StatusBadRequest)
+	})
+
+	t.Run("an over-received line can be saved unchanged but not ordered lower", func(t *testing.T) {
+		over := []types.PurchaseOrderItem{
+			{ID: 1, ProductID: intPtr(10), Name: "Over", Quantity: 10, ReceivedQuantity: 14},
+			{ID: 2, ProductID: intPtr(11), Name: "Short", Quantity: 5},
+		}
+		plan, err := planPurchaseOrderEdit(over, []types.PurchaseOrderItem{
+			{ID: 1, Quantity: 10}, {ID: 2, Quantity: 8},
+		})
+		if err != nil {
+			t.Fatalf("editing another line must not touch the over-received one: %v", err)
+		}
+		if len(plan.updates) != 2 || plan.updates[0].Quantity != 10 {
+			t.Fatalf("the ordered quantity should stay 10: %+v", plan.updates)
+		}
+		_, err = planPurchaseOrderEdit(over, []types.PurchaseOrderItem{
+			{ID: 1, Quantity: 9}, {ID: 2, Quantity: 5},
 		})
 		requireHTTPStatus(t, err, http.StatusBadRequest)
 	})
@@ -377,13 +398,53 @@ func TestApplyPurchaseOrderReceipt(t *testing.T) {
 		}
 	})
 
-	t.Run("more than outstanding is rejected, even when split over rows", func(t *testing.T) {
+	t.Run("more than outstanding is accepted, even when split over rows", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderPartial)}
 		err := apply(
 			repo,
 			types.ReceiveSupplyRequest{PurchaseOrderID: 1, Products: []types.ReceiveItem{
 				{ID: 10, PurchaseOrderItemID: 1, Quantity: 2},
-				{ID: 10, PurchaseOrderItemID: 1, Quantity: 3},
+				{ID: 10, PurchaseOrderItemID: 1, Quantity: 7},
+			}},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if repo.received[1] != 9 || repo.refreshed != 1 {
+			t.Fatalf("the whole delivery should be recorded: %+v", repo.received)
+		}
+		details := string(repo.audit[0].Details)
+		// 6 received + 9 = 15 against 10 ordered.
+		for _, want := range []string{`"over_received_by":5`, `"outstanding_after":0`} {
+			if !strings.Contains(details, want) {
+				t.Fatalf("details missing %s: %s", want, details)
+			}
+		}
+	})
+
+	t.Run("a line within the order records no excess", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderPartial)}
+		err := apply(
+			repo,
+			types.ReceiveSupplyRequest{PurchaseOrderID: 1, Products: []types.ReceiveItem{
+				{ID: 10, PurchaseOrderItemID: 1, Quantity: 4},
+			}},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		details := string(repo.audit[0].Details)
+		if !strings.Contains(details, `"over_received_by":0`) {
+			t.Fatalf("expected no excess: %s", details)
+		}
+	})
+
+	t.Run("a line cannot pass the 32-bit limit", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: newOrder(constant.PurchaseOrderPartial)}
+		err := apply(
+			repo,
+			types.ReceiveSupplyRequest{PurchaseOrderID: 1, Products: []types.ReceiveItem{
+				{ID: 10, PurchaseOrderItemID: 1, Quantity: math.MaxInt32},
 			}},
 		)
 		requireHTTPStatus(t, err, http.StatusBadRequest)

@@ -63,6 +63,7 @@ The PDF shows the order number (for example PO-00012), the supplier, the date, a
 
 1. On the order's card, click **Receive**. This opens **Receive Items** with the order loaded: "Receiving against PO-*NNNNN*".
 2. Quantities are filled in with what's still outstanding. Change them to what actually arrived, and remove anything that didn't come; it stays outstanding on the order.
+   If the supplier sent **more than was ordered** (bonus stock, a different pack size), enter the full amount. When you press **Receive Items**, a box lists each item that is over ("14 arriving, 10 outstanding (4 more)"). Choose **Receive anyway** to record it all, or **Go back** to change it. There is no limit; the whole delivery goes into stock. Before the box appears the screen re-reads the order, so if someone else already received that item it says so. Extras for an item whose line is already complete (or for an order that is fully received) can't be added to it; receive them as a normal delivery without an order. If you later edit an order that got extra, its ordered quantity stays as it was.
 3. Items marked "Not in your products yet" must be registered first: click **Create product**, or **Link existing product** and pick it in the search.
 4. Finish the receipt as usual (supplier, expiry dates, cost). If the delivery is from a different supplier than the one on the order, you'll see a note saying the delivery will be recorded as coming from them.
 
@@ -78,7 +79,7 @@ Click **View** for the full list of items with Ordered, Received and Outstanding
 ## What happens next
 
 - **Approving** moves the order to **Waiting for stock**. Nothing changes in stock yet.
-- **Receiving** adds the stock to your products straight away and updates the order's progress bar ("*N* of *N* units received"). The order shows as **partial** until everything arrives, then **received** and moves to **Completed**.
+- **Receiving** adds the stock to your products straight away and updates the order's progress bar ("*N* of *N* units received"). The order shows as **partial** until everything arrives, then **received** and moves to **Completed**. A line that got more than ordered counts as complete and shows "+*N* extra"; the extra never hides something still missing on another line.
 - Items ordered but not delivered show as "on order" when anyone builds the next order, so the same thing isn't ordered twice by mistake.
 - **Closing** or **moving** keeps everything already received; only the outstanding part is dropped or moved.
 - Every step (created, edited, submitted, pulled back, approved, rejected, received, closed, moved) is recorded with who did it and when.

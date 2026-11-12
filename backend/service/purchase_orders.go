@@ -199,10 +199,14 @@ func planPurchaseOrderEdit(
 			return plan, badRequest("an item does not belong to this purchase order")
 		}
 		kept[item.ID] = true
-		if item.Quantity < current.ReceivedQuantity {
+		// An order can already be over-received, so the floor is what was received or, once
+		// that passes the ordered quantity, what was ordered: editing the order for another
+		// reason must not force the ordered figure up to the excess.
+		floor := min(current.ReceivedQuantity, current.Quantity)
+		if item.Quantity < floor {
 			return plan, badRequest(fmt.Sprintf(
 				"%s: quantity cannot be lower than the %d already received",
-				current.Name, current.ReceivedQuantity,
+				current.Name, floor,
 			))
 		}
 		if current.ReceivedQuantity > 0 {
@@ -765,9 +769,13 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 				fmt.Sprintf("%s was received as a different product", line.Name),
 			)
 		}
-		if outstanding := line.Quantity - line.ReceivedQuantity; receipt.quantity > outstanding {
+		// A supplier may deliver more than was ordered, so there is no upper bound beyond what
+		// the 32-bit column can hold.
+		receivedAfter := int64(line.ReceivedQuantity) + int64(receipt.quantity)
+		if receivedAfter > maxPurchaseOrderQuantity {
 			return badRequest(fmt.Sprintf(
-				"%s: only %d still outstanding on this purchase order", line.Name, outstanding,
+				"%s: the quantity received on a purchase order line cannot pass %d",
+				line.Name, maxPurchaseOrderQuantity,
 			))
 		}
 		err = s.repo.ReceivePurchaseOrderItemTx(
@@ -788,7 +796,8 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 			"product_id":             receipt.productID,
 			"product_linked":         line.ProductID == nil,
 			"quantity":               receipt.quantity,
-			"outstanding_after":      line.Quantity - line.ReceivedQuantity - receipt.quantity,
+			"outstanding_after":      max(0, int64(line.Quantity)-receivedAfter),
+			"over_received_by":       max(0, receivedAfter-int64(line.Quantity)),
 		})
 	}
 	if err = s.repo.RefreshPurchaseOrderStatusTx(ctx, tx, order.ID); err != nil {

@@ -238,23 +238,25 @@ func TestPartialSupplyAndTransferInvariant(t *testing.T) {
 
 func TestFailedReceiptLeavesNothingBehind(t *testing.T) {
 	f := newFixture(t)
-	alpha := f.product(t, "Alpha")
+	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
 	po := f.order(
 		t,
 		"Emzor",
 		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 5},
 	)
 
+	// The order line is for Alpha, so receiving Beta against it is refused after stock was
+	// already being written; everything must roll back together.
 	err := f.receive(
 		"k1",
 		"Emzor",
 		po.ID,
-		types.ReceiveItem{ID: alpha, PurchaseOrderItemID: po.Items[0].ID, Quantity: 6},
+		types.ReceiveItem{ID: beta, PurchaseOrderItemID: po.Items[0].ID, Quantity: 3},
 	)
 	if status(err) != http.StatusBadRequest {
-		t.Fatalf("over-receiving should be rejected, got %v", err)
+		t.Fatalf("receiving another product against a line should be rejected, got %v", err)
 	}
-	if stock := f.stock(t, alpha); stock != 0 {
+	if stock := f.stock(t, beta); stock != 0 {
 		t.Fatalf("a rejected receipt must not change stock, got %d", stock)
 	}
 	if got := f.get(t, po.ID); got.Items[0].ReceivedQuantity != 0 || got.Version != 1 {
@@ -291,7 +293,7 @@ func TestRetriedReceiptIsAppliedOnce(t *testing.T) {
 	}
 }
 
-func TestConcurrentReceiptsCannotOverReceive(t *testing.T) {
+func TestConcurrentReceiptsAreAllRecorded(t *testing.T) {
 	f := newFixture(t)
 	alpha := f.product(t, "Alpha")
 	po := f.order(
@@ -311,17 +313,75 @@ func TestConcurrentReceiptsCannotOverReceive(t *testing.T) {
 	}
 	wg.Wait()
 	close(errs)
-	succeeded := 0
 	for err := range errs {
-		if err == nil {
-			succeeded++
+		if err != nil {
+			t.Fatalf("a delivery may exceed the order, so both receipts are recorded: %v", err)
 		}
 	}
-	if succeeded != 1 {
-		t.Fatalf("exactly one of two 6-unit receipts fits in 10, got %d", succeeded)
+	// 12 against 10 ordered: the order and stock must agree on every unit that arrived.
+	got := f.get(t, po.ID)
+	if got.Items[0].ReceivedQuantity != 12 || f.stock(t, alpha) != 12 || got.Status != "received" {
+		t.Fatalf("order and stock must agree on 12: %+v stock %d", got, f.stock(t, alpha))
 	}
-	if got := f.get(t, po.ID); got.Items[0].ReceivedQuantity != 6 || f.stock(t, alpha) != 6 {
-		t.Fatalf("order and stock must agree on 6: %+v stock %d", got.Items, f.stock(t, alpha))
+}
+
+func TestReceivingMoreThanOrdered(t *testing.T) {
+	f := newFixture(t)
+	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
+	po := f.order(t, "Emzor",
+		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
+		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 5},
+	)
+
+	// Alpha arrives with a bonus (one line over two rows), Beta is short.
+	if err := f.receive("k1", "Emzor", po.ID,
+		types.ReceiveItem{ID: alpha, PurchaseOrderItemID: po.Items[0].ID, Quantity: 9},
+		types.ReceiveItem{ID: alpha, PurchaseOrderItemID: po.Items[0].ID, Quantity: 3},
+		types.ReceiveItem{ID: beta, PurchaseOrderItemID: po.Items[1].ID, Quantity: 2},
+	); err != nil {
+		t.Fatalf("receiving more than was ordered: %v", err)
+	}
+	got := f.get(t, po.ID)
+	if got.Items[0].ReceivedQuantity != 12 || got.Items[1].ReceivedQuantity != 2 ||
+		got.Status != "partial" {
+		t.Fatalf("unexpected order: %+v", got)
+	}
+	if stock := f.stock(t, alpha); stock != 12 {
+		t.Fatalf("all 12 units that arrived must be in stock, got %d", stock)
+	}
+
+	// Beta's shortfall is what is still outstanding; Alpha's excess must not offset it.
+	if err := f.receive("k2", "Emzor", po.ID,
+		types.ReceiveItem{ID: beta, PurchaseOrderItemID: po.Items[1].ID, Quantity: 3},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if got = f.get(t, po.ID); got.Status != "received" {
+		t.Fatalf("every line has arrived, so the order is received: %+v", got)
+	}
+}
+
+func TestOverReceivedLineIsNotOutstanding(t *testing.T) {
+	f := newFixture(t)
+	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
+	po := f.order(t, "Emzor",
+		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
+		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 5},
+	)
+	if err := f.receive("k1", "Emzor", po.ID,
+		types.ReceiveItem{ID: alpha, PurchaseOrderItemID: po.Items[0].ID, Quantity: 14},
+	); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := f.svc.MovePurchaseOrderOutstanding(
+		f.ctx, po.ID, f.get(t, po.ID).Version, "Fidson", "supplier out of stock", f.uid,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := f.get(t, moved)
+	if len(next.Items) != 1 || next.Items[0].Name != "Beta" || next.Items[0].Quantity != 5 {
+		t.Fatalf("only Beta is outstanding; Alpha arrived in full and more: %+v", next.Items)
 	}
 }
 
