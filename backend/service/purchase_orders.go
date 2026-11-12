@@ -77,8 +77,9 @@ func requireApprover(ctx context.Context) error {
 }
 
 // checkPurchaseOrderEditable decides whether this user may change the order. Managers can change
-// anything that is not finished; a drafter can change only their own order while it is a draft.
-func checkPurchaseOrderEditable(ctx context.Context, order types.PurchaseOrder, userID int) error {
+// anything that is not finished; a drafter can change any draft, whoever started it, but not an
+// order that has been submitted.
+func checkPurchaseOrderEditable(ctx context.Context, order types.PurchaseOrder) error {
 	if !purchaseOrderAwaitingApproval(order.Status) && !purchaseOrderActive(order.Status) {
 		return httperror.NewHttpError(
 			http.StatusConflict,
@@ -89,14 +90,13 @@ func checkPurchaseOrderEditable(ctx context.Context, order types.PurchaseOrder, 
 	if canApprovePurchaseOrders(ctx) {
 		return nil
 	}
-	own := order.CreatedByID != nil && *order.CreatedByID == userID
-	if order.Status == constant.PurchaseOrderDraft && own && canDraftPurchaseOrders(ctx) {
+	if order.Status == constant.PurchaseOrderDraft && canDraftPurchaseOrders(ctx) {
 		return nil
 	}
-	if order.Status == constant.PurchaseOrderPending && own {
+	if order.Status == constant.PurchaseOrderPending && canDraftPurchaseOrders(ctx) {
 		return httperror.NewHttpError(
 			http.StatusConflict,
-			"this purchase order has been submitted; a manager will review it",
+			"this purchase order has been submitted; pull it back to a draft to change it",
 			nil,
 		)
 	}
@@ -383,7 +383,7 @@ func (s *inventoryService) editPurchaseOrder(
 	if order.Version != stored.Version {
 		return 0, purchaseOrderChangedElsewhere()
 	}
-	if err = checkPurchaseOrderEditable(ctx, stored, userID); err != nil {
+	if err = checkPurchaseOrderEditable(ctx, stored); err != nil {
 		return 0, err
 	}
 
@@ -450,7 +450,8 @@ func purchaseOrderItemError(err error) error {
 
 // ListPurchaseOrders returns one tab of orders: "drafts" (being written or waiting for approval),
 // "history" (received and closed, the newest 100) or, for anything else, "active" (open and
-// partial). Managers see everyone's orders; everyone else sees only their own.
+// partial). Anyone who can draft or approve sees everyone's orders, so a second person does not
+// write an order that already exists; anyone else sees only their own.
 func (s *inventoryService) ListPurchaseOrders(
 	ctx context.Context, view string, userID int,
 ) ([]types.PurchaseOrder, error) {
@@ -464,7 +465,7 @@ func (s *inventoryService) ListPurchaseOrders(
 		limit = purchaseOrderHistoryMax
 	}
 	var createdBy *int
-	if !canApprovePurchaseOrders(ctx) {
+	if !canWorkOnPurchaseOrders(ctx) {
 		createdBy = &userID
 	}
 	orders, err := s.repo.ListPurchaseOrders(ctx, statuses, limit, createdBy)
@@ -477,11 +478,17 @@ func (s *inventoryService) ListPurchaseOrders(
 	return orders, nil
 }
 
+// canWorkOnPurchaseOrders is true for people who write or approve orders: they see every order and
+// can submit or pull back any draft. Anyone else is limited to orders they started.
+func canWorkOnPurchaseOrders(ctx context.Context) bool {
+	return canDraftPurchaseOrders(ctx) || canApprovePurchaseOrders(ctx)
+}
+
 // visiblePurchaseOrder hides drafts and submitted orders from people who neither wrote them nor
-// can approve them. Approved orders are visible to anyone, because anyone can receive against
-// one.
+// can draft or approve orders. Approved orders are visible to anyone, because anyone can receive
+// against one.
 func visiblePurchaseOrder(ctx context.Context, order types.PurchaseOrder, userID int) bool {
-	if !purchaseOrderAwaitingApproval(order.Status) || canApprovePurchaseOrders(ctx) {
+	if !purchaseOrderAwaitingApproval(order.Status) || canWorkOnPurchaseOrders(ctx) {
 		return true
 	}
 	return order.CreatedByID != nil && *order.CreatedByID == userID

@@ -103,6 +103,12 @@ func (c *inventoryController) SubmitPurchaseOrder(w http.ResponseWriter, r *http
 	})
 }
 
+func (c *inventoryController) WithdrawPurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	c.versionedAction(w, r, "could not pull back purchase order", func(id, version int) error {
+		return c.service.WithdrawPurchaseOrder(r.Context(), id, version, requestUserID(r))
+	})
+}
+
 func (c *inventoryController) ApprovePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	c.versionedAction(w, r, "could not approve purchase order", func(id, version int) error {
 		return c.service.ApprovePurchaseOrder(r.Context(), id, version, requestUserID(r))

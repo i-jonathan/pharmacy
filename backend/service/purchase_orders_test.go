@@ -1067,14 +1067,26 @@ func TestPurchaseOrderApprovalRules(t *testing.T) {
 		}
 	})
 
-	t.Run("nobody but a manager edits someone else's draft or a submitted order", func(t *testing.T) {
+	t.Run("any drafter edits another drafter's draft", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
-		requireHTTPStatus(t, save(drafterContext(), repo, 8), http.StatusForbidden)
-		repo = &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPending, own)}
-		requireHTTPStatus(t, save(drafterContext(), repo, 7), http.StatusConflict)
-		if repo.commits != 0 {
-			t.Fatal("a refused edit must write nothing")
+		if err := save(drafterContext(), repo, 8); err != nil {
+			t.Fatalf("a second cashier should be able to fix a shared draft: %v", err)
 		}
+	})
+
+	t.Run("only a manager edits a submitted order", func(t *testing.T) {
+		for _, userID := range []int{7, 8} {
+			repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPending, own)}
+			requireHTTPStatus(t, save(drafterContext(), repo, userID), http.StatusConflict)
+			if repo.commits != 0 {
+				t.Fatal("a refused edit must write nothing")
+			}
+		}
+	})
+
+	t.Run("someone with no purchase order permission edits nothing", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
+		requireHTTPStatus(t, save(bareContext(), repo, 8), http.StatusForbidden)
 	})
 
 	t.Run("a manager edits drafts and submitted orders", func(t *testing.T) {
@@ -1112,12 +1124,16 @@ func TestPurchaseOrderApprovalRules(t *testing.T) {
 	t.Run("submit, approve and reject", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
 		svc := NewInventoryService(repo)
-		requireHTTPStatus(t, svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 8), http.StatusForbidden)
-		if err := svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 7); err != nil {
-			t.Fatal(err)
+		requireHTTPStatus(t, svc.SubmitPurchaseOrder(bareContext(), 1, 1, 8), http.StatusForbidden)
+		if err := svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 8); err != nil {
+			t.Fatalf("any drafter may submit a shared draft: %v", err)
 		}
 		if repo.statusSet != constant.PurchaseOrderPending {
 			t.Fatalf("expected the order to become pending, got %q", repo.statusSet)
+		}
+		repo.order = draft(constant.PurchaseOrderDraft, own)
+		if err := svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 7); err != nil {
+			t.Fatal(err)
 		}
 
 		requireHTTPStatus(t, svc.ApprovePurchaseOrder(drafterContext(), 1, 1, 7), http.StatusForbidden)
@@ -1135,6 +1151,40 @@ func TestPurchaseOrderApprovalRules(t *testing.T) {
 		requireHTTPStatus(t, svc.SubmitPurchaseOrder(drafterContext(), 1, 1, 7), http.StatusConflict)
 	})
 
+	t.Run("a submitted order is pulled back to a draft by any drafter or manager", func(t *testing.T) {
+		for name, ctx := range map[string]context.Context{
+			"drafter": drafterContext(), "manager": approverContext(),
+		} {
+			repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPending, own)}
+			svc := NewInventoryService(repo)
+			if err := svc.WithdrawPurchaseOrder(ctx, 1, 1, 8); err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			if repo.statusSet != constant.PurchaseOrderDraft {
+				t.Fatalf("%s: expected the order to become a draft, got %q", name, repo.statusSet)
+			}
+			if repo.commits != 1 {
+				t.Fatalf("%s: expected one commit, got %d", name, repo.commits)
+			}
+		}
+	})
+
+	t.Run("pulling back is refused for a stale version, other states and people without rights", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPending, own)}
+		svc := NewInventoryService(repo)
+		requireHTTPStatus(t, svc.WithdrawPurchaseOrder(bareContext(), 1, 1, 8), http.StatusForbidden)
+		requireHTTPStatus(t, svc.WithdrawPurchaseOrder(drafterContext(), 1, 5, 8), http.StatusConflict)
+		for _, status := range []string{
+			constant.PurchaseOrderDraft, constant.PurchaseOrderOpen, constant.PurchaseOrderClosed,
+		} {
+			repo.order = draft(status, own)
+			requireHTTPStatus(t, svc.WithdrawPurchaseOrder(drafterContext(), 1, 1, 8), http.StatusConflict)
+		}
+		if repo.statusSet != "" || repo.commits != 0 {
+			t.Fatalf("a refused pull back must write nothing (status %q, commits %d)", repo.statusSet, repo.commits)
+		}
+	})
+
 	t.Run("closing and moving belong to managers, and only for approved orders", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderPartial, own)}
 		svc := NewInventoryService(repo)
@@ -1146,33 +1196,51 @@ func TestPurchaseOrderApprovalRules(t *testing.T) {
 		requireHTTPStatus(t, svc.ClosePurchaseOrder(approverContext(), 1, 1, "no longer needed", 1), http.StatusConflict)
 	})
 
-	t.Run("lists are scoped to the author unless the user can approve", func(t *testing.T) {
+	t.Run("drafters and managers list everyone's orders", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{}
 		svc := NewInventoryService(repo)
+		for _, view := range []string{"drafts", "active", "history"} {
+			for _, ctx := range []context.Context{drafterContext(), approverContext()} {
+				repo.listOwner = intPtr(99)
+				if _, err := svc.ListPurchaseOrders(ctx, view, 7); err != nil || repo.listOwner != nil {
+					t.Fatalf("%s: expected every order, got filter %v (%v)", view, repo.listOwner, err)
+				}
+			}
+		}
 		if _, err := svc.ListPurchaseOrders(drafterContext(), "drafts", 7); err != nil {
 			t.Fatal(err)
-		}
-		if repo.listOwner == nil || *repo.listOwner != 7 {
-			t.Fatalf("a drafter should only list their own orders, got %v", repo.listOwner)
 		}
 		if strings.Join(repo.listStatuses, ",") != "draft,pending_approval" {
 			t.Fatalf("unexpected statuses %v", repo.listStatuses)
 		}
-		if _, err := svc.ListPurchaseOrders(approverContext(), "drafts", 1); err != nil || repo.listOwner != nil {
-			t.Fatalf("a manager lists everyone's orders, got %v %v", repo.listOwner, err)
+	})
+
+	t.Run("someone with neither permission lists only their own orders", func(t *testing.T) {
+		repo := &fakePurchaseOrderRepo{}
+		if _, err := NewInventoryService(repo).ListPurchaseOrders(bareContext(), "active", 7); err != nil {
+			t.Fatal(err)
+		}
+		if repo.listOwner == nil || *repo.listOwner != 7 {
+			t.Fatalf("expected the list limited to user 7, got %v", repo.listOwner)
 		}
 	})
 
-	t.Run("unapproved orders are hidden from other drafters but approved ones are not", func(t *testing.T) {
+	t.Run("drafts and submitted orders are visible to drafters; others see only their own", func(t *testing.T) {
 		repo := &fakePurchaseOrderRepo{order: draft(constant.PurchaseOrderDraft, own)}
 		svc := NewInventoryService(repo)
-		_, err := svc.GetPurchaseOrder(drafterContext(), 1, 8)
-		requireHTTPStatus(t, err, http.StatusNotFound)
-		if _, err = svc.GetPurchaseOrder(drafterContext(), 1, 7); err != nil {
-			t.Fatal(err)
+		for _, status := range []string{constant.PurchaseOrderDraft, constant.PurchaseOrderPending} {
+			repo.order = draft(status, own)
+			if _, err := svc.GetPurchaseOrder(drafterContext(), 1, 8); err != nil {
+				t.Fatalf("%s: a drafter should see another drafter's order: %v", status, err)
+			}
+			_, err := svc.GetPurchaseOrder(bareContext(), 1, 8)
+			requireHTTPStatus(t, err, http.StatusNotFound)
+			if _, err = svc.GetPurchaseOrder(bareContext(), 1, 7); err != nil {
+				t.Fatalf("%s: the author keeps access: %v", status, err)
+			}
 		}
 		repo.order = draft(constant.PurchaseOrderOpen, own)
-		if _, err = svc.GetPurchaseOrder(drafterContext(), 1, 8); err != nil {
+		if _, err := svc.GetPurchaseOrder(bareContext(), 1, 8); err != nil {
 			t.Fatalf("anyone may read an approved order to receive against it: %v", err)
 		}
 	})

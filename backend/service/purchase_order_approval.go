@@ -32,10 +32,11 @@ func (s *inventoryService) inPurchaseOrderTx(
 	})
 }
 
-// SubmitPurchaseOrder is the drafter saying "I'm done": the draft goes to the managers for
-// approval and can no longer be changed by its author.
+// SubmitPurchaseOrder is a drafter saying "this is done": the draft goes to the managers for
+// approval. Any drafter can submit any draft, so a draft someone else fixed need not wait for its
+// author; the audit entry names who submitted. It can be pulled back with WithdrawPurchaseOrder.
 func (s *inventoryService) SubmitPurchaseOrder(ctx context.Context, id, version, userID int) error {
-	if !canDraftPurchaseOrders(ctx) && !canApprovePurchaseOrders(ctx) {
+	if !canWorkOnPurchaseOrders(ctx) {
 		return httperror.Forbidden("you cannot submit purchase orders", nil)
 	}
 	return s.inPurchaseOrderTx(
@@ -43,9 +44,6 @@ func (s *inventoryService) SubmitPurchaseOrder(ctx context.Context, id, version,
 		id,
 		version,
 		func(tx *sqlx.Tx, order types.PurchaseOrder) error {
-			if order.CreatedByID == nil || *order.CreatedByID != userID {
-				return httperror.Forbidden("only the author can submit a draft", nil)
-			}
 			if order.Status != constant.PurchaseOrderDraft {
 				return httperror.NewHttpError(
 					http.StatusConflict, "only a draft can be submitted for approval", nil,
@@ -60,6 +58,45 @@ func (s *inventoryService) SubmitPurchaseOrder(ctx context.Context, id, version,
 			}
 			details := map[string]any{"items": auditItemSummaries(order.Items)}
 			return s.auditPurchaseOrder(ctx, tx, userID, id, constant.AuditSubmitted, "", details)
+		},
+	)
+}
+
+// WithdrawPurchaseOrder takes a submitted order back to a draft, so a mistake found after
+// submitting can be fixed without asking a manager to reject the order. Anyone who can submit can
+// pull it back; approval is the point after which only managers act.
+func (s *inventoryService) WithdrawPurchaseOrder(
+	ctx context.Context,
+	id, version, userID int,
+) error {
+	if !canWorkOnPurchaseOrders(ctx) {
+		return httperror.Forbidden("you cannot change purchase orders", nil)
+	}
+	return s.inPurchaseOrderTx(
+		ctx,
+		id,
+		version,
+		func(tx *sqlx.Tx, order types.PurchaseOrder) error {
+			if order.Status != constant.PurchaseOrderPending {
+				return httperror.NewHttpError(
+					http.StatusConflict,
+					"only a submitted order can be pulled back to a draft",
+					nil,
+				)
+			}
+			err := s.repo.SetPurchaseOrderStatusTx(ctx, tx, id, constant.PurchaseOrderDraft)
+			if err != nil {
+				return httperror.ServerError("failed to pull back purchase order", err)
+			}
+			return s.auditPurchaseOrder(
+				ctx,
+				tx,
+				userID,
+				id,
+				constant.AuditWithdrawn,
+				"",
+				map[string]any{},
+			)
 		},
 	)
 }

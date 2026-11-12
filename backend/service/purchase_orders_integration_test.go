@@ -599,29 +599,40 @@ func TestApprovalWorkflow(t *testing.T) {
 		t.Fatalf("the manager should see one draft: %+v %v", counts, err)
 	}
 
-	// Others cannot see or change it; the author can keep editing.
+	// A user with no purchase order permission cannot see or change it. Another drafter can do
+	// both: the draft is shared so nobody writes the same order twice.
+	outsider := asUser()
 	stranger := asUser(constant.DraftPurchaseOrderPermissionKey)
-	if _, err = f.svc.GetPurchaseOrder(stranger, id, other); status(err) != http.StatusNotFound {
-		t.Fatalf("another drafter must not see the draft, got %v", err)
+	if _, err = f.svc.GetPurchaseOrder(outsider, id, other); status(err) != http.StatusNotFound {
+		t.Fatalf("someone without purchase order rights must not see the draft, got %v", err)
 	}
-	if _, err = f.svc.SavePurchaseOrder(stranger, types.PurchaseOrderRequest{ID: id, Version: draft.Version, Items: items}, other); status(err) != http.StatusNotFound && status(err) != http.StatusForbidden {
-		t.Fatalf("another drafter must not edit the draft, got %v", err)
+	if _, err = f.svc.SavePurchaseOrder(outsider, types.PurchaseOrderRequest{ID: id, Version: draft.Version, Items: items}, other); status(err) != http.StatusForbidden {
+		t.Fatalf("someone without purchase order rights must not edit the draft, got %v", err)
+	}
+	if _, err = f.svc.GetPurchaseOrder(stranger, id, other); err != nil {
+		t.Fatalf("another drafter should see the draft, got %v", err)
 	}
 	items[0].Quantity = 12
-	if _, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{
+	if _, err = f.svc.SavePurchaseOrder(stranger, types.PurchaseOrderRequest{
 		ID: id, Version: draft.Version, Supplier: "Emzor",
 		Items: []types.PurchaseOrderItem{{ID: draft.Items[0].ID, ProductID: &alpha, Name: "Alpha", Quantity: 12}},
-	}, cashier); err != nil {
-		t.Fatal(err)
+	}, other); err != nil {
+		t.Fatalf("another drafter should be able to fix the draft, got %v", err)
 	}
 	draft = f.get(t, id)
 
-	// "I'm done": submit. After that only a manager can change it.
-	if err = f.svc.SubmitPurchaseOrder(stranger, id, draft.Version, other); status(err) != http.StatusForbidden {
-		t.Fatalf("only the author can submit, got %v", err)
+	// A stale copy (the author's, loaded before the second person saved) is refused.
+	if _, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{ID: id, Version: draft.Version - 1, Items: items}, cashier); status(err) != http.StatusConflict {
+		t.Fatalf("a stale edit should conflict, got %v", err)
 	}
-	if err = f.svc.SubmitPurchaseOrder(drafter, id, draft.Version, cashier); err != nil {
-		t.Fatal(err)
+
+	// "I'm done": anyone who can draft submits, not only the author. After that only a manager
+	// can change it, unless it is pulled back to a draft.
+	if err = f.svc.SubmitPurchaseOrder(outsider, id, draft.Version, other); status(err) != http.StatusForbidden {
+		t.Fatalf("someone without purchase order rights cannot submit, got %v", err)
+	}
+	if err = f.svc.SubmitPurchaseOrder(stranger, id, draft.Version, other); err != nil {
+		t.Fatalf("another drafter should be able to submit, got %v", err)
 	}
 	submitted := f.get(t, id)
 	if submitted.Status != "pending_approval" || submitted.Version <= draft.Version {
@@ -629,19 +640,44 @@ func TestApprovalWorkflow(t *testing.T) {
 	}
 	_, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{ID: id, Version: submitted.Version, Items: items}, cashier)
 	if status(err) != http.StatusConflict {
-		t.Fatalf("the author cannot change a submitted order, got %v", err)
+		t.Fatalf("a drafter cannot change a submitted order, got %v", err)
 	}
+
+	// The author spots a mistake and pulls it back, edits it and submits it again.
+	if err = f.svc.WithdrawPurchaseOrder(outsider, id, submitted.Version, other); status(err) != http.StatusForbidden {
+		t.Fatalf("someone without purchase order rights cannot pull it back, got %v", err)
+	}
+	if err = f.svc.WithdrawPurchaseOrder(drafter, id, submitted.Version-1, cashier); status(err) != http.StatusConflict {
+		t.Fatalf("a stale pull back should conflict, got %v", err)
+	}
+	if err = f.svc.WithdrawPurchaseOrder(drafter, id, submitted.Version, cashier); err != nil {
+		t.Fatal(err)
+	}
+	withdrawn := f.get(t, id)
+	if withdrawn.Status != "draft" || withdrawn.Version <= submitted.Version {
+		t.Fatalf("unexpected pulled back order: %+v", withdrawn)
+	}
+	if err = f.svc.WithdrawPurchaseOrder(drafter, id, withdrawn.Version, cashier); status(err) != http.StatusConflict {
+		t.Fatalf("a draft cannot be pulled back, got %v", err)
+	}
+	if err = f.svc.SubmitPurchaseOrder(drafter, id, withdrawn.Version, cashier); err != nil {
+		t.Fatal(err)
+	}
+	submitted = f.get(t, id)
 	counts, _ = f.svc.CountPendingPurchaseOrders(f.ctx)
 	if counts.Pending != 1 || counts.Drafts != 0 {
 		t.Fatalf("the manager should see one order waiting: %+v", counts)
 	}
 
-	// The cashier sees only their own orders; a manager sees all.
+	// Every drafter and manager sees the order; someone with no purchase order rights sees only
+	// their own, so nothing.
 	mine, _ := f.svc.ListPurchaseOrders(drafter, "drafts", cashier)
 	theirs, _ := f.svc.ListPurchaseOrders(stranger, "drafts", other)
 	all, _ := f.svc.ListPurchaseOrders(f.ctx, "drafts", f.uid)
-	if len(mine) != 1 || len(theirs) != 0 || len(all) != 1 {
-		t.Fatalf("visibility wrong: mine %d, other %d, manager %d", len(mine), len(theirs), len(all))
+	none, _ := f.svc.ListPurchaseOrders(outsider, "drafts", other)
+	if len(mine) != 1 || len(theirs) != 1 || len(all) != 1 || len(none) != 0 {
+		t.Fatalf("visibility wrong: author %d, other drafter %d, manager %d, outsider %d",
+			len(mine), len(theirs), len(all), len(none))
 	}
 
 	// A cashier cannot approve; the manager edits, then approves.
@@ -673,9 +709,12 @@ func TestApprovalWorkflow(t *testing.T) {
 		t.Fatalf("an open order cannot be approved again, got %v", err)
 	}
 
-	// The cashier still sees it, read-only, and can read its history.
+	// Cashiers still see it, read-only, in the active tab as well, and can read its history.
 	if got, err := f.svc.GetPurchaseOrder(drafter, id, cashier); err != nil || got.Status != "open" {
 		t.Fatalf("the author should still see the approved order: %+v %v", got, err)
+	}
+	if active, _ := f.svc.ListPurchaseOrders(stranger, "active", other); len(active) != 1 {
+		t.Fatalf("another drafter should see the approved order in the active tab, got %d", len(active))
 	}
 	if _, err = f.svc.SavePurchaseOrder(drafter, types.PurchaseOrderRequest{ID: id, Version: approved.Version, Items: items}, cashier); status(err) != http.StatusForbidden {
 		t.Fatalf("the author cannot edit an approved order, got %v", err)
@@ -691,7 +730,9 @@ func TestApprovalWorkflow(t *testing.T) {
 	for _, record := range history {
 		actions = append(actions, record.Action)
 	}
-	want := []string{"approved", "edited", "submitted", "edited", "created"}
+	want := []string{
+		"approved", "edited", "submitted", "withdrawn", "submitted", "edited", "created",
+	}
 	if len(actions) != len(want) {
 		t.Fatalf("expected %v, got %v", want, actions)
 	}
@@ -700,8 +741,11 @@ func TestApprovalWorkflow(t *testing.T) {
 			t.Fatalf("expected %v, got %v", want, actions)
 		}
 	}
-	if _, err = f.svc.GetPurchaseOrderHistory(stranger, id, other); status(err) != http.StatusNotFound {
-		t.Fatalf("another user must not read the activity, got %v", err)
+	if _, err = f.svc.GetPurchaseOrderHistory(stranger, id, other); err != nil {
+		t.Fatalf("another drafter may read the activity, got %v", err)
+	}
+	if _, err = f.svc.GetPurchaseOrderHistory(outsider, id, other); status(err) != http.StatusNotFound {
+		t.Fatalf("someone without purchase order rights must not read the activity, got %v", err)
 	}
 
 	// Once approved it behaves like any open order.

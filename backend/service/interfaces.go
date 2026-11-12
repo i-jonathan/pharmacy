@@ -20,6 +20,7 @@ type InventoryService interface {
 	MovePurchaseOrderOutstanding(ctx context.Context, id, version int, supplierName, reason string, userID int) (int, error)
 	GetPurchaseOrderHistory(ctx context.Context, id, userID int) ([]types.AuditRecord, error)
 	SubmitPurchaseOrder(ctx context.Context, id, version, userID int) error
+	WithdrawPurchaseOrder(ctx context.Context, id, version, userID int) error
 	ApprovePurchaseOrder(ctx context.Context, id, version, userID int) error
 	RejectPurchaseOrder(ctx context.Context, id, version int, reason string, userID int) error
 	CountPendingPurchaseOrders(ctx context.Context) (types.PendingPurchaseOrders, error)

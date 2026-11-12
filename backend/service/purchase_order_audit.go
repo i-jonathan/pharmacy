@@ -153,12 +153,14 @@ func (s *inventoryService) GetPurchaseOrderHistory(
 			return nil, purchaseOrderNotFound(sql.ErrNoRows)
 		}
 	} else {
-		// Everyone else may read the activity only of orders they wrote.
+		// Drafters read the activity of any order they can see; anyone else only of orders they
+		// wrote.
 		order, err := s.GetPurchaseOrder(ctx, id, userID)
 		if err != nil {
 			return nil, err
 		}
-		if order.CreatedByID == nil || *order.CreatedByID != userID {
+		own := order.CreatedByID != nil && *order.CreatedByID == userID
+		if !own && !canDraftPurchaseOrders(ctx) {
 			return nil, purchaseOrderNotFound(sql.ErrNoRows)
 		}
 	}
