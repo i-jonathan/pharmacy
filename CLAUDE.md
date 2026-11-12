@@ -45,7 +45,7 @@ Vite builds to `backend/template/static/dist/` (base `/static/dist/`); Go embeds
 - CSRF is enforced (gorilla/csrf in the `main.go` middleware stack); the SPA gets tokens from `GET /csrf-token`, and mutating requests need one. `/ws` is exempt.
 - Config comes from the embedded `config/.env` (overridden at build time), not runtime environment.
 - Suppliers are rows in `supplier`; services resolve a typed name with `resolveSupplier` (find-or-create, case-insensitive) inside the same transaction as the receipt or order. Screens still send names.
-- Purchase orders have an approval flow: a user with `purchaseorder:draft` writes drafts and submits them; `purchaseorder:approve` (managers) creates orders directly, edits any draft, approves/rejects, and closes/moves approved orders. Services enforce it with `HasPermission`; the routes are gated in `router/inventory.go`. Drafts and submitted orders are visible only to their author and approvers, cannot be received against, and their PDF is stamped DRAFT (rejected drafts have none).
+- Purchase orders have an approval flow: a user with `purchaseorder:draft` writes drafts, and drafts are shared: any drafter sees every order, edits any draft, submits any draft, and can pull a submitted order back to a draft (`WithdrawPurchaseOrder`, audited `withdrawn`), so two cashiers do not write the same order. A submitted order is edited only by a manager (or after pulling it back). `purchaseorder:approve` (managers) creates orders directly, edits any draft, approves/rejects, and closes/moves approved orders. Services enforce it with `HasPermission`; the routes are gated in `router/inventory.go`. Only a user with neither permission is limited to orders they started (`canWorkOnPurchaseOrders`). Drafts and submitted orders cannot be received against, and their PDF is stamped DRAFT (rejected drafts have none).
 - There is no public sign-up. Users are added by admins (`POST /admin/api/users`, `AdminService.CreateUser`) or by the `create-admin` subcommand of the binary (`create_admin.go`), which runs before the server starts. Once an Admin exists it refuses; the hidden `--recover`/`-r` flag (deliberately left out of `-h` and the refusal message) adds one anyway for lock-out recovery and marks the audit entry `"recovery": true`. Every password goes through `model.User.ValidatePassword` (10+ characters ignoring surrounding spaces, not in the embedded `model/common_passwords.txt`, not containing the username as a word, see `containsAsWord`). An audit entry with no signed-in user must set `AuditEntry.NoActor`; ActorID 0 is otherwise refused by the database.
 - Stock changes outside sales, receiving and stock taking go through stock adjustments (`service/stock_adjustments.go`): products are locked and their stock read inside the transaction, every change has a reason, an audit entry and `IN/OUT_MANUAL_ADJUSTMENT` movements referencing the adjustment. Product edit no longer takes a stock value. "Never below zero" applies only to changes that lower stock (sales can already have taken it below). A "set" line sends `expected_stock` and is refused (409) if stock moved since; the page sends an expiry-only fix as "add 0". A person can have one open flag per product (partial unique index `stock_flag_one_open_per_user`). A retry key is used once (unique index); the adjustment stores a fingerprint of the request (`request_hash`), and a resend under a used key is answered with the first save only when it is the same request from the same user, otherwise 409 with `code: "already_saved"`, on which the page ends the form and opens History. The page makes one key per form. Adjustments refuse products already counted in an in-progress stock taking, whose completion posts (count − snapshot) and would apply the change twice (T-111 covers sales and receipts). Older `IN/OUT_MANUAL_ADJUSTMENT` movements written by product edit have `reference_id` = the product id, not an adjustment id; only movements dated after migration 44 can be joined to `stock_adjustment`. `/inventory/search` results carry `stock: 0` (not computed); load `/inventory/product/{id}` when the real stock matters.
 - Permission keys are in `internal/constant/permissions.go`; check them in both controller/middleware and the frontend when gating UI.
@@ -56,3 +56,27 @@ Vite builds to `backend/template/static/dist/` (base `/static/dist/`); Go embeds
 - `README.md` and `AGENTS.md` are partly stale (migration counts, Vue entry points); trust the code and `vite.config.js`.
 - The SPA's utility classes come from the tracked `backend/template/static/css/tailwind.css`, built by `make tailwind` from the Vue sources. A new Tailwind class in a `.vue` file shows no styling until `make tailwind` (or `make assets`) is run and the result committed; `npm run build` alone is not enough.
 - `backend/template/static/dist/` is not tracked in git, and the `Dockerfile` only copies `backend/`, so run `make assets` before `docker compose build server`.
+
+## Task board
+
+This project's board is managed by Waypoint. Prefer the CLI over editing the board file.
+
+- See what to work on next: `waypoint ls --next --json`
+- Add a card: `waypoint add "Title" --group "Group" --priority P1`
+- Move a card: `waypoint move <ID> "<Column>"`
+- Change a field: `waypoint set <ID> key=value`
+- Finish a card: `waypoint done <ID>`
+- `waypoint ls --json` and `waypoint show <ID> --json` for reading all cards and one card.
+
+If the board is a Markdown file such as BOARD.md and you edit it directly, follow the format printed by "waypoint help format"; a card heading without an id gets one automatically. Never edit a SQLite board (a .db file) directly: use the CLI.
+
+Run waypoint from inside this project's folder, or pass --project NAME. "waypoint project ls" shows where the board is: a file's path, or host:port/database for a database server.
+
+If the board is in a Postgres database, its password is not stored anywhere: it must be in the environment of every program that runs waypoint, as WAYPOINT_DB_PASSWORD_<NAME> (this project; NAME is the project name in capitals, other characters as _) or WAYPOINT_DB_PASSWORD (all projects). For an MCP agent, put it in the server's "env" in the MCP config, for example {"mcpServers":{"waypoint":{"command":"waypoint","args":["mcp","--project","NAME"],"env":{"WAYPOINT_DB_PASSWORD":"..."}}}}.
+
+Groups, priorities and columns must already exist on the board. On a Markdown board, read them from the file's front matter before using them.
+
+If your agent speaks MCP and has no shell, run "waypoint mcp" as an MCP server instead; it offers the same board through seven tools. Add it to the agent's MCP config:
+
+```json
+{"mcpServers":{"waypoint":{"command":"waypoint","args":["mcp"]}}}

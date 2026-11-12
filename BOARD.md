@@ -4,7 +4,7 @@ Kanban board for the Pharmacy POS. Finished cards live in [DONE.md](DONE.md).
 
 **In Progress** → **Up Next** → **Backlog** · **Done** → [DONE.md](DONE.md)
 
-<!-- next-id: T-116 -->
+<!-- next-id: T-118 -->
 
 <details>
 <summary>How this board works</summary>
@@ -869,3 +869,14 @@ The review of T-113 also flagged merged code that was not part of that PR. None 
 - [ ] `middleware/csrf.go` and `AuthMiddleware` now send JSON for anything but an HTML page load; check a PDF opened in an embed or iframe, and a classic form POST, still behave (5e3839a made this change on purpose)
 - [ ] The comment in `service/inventory.go` (receiving) says products are locked in id order; check that the sort gives the lock order it claims, and that sorting `params.Products` in place does not matter to a caller
 - [ ] `usePolledCounts` `start()` does nothing when the permission is not yet loaded; permissions come from `window.__PERMISSIONS__` at load, so this is probably fine, but confirm
+
+### T-117 Warn in the purchase order editor when a product is already on another open order
+
+- priority: P2
+- feature: Purchasing & receiving
+- created: 2026-11-11
+
+T-116 lets every drafter see every order, but a cashier only notices a duplicate by scanning the Drafts tab. When a product is added in the editor, say if it is already on a draft, a submitted order or an approved order still waiting for stock (with the order number and quantity), so the second cashier adds to that order instead. Check first whether `/inventory/search` can return the on-order quantity, or whether the editor already loads the orders it needs (the on-order quantity in the editor, see T-053).
+
+- [ ] Show the notice in the editor, with a link to the other order
+- [ ] Test: product on a draft, on a pending order, on an open order, and on a closed one (no notice)

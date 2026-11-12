@@ -42,8 +42,8 @@ flowchart LR
 
 | Status | Set by | Meaning |
 |---|---|---|
-| `draft` | `createPurchaseOrder` for users without approve | Being written; its author can still edit it |
-| `pending_approval` | `SubmitPurchaseOrder` | Author is done; waiting for a manager |
+| `draft` | `createPurchaseOrder` for users without approve; `WithdrawPurchaseOrder` | Being written; any drafter can edit it |
+| `pending_approval` | `SubmitPurchaseOrder` | A drafter is done; waiting for a manager. Can go back to `draft` |
 | `open` | `ApprovePurchaseOrder`, or `createPurchaseOrder` / `MovePurchaseOrderOutstanding` for approvers | Approved; can be sent and received against |
 | `partial` / `received` | `refreshPurchaseOrderStatusQuery` after receipts or edits | Some / all lines fully received |
 | `closed` | `ClosePurchaseOrder`, `RejectPurchaseOrder`, `MovePurchaseOrderOutstanding` (the original) | No longer waiting for anything |
@@ -68,10 +68,10 @@ The UI shows a closed order that received something as "partially filled" (`show
 
 | Step | Where | Detail |
 |---|---|---|
-| Request | `POST /inventory/purchase-orders/:id/submit` \| `/approve` \| `/reject` | `{version}`; reject also `{reason}` |
-| Gate | submit: draft or approve; approve and reject: `RequirePermissions(all: purchaseorder:approve)` | Services re-check (`requireApprover`, author check on submit) |
-| Service | `inPurchaseOrderTx` + `SubmitPurchaseOrder` / `ApprovePurchaseOrder` / `RejectPurchaseOrder` | Row lock and version check in one place. Submit: author only, status `draft`. Approve: draft or pending → `open`, sets `approved_by_id`, `approved_at`. Reject: draft or pending → `closed`, reason 3–300 chars (`normalizeAuditReason`) |
-| Side effects | `audit_log` | `submitted`, `approved` or `rejected` |
+| Request | `POST /inventory/purchase-orders/:id/submit` \| `/withdraw` \| `/approve` \| `/reject` | `{version}`; reject also `{reason}` |
+| Gate | submit and withdraw: draft or approve; approve and reject: `RequirePermissions(all: purchaseorder:approve)` | Services re-check (`requireApprover`; submit and withdraw need `canWorkOnPurchaseOrders`, i.e. draft or approve) |
+| Service | `inPurchaseOrderTx` + `SubmitPurchaseOrder` / `ApprovePurchaseOrder` / `RejectPurchaseOrder` | Row lock and version check in one place. Submit: any drafter or approver, status `draft` (the audit entry names who submitted). Withdraw (`WithdrawPurchaseOrder`): any drafter or approver, status `pending_approval` → `draft`, audit `withdrawn`. Approve: draft or pending → `open`, sets `approved_by_id`, `approved_at`. Reject: draft or pending → `closed`, reason 3–300 chars (`normalizeAuditReason`) |
+| Side effects | `audit_log` | `submitted`, `withdrawn`, `approved` or `rejected` |
 
 ### Close and move outstanding
 
@@ -98,9 +98,9 @@ The UI shows a closed order that received something as "partially filled" (`show
 
 | Request | Gate | Service behaviour |
 |---|---|---|
-| `GET /inventory/purchase-orders?view=drafts\|active\|history` | Auth only | Approvers see all; others only their own (`created_by_id` filter) |
-| `GET /inventory/purchase-orders/:id` | Auth only | `visiblePurchaseOrder`: drafts and pending orders only to their author and approvers; approved orders to anyone (needed for receiving) |
-| `GET /inventory/purchase-orders/:id/history` | Auth only | Approvers: any order; others: only orders they created |
+| `GET /inventory/purchase-orders?view=drafts\|active\|history` | Auth only | Drafters and approvers see all (`canWorkOnPurchaseOrders`); anyone else only their own (`created_by_id` filter) |
+| `GET /inventory/purchase-orders/:id` | Auth only | `visiblePurchaseOrder`: drafts and pending orders to drafters, approvers and their author; approved orders to anyone (needed for receiving) |
+| `GET /inventory/purchase-orders/:id/history` | Auth only | Approvers: any order; drafters: any order they can see; others: only orders they created |
 | `GET /inventory/purchase-orders/pending-count` | approve | `{pending, drafts}` for the badge and banner |
 
 ### PDF export
