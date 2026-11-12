@@ -344,7 +344,7 @@
                 <span class="font-normal text-muted-foreground">{{ o.supplier || "No supplier" }}</span>
               </div>
               <div class="mt-1 text-sm text-muted-foreground">
-                {{ o.items.length }} item{{ o.items.length === 1 ? "" : "s" }} · {{ formatDate(o.created_at) }}
+                {{ o.items.length }} item{{ o.items.length === 1 ? "" : "s" }} · {{ formatDate(o.created_at) }}<template v-if="isAwaitingApproval(o) && o.created_by"> · Started by {{ isMine(o) ? "you" : o.created_by }}</template>
               </div>
               <div class="mt-2 flex items-center gap-3">
                 <div class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted">
@@ -394,6 +394,10 @@
                 <Pencil :size="14" class="mr-1.5" />
                 Edit
               </Button>
+              <Button v-if="canWithdraw(o)" variant="outline" size="sm" :disabled="acting === o.id" @click="withdrawOrder(o)">
+                <Undo2 :size="14" class="mr-1.5" />
+                Pull back to draft
+              </Button>
               <Button
                 v-if="canManageActive(o) && totals(o).outstanding"
                 variant="outline"
@@ -433,7 +437,7 @@
               </Button>
             </div>
             <p v-if="o.status === 'pending_approval' && !canApprove" class="w-full text-xs text-amber-700 dark:text-amber-300">
-              Submitted. A manager will review it; you cannot change it now.
+              Submitted. A manager will review it. To change it, pull it back to a draft first.
             </p>
           </div>
 
@@ -591,7 +595,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
-import { AlertTriangle, ArrowRightLeft, Ban, Check, Download, Eye, PackageCheck, Pencil, Plus, Send, X } from "lucide-vue-next";
+import { AlertTriangle, ArrowRightLeft, Ban, Check, Download, Eye, PackageCheck, Pencil, Plus, Send, Undo2, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import QuantityStepper from "../components/QuantityStepper.vue";
 import PagerBar from "../components/PagerBar.vue";
@@ -626,7 +630,7 @@ const DETAIL_PER_PAGE = 10;
 const ORDERS_PER_PAGE = 10;
 
 const tabs = computed(() => [
-  { key: "drafts", label: canApprove.value ? "Needs approval" : "My drafts" },
+  { key: "drafts", label: canApprove.value ? "Needs approval" : "Drafts" },
   { key: "active", label: "Waiting for stock" },
   { key: "history", label: "Completed" },
 ]);
@@ -827,14 +831,19 @@ function isMine(o) {
   return o.created_by_id !== null && o.created_by_id === user.value.id;
 }
 
-// Managers change anything unfinished; a drafter only their own draft.
+// Managers change anything unfinished; a drafter any draft, whoever started it (drafts are shared
+// so nobody writes the same order twice). A submitted order is pulled back to a draft first.
 function canEdit(o) {
   if (canApprove.value) return isAwaitingApproval(o) || isEditable(o);
-  return canDraft.value && o.status === "draft" && isMine(o);
+  return canDraft.value && o.status === "draft";
 }
 
 function canSubmit(o) {
-  return o.status === "draft" && isMine(o) && (canDraft.value || canApprove.value);
+  return o.status === "draft" && (canDraft.value || canApprove.value);
+}
+
+function canWithdraw(o) {
+  return o.status === "pending_approval" && (canDraft.value || canApprove.value);
 }
 
 function canApproveOrder(o) {
@@ -941,6 +950,8 @@ function eventLines(e) {
     if (d.supplier) lines.push(`Delivered by ${d.supplier}`);
   } else if (e.action === "submitted") {
     lines.push("Submitted for approval");
+  } else if (e.action === "withdrawn") {
+    lines.push("Pulled back to a draft");
   } else if (e.action === "approved") {
     lines.push("Approved and opened");
   } else if (e.action === "rejected") {
@@ -1028,6 +1039,28 @@ async function submitOrder(o) {
   } finally {
     acting.value = null;
   }
+}
+
+// Takes a submitted order back to a draft, so a mistake can be fixed without a manager rejecting it.
+async function withdrawOrder(o) {
+  const answer = await confirm({
+    title: `Pull ${orderNumber(o.id)} back to a draft?`,
+    message: "It leaves the managers' approval list. You or anyone else can then edit it and submit it again.",
+    confirmLabel: "Pull back to draft",
+    busyLabel: "Pulling back...",
+    cancelLabel: "Keep it submitted",
+    run: async () => {
+      acting.value = o.id;
+      try {
+        await orderAction(o, "withdraw");
+      } finally {
+        acting.value = null;
+      }
+    },
+  });
+  if (answer !== true) return;
+  showNotice(`${orderNumber(o.id)} is a draft again.`);
+  await loadOrders();
 }
 
 async function approveOrder(o) {
@@ -1541,8 +1574,8 @@ onMounted(async () => {
     router.replace({ path: route.path });
     return;
   }
-  // Managers land on what is waiting for stock unless sent here to approve; drafters on their
-  // own drafts.
+  // Managers land on what is waiting for stock unless sent here to approve; drafters on the
+  // drafts they share.
   tab.value = route.query.tab === "drafts" || !canApprove.value ? "drafts" : "active";
   if (route.query.tab) router.replace({ path: route.path });
   loadOrders();
