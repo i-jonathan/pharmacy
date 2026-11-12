@@ -87,12 +87,12 @@ The UI shows a closed order that received something as "partially filled" (`show
 
 | Step | Where | Detail |
 |---|---|---|
-| Starts | `PurchaseOrders.vue` `receive()` → `/receive-items?purchase_order=:id`; `ReceiveItems.vue` `openPurchaseOrderFromRoute` | Lines pre-filled with outstanding quantities (`claimPurchaseOrderLine`); lines without a product must be created or linked first |
+| Starts | `PurchaseOrders.vue` `receive()` → `/receive-items?purchase_order=:id`; `ReceiveItems.vue` `openPurchaseOrderFromRoute` | Lines pre-filled with outstanding quantities (`claimPurchaseOrderLine`); lines without a product must be created or linked first. Before sending, `receiveItems()` adds rows per order line (`purchaseOrderExcess`) and asks "More than was ordered" through the shared confirm dialog when a line is over; the check is screen-only, and `refreshPurchaseOrderOutstanding` re-reads the order first so the figures aren't stale |
 | Request | `POST /inventory/receive-items` | `ReceiveSupplyRequest` with `purchase_order_id` and per-row `purchase_order_item_id`; carries the receipt's idempotency key |
 | Gate | `AuthMiddleware`, `AddPermissionsToContext`, CSRF | No permission check. The Receive button is shown only to approvers, but the route accepts anyone signed in |
-| Service | `ReceiveProductSupply` → `applyPurchaseOrderReceipt` in the same transaction | `groupPurchaseOrderReceipts` totals rows per order line (one line may arrive as several batches); order locked; must be `open`/`partial`; each line's total ≤ outstanding and matches its product; `receivePurchaseOrderItemQuery` guards the same in SQL and fills `product_id` for new items |
+| Service | `ReceiveProductSupply` → `applyPurchaseOrderReceipt` in the same transaction | `groupPurchaseOrderReceipts` totals rows per order line (one line may arrive as several batches); order locked; must be `open`/`partial`; each line matches its product and its received total stays within 32 bits (`maxPurchaseOrderQuantity`); more than ordered is allowed (T-123); `receivePurchaseOrderItemQuery` guards the 32-bit sum in SQL and fills `product_id` for new items |
 | Data | `receiving_batch`, `product_batch.purchase_order_item_id`, `stock_movement` (`IN_PURCHASE`), `purchase_order_item.received_quantity` | Then `refreshPurchaseOrderStatusQuery` |
-| Side effects | `audit_log` | `received` with each line and what's still outstanding |
+| Side effects | `audit_log` | `received` with each line, `outstanding_after` (never below 0) and `over_received_by` |
 
 ### Read
 
@@ -121,7 +121,7 @@ Migration 000043 grants by role name. Permissions are read from the session, so 
 | Table | Role in this feature | Notes |
 |---|---|---|
 | `purchase_order` | Order header | `status`, `version` (bumped on every change), `supplier_id` + `supplier_name` as written, `note`, `source_purchase_order_id` (unique: an order's outstanding items can move once), `created_by_id`, `approved_by_id`, `approved_at` |
-| `purchase_order_item` | Order lines | `product_id` null for items not yet registered; `quantity` > 0; `received_quantity` ≤ `quantity` (check constraint); 32-bit integers |
+| `purchase_order_item` | Order lines | `product_id` null for items not yet registered; `quantity` > 0; `received_quantity` ≥ 0 and may exceed `quantity` (the check constraint was dropped in 000048); 32-bit integers |
 | `supplier` | Suppliers | Unique on `lower(btrim(name))`; backfilled from receipts in 000040 |
 | `product_batch.purchase_order_item_id` | Which line a stock batch filled | Set during receiving |
 | `audit_log` | Activity | Append-only (trigger blocks UPDATE and DELETE); `entity_type = 'purchase_order'` |
@@ -130,9 +130,9 @@ Purchase orders carry no money; costs are recorded only on receipt (T-037).
 
 ## Invariants and how they're enforced
 
-- A line never receives more than ordered: `applyPurchaseOrderReceipt` check, the `received_quantity <= quantity` guard in `receivePurchaseOrderItemQuery`, and the table check constraint.
+- A line may receive more than ordered (000048 dropped the table check; T-123), so every "outstanding" figure is per line and floored at 0 (`totals()`, the detail table, the PDF, the receive toast, `outstandingPurchaseOrderItems`); a line at or over its quantity counts as complete in `refreshPurchaseOrderStatusQuery`. The received total is still capped at 2,147,483,647 in `applyPurchaseOrderReceipt` and in SQL. Rolling 000048 back fails while any line is over-received.
 - Stock and order progress move together: receipt, order update and audit entry share one transaction.
-- Received lines keep their product and can't be removed or reduced below what arrived: `planPurchaseOrderEdit`.
+- Received lines keep their product and can't be removed or reduced below what arrived: `planPurchaseOrderEdit` (the floor is `min(received, ordered)`, so an over-received order can be saved without raising what was ordered; `quantityFloor` in `PurchaseOrders.vue`). The clamped figures live in `lib/purchaseOrders.js` (`outstandingOf`, `extraOf`).
 - Only approved orders are received against, closed or moved: `purchaseOrderActive` checks under the row lock.
 - Every change leaves a record: `auditPurchaseOrder` in the same transaction as the change.
 
@@ -180,3 +180,4 @@ These are candidates for the settings screen (T-093).
 
 - PR #28: purchase orders, suppliers, receive against an order, move outstanding, audit log (DONE T-014, T-015).
 - PR #29: draft / approval workflow, the two permissions, shared confirm dialog, PDF watermarks (DONE T-087, T-039).
+- T-123: receiving more than ordered is allowed, with a confirmation on the screen (000048).
