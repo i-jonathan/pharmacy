@@ -611,13 +611,14 @@ const deletePurchaseOrderItemQuery = `
 	DELETE FROM purchase_order_item WHERE id = $1 AND purchase_order_id = $2
 `
 
-// The guard keeps received_quantity within quantity and product_id consistent even under
-// concurrent receipts; the caller checks that exactly one row was changed.
+// A line may receive more than it ordered. The guard keeps received_quantity inside the 32-bit
+// column (the sum is taken as bigint so the check itself cannot overflow) and product_id
+// consistent even under concurrent receipts; the caller checks that exactly one row was changed.
 const receivePurchaseOrderItemQuery = `
 	UPDATE purchase_order_item
 	SET received_quantity = received_quantity + $1, product_id = COALESCE(product_id, $4)
 	WHERE id = $2 AND purchase_order_id = $3
-	  AND received_quantity + $1 <= quantity
+	  AND received_quantity::bigint + $1 <= 2147483647
 	  AND (product_id IS NULL OR product_id = $4)
 `
 
