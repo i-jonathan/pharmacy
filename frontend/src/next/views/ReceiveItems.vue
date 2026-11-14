@@ -810,6 +810,12 @@ function currentReceiptKey() {
 // Thrown when the request got no answer at all, so the receipt may or may not have been saved.
 class NoResponse extends Error {}
 
+function excessText(l) {
+  return l.outstanding > 0
+    ? l.name + ": " + l.arriving + " arriving, " + l.outstanding + " outstanding (" + (l.arriving - l.outstanding) + " more)"
+    : l.name + ": " + l.arriving + " arriving, but this order already has all it asked for";
+}
+
 // A supplier may send more than was ordered. Rows for the same order line (for example different
 // expiry dates) are added up, and the person confirms the excess before it is recorded.
 function purchaseOrderExcess() {
@@ -830,15 +836,20 @@ async function refreshPurchaseOrderOutstanding() {
   if (!purchaseOrder.value || !items.value.some((i) => i.purchase_order_item_id)) return;
   try {
     const r = await fetch(`${API}/inventory/purchase-orders/${purchaseOrder.value.id}`);
-    if (!r.ok) return;
-    const order = await r.json();
-    const lines = new Map(order.items.map((l) => [l.id, l]));
-    for (const row of items.value) {
-      if (!row.purchase_order_item_id) continue;
-      const line = lines.get(row.purchase_order_item_id);
-      row._poOutstanding = line ? outstandingOf(line) : 0;
-    }
+    if (r.ok) syncRowsWithOrder(await r.json());
   } catch {}
+}
+
+// Set what is still outstanding on each receipt row from the order's current lines. A row whose
+// line is gone or already complete counts as 0 outstanding, so all of it is "more than ordered".
+function syncRowsWithOrder(order) {
+  const lines = new Map(order.items.map((l) => [l.id, l]));
+  for (const row of items.value) {
+    if (!row.purchase_order_item_id) continue;
+    const line = lines.get(row.purchase_order_item_id);
+    row._poOutstanding = line ? outstandingOf(line) : 0;
+    if (line) row._poNote = line.note || "";
+  }
 }
 
 async function receiveItems() {
@@ -849,10 +860,7 @@ async function receiveItems() {
     const ok = await confirm({
       title: "More than was ordered",
       message: "This delivery has more than " + purchaseOrderNumber.value + " asks for. All of it will be added to stock and recorded against the order.",
-      lines: excess.slice(0, 5).map((l) => l.outstanding > 0
-        ? l.name + ": " + l.arriving + " arriving, " + l.outstanding + " outstanding (" + (l.arriving - l.outstanding) + " more)"
-        : l.name + ": " + l.arriving + " arriving, but this order already has all it asked for")
-        .concat(excess.length > 5 ? [(excess.length - 5) + " more lines"] : []),
+      lines: [...excess.slice(0, 5).map(excessText), ...(excess.length > 5 ? [(excess.length - 5) + " more lines"] : [])],
       confirmLabel: "Receive anyway",
       cancelLabel: "Go back",
     });
@@ -989,12 +997,7 @@ async function loadPurchaseOrder(id, { restore = false } = {}) {
 
   const outstandingLines = order.items.filter((l) => l.quantity > l.received_quantity);
   const claimed = new Set(items.value.map((i) => i.purchase_order_item_id).filter(Boolean));
-  for (const row of items.value) {
-    if (!row.purchase_order_item_id) continue;
-    const line = outstandingLines.find((l) => l.id === row.purchase_order_item_id);
-    if (line) { row._poOutstanding = outstandingOf(line); row._poNote = line.note || ""; }
-    else row._poOutstanding = 0; // already fully received elsewhere: the whole row counts as more than was ordered
-  }
+  syncRowsWithOrder(order);
 
   const pending = [];
   const unavailable = [];

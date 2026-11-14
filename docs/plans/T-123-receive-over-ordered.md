@@ -43,10 +43,10 @@ None open. Settled: no upper limit; confirm on the screen.
 
 ## Design
 **Migration `000048_purchase_order_over_receipt`**
-- up: drop the check `received_quantity <= quantity` on `purchase_order_item`. The constraint is unnamed, so it is found by its definition in `pg_constraint` inside a `DO` block (the auto-generated name differs by Postgres version). `received_quantity >= 0` stays.
+- up: `DROP CONSTRAINT IF EXISTS purchase_order_item_check` (the name Postgres gave the unnamed check in 000040), then a `DO` block that drops any check whose definition is `received_quantity <= quantity`, in case a database named it differently. `received_quantity >= 0` stays. This is the version released in v0.4.0; a shipped migration is never edited, so the fallback stays.
 - down: re-add the check as a named constraint. It fails if any line is over-received, which is the honest outcome; the down note says to correct those lines first. (Silently clamping would rewrite what was received.)
 
-**Repository** (`query.go`): `receivePurchaseOrderItemQuery` guard becomes `received_quantity::bigint + $1 <= 2147483647`, so overflow is a clean "not receivable" rather than a numeric error. Wrong order/product conditions stay.
+**Repository** (`query.go`): `receivePurchaseOrderItemQuery` drops the `received_quantity + $1 <= quantity` clause and keeps the product-consistency guard; the 32-bit ceiling is checked by the service under the order lock.
 
 **Service** (`purchase_orders.go`): the "only N still outstanding" check is replaced by "the total received for this line cannot exceed 2,147,483,647" (400). Audit details gain `over_received_by` (0 when within the order), computed as `max(0, received_after - quantity)`; `outstanding_after` becomes `max(0, …)`.
 
@@ -73,7 +73,8 @@ Found by `/code-review high` and fixed; none changes the approved behaviour.
 - Editing an over-received order no longer forces its ordered quantity up to the excess: the floor is `min(received, ordered)` (`planPurchaseOrderEdit`, `quantityFloor` in the editor).
 - The confirmation re-reads the order first (`refreshPurchaseOrderOutstanding`), because the server no longer refuses a double-receipt of a line; a line that already has all it asked for says so in the box.
 - Clamped "outstanding" and "extra" figures moved into one helper, `frontend/src/next/lib/purchaseOrders.js`; `totals()` is single-pass.
-- Migration 48 drops the check by its real name (`purchase_order_item_check`, verified on migration 47) with a by-definition fallback; the down migration restores that name. Both paths are tested.
+- Migration 48 drops the check by its real name (`purchase_order_item_check`, verified on migration 47) with a by-definition fallback; the down migration restores that name. Both paths are tested (`TestOverReceiptMigration`, `TestOverReceiptMigrationFindsARenamedCheck`). Released in v0.4.0, so it is not edited.
+- Simplify pass: the SQL no longer repeats the 32-bit check (the service does it under the order lock); the editor stores one `quantity_floor` instead of a mirrored `stored_quantity` plus a helper; progress is derived from outstanding; the receive screen's row sync is one function (`syncRowsWithOrder`).
 - Deliberately unchanged: a line that is already complete cannot be reconnected by searching for its product (that extra is an ordinary receipt); the guide now says so.
 
 ## Testing

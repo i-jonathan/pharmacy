@@ -255,7 +255,7 @@
                   <QuantityStepper
                     v-model="line.quantity"
                     :max="MAX_QUANTITY"
-                    :min="Math.max(1, quantityFloor(line))"
+                    :min="Math.max(1, line.quantity_floor)"
                     :label="`quantity for ${line.name}`"
                   />
                 </td>
@@ -351,7 +351,7 @@
                   <div class="h-full rounded-full" :class="STATUS[shownStatus(o)].bar" :style="{ width: progress(o) + '%' }"></div>
                 </div>
                 <span class="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-                  {{ totals(o).received }} of {{ totals(o).ordered }} units received<template v-if="totals(o).extra"> ({{ totals(o).extra }} extra)</template>
+                  {{ totals(o).received }} of {{ totals(o).ordered }} units received{{ extraLabel(o) }}
                 </span>
               </div>
               <p v-if="o.note" class="mt-2 line-clamp-2 text-sm text-muted-foreground">
@@ -497,7 +497,7 @@
               <div class="h-full rounded-full" :class="STATUS[shownStatus(detailOrder)].bar" :style="{ width: progress(detailOrder) + '%' }"></div>
             </div>
             <span class="text-xs tabular-nums text-muted-foreground">
-              {{ totals(detailOrder).received }} / {{ totals(detailOrder).ordered }} units<template v-if="totals(detailOrder).extra"> ({{ totals(detailOrder).extra }} extra)</template>
+              {{ totals(detailOrder).received }} / {{ totals(detailOrder).ordered }} units{{ extraLabel(detailOrder) }}
             </span>
           </div>
           <p v-if="detailOrder.note" class="whitespace-pre-line rounded-md bg-muted/40 p-2 text-sm">{{ detailOrder.note }}</p>
@@ -551,9 +551,9 @@
                 <td class="py-1.5 text-center tabular-nums">{{ item.received_quantity }}</td>
                 <td
                   class="py-1.5 text-center tabular-nums"
-                  :class="item.received_quantity >= item.quantity ? 'text-emerald-600 dark:text-emerald-400' : detailOrder.status === 'closed' ? 'text-muted-foreground' : 'font-medium text-amber-600 dark:text-amber-400'"
+                  :class="!outstandingOf(item) ? 'text-emerald-600 dark:text-emerald-400' : detailOrder.status === 'closed' ? 'text-muted-foreground' : 'font-medium text-amber-600 dark:text-amber-400'"
                 >
-                  {{ extraOf(item) ? "+" + extraOf(item) + " extra" : item.received_quantity === item.quantity ? "Done" : outstandingOf(item) }}
+                  {{ outstandingOf(item) || (extraOf(item) ? "+" + extraOf(item) + " extra" : "Done") }}
                 </td>
               </tr>
               <tr v-if="!pagedDetailItems.length">
@@ -754,11 +754,6 @@ const saveLabel = computed(() => {
   return editId.value ? "Save changes" : "Save purchase order";
 });
 
-// What an order line cannot be lowered below: what was received, or, when more arrived than was
-// ordered, the quantity that was ordered, so editing the order never forces it up to the excess.
-function quantityFloor(line) {
-  return Math.min(line.received_quantity, line.stored_quantity ?? line.received_quantity);
-}
 const hasReceived = computed(() => lines.value.some((l) => l.received_quantity > 0));
 const lineUnits = computed(() => lines.value.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0));
 const pickedCount = computed(() => Object.keys(lowStockPick).length);
@@ -868,20 +863,24 @@ function isEditable(o) {
 // A line can receive more than it ordered, so what is left is worked out line by line: an excess
 // on one line never hides a shortfall on another. Progress counts only up to what was ordered.
 function totals(o) {
-  const sums = { ordered: 0, received: 0, outstanding: 0, counted: 0, extra: 0 };
+  const sums = { ordered: 0, received: 0, outstanding: 0, extra: 0 };
   for (const i of o.items) {
     sums.ordered += i.quantity;
     sums.received += i.received_quantity;
     sums.outstanding += outstandingOf(i);
-    sums.counted += Math.min(i.quantity, i.received_quantity);
     sums.extra += extraOf(i);
   }
   return sums;
 }
 
+function extraLabel(o) {
+  const { extra } = totals(o);
+  return extra ? ` (${extra} extra)` : "";
+}
+
 function progress(o) {
-  const { ordered, counted } = totals(o);
-  return ordered ? Math.round((counted / ordered) * 100) : 0;
+  const { ordered, outstanding } = totals(o);
+  return ordered ? Math.round(((ordered - outstanding) / ordered) * 100) : 0;
 }
 
 function showNotice(text, error = false) {
@@ -1195,7 +1194,9 @@ function startEdit(o) {
     note: i.note || "",
     quantity: i.quantity,
     received_quantity: i.received_quantity,
-    stored_quantity: i.quantity,
+    // What the line cannot be lowered below: what was received or, when more arrived than was
+    // ordered, the quantity that was ordered, so editing never forces it up to the excess.
+    quantity_floor: Math.min(i.received_quantity, i.quantity),
   }));
   openEditor();
 }
@@ -1240,7 +1241,7 @@ function leaveEditor() {
 
 // New lines go to the top of the list so what was just added is always visible.
 function pushLine(fields) {
-  lines.value.unshift({ key: ++lineKey, id: 0, received_quantity: 0, manufacturer: "", note: "", ...fields });
+  lines.value.unshift({ key: ++lineKey, id: 0, received_quantity: 0, quantity_floor: 0, manufacturer: "", note: "", ...fields });
   lineFilter.value = "";
   linePage.value = 1;
 }
@@ -1391,7 +1392,7 @@ function addPickedLowStock() {
 function validateLines() {
   for (const l of lines.value) {
     if (!Number.isInteger(l.quantity) || l.quantity < 1) return `${l.name}: enter a whole quantity of at least 1.`;
-    if (l.quantity < quantityFloor(l)) return `${l.name}: ${quantityFloor(l)} already received, so the quantity cannot be lower.`;
+    if (l.quantity < l.quantity_floor) return `${l.name}: ${l.quantity_floor} already received, so the quantity cannot be lower.`;
   }
   return "";
 }

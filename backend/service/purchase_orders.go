@@ -772,6 +772,7 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 		// A supplier may deliver more than was ordered, so there is no upper bound beyond what
 		// the 32-bit column can hold.
 		receivedAfter := int64(line.ReceivedQuantity) + int64(receipt.quantity)
+		over := receivedAfter - int64(line.Quantity)
 		if receivedAfter > maxPurchaseOrderQuantity {
 			return badRequest(fmt.Sprintf(
 				"%s: the quantity received on a purchase order line cannot pass %d",
@@ -783,7 +784,7 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 		)
 		if errors.Is(err, repository.ErrPurchaseOrderItemNotReceivable) {
 			return badRequest(
-				fmt.Sprintf("%s: quantity no longer fits this purchase order", line.Name),
+				fmt.Sprintf("%s: this item no longer matches the purchase order", line.Name),
 			)
 		}
 		if err != nil {
@@ -796,8 +797,8 @@ func (s *inventoryService) applyPurchaseOrderReceipt(
 			"product_id":             receipt.productID,
 			"product_linked":         line.ProductID == nil,
 			"quantity":               receipt.quantity,
-			"outstanding_after":      max(0, int64(line.Quantity)-receivedAfter),
-			"over_received_by":       max(0, receivedAfter-int64(line.Quantity)),
+			"outstanding_after":      max(0, -over),
+			"over_received_by":       max(0, over),
 		})
 	}
 	if err = s.repo.RefreshPurchaseOrderStatusTx(ctx, tx, order.ID); err != nil {

@@ -83,6 +83,17 @@ func (f *fixture) order(
 	return f.get(t, id)
 }
 
+// twoLineOrder is an order for 10 of Alpha and 5 of Beta, both known products.
+func (f *fixture) twoLineOrder(t *testing.T) (alpha, beta int, po types.PurchaseOrder) {
+	t.Helper()
+	alpha, beta = f.product(t, "Alpha"), f.product(t, "Beta")
+	po = f.order(t, "Emzor",
+		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
+		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 5},
+	)
+	return alpha, beta, po
+}
+
 func (f *fixture) get(t *testing.T, id int) types.PurchaseOrder {
 	t.Helper()
 	order, err := f.svc.GetPurchaseOrder(f.ctx, id, f.uid)
@@ -327,11 +338,7 @@ func TestConcurrentReceiptsAreAllRecorded(t *testing.T) {
 
 func TestReceivingMoreThanOrdered(t *testing.T) {
 	f := newFixture(t)
-	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
-	po := f.order(t, "Emzor",
-		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
-		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 5},
-	)
+	alpha, beta, po := f.twoLineOrder(t)
 
 	// Alpha arrives with a bonus (one line over two rows), Beta is short.
 	if err := f.receive("k1", "Emzor", po.ID,
@@ -363,11 +370,7 @@ func TestReceivingMoreThanOrdered(t *testing.T) {
 
 func TestOverReceivedLineIsNotOutstanding(t *testing.T) {
 	f := newFixture(t)
-	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
-	po := f.order(t, "Emzor",
-		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
-		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 5},
-	)
+	alpha, _, po := f.twoLineOrder(t)
 	if err := f.receive("k1", "Emzor", po.ID,
 		types.ReceiveItem{ID: alpha, PurchaseOrderItemID: po.Items[0].ID, Quantity: 14},
 	); err != nil {
