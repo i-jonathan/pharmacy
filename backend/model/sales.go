@@ -15,6 +15,7 @@ type Sale struct {
 	Discount       int     `db:"discount"`
 	Total          int     `db:"total"`
 	IdempotencyKey *string `db:"idempotency_key"`
+	CustomerID     *int    `db:"customer_id"`
 
 	SaleItems []SaleItem
 	Payments  []SalePayment

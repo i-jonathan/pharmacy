@@ -70,6 +70,10 @@ var customers = []types.CustomerRequest{
 	{Name: "Hauwa Musa", Phone: "0809 555 0105"},
 }
 
+// saleCustomers says which customer (an index into customers) bought in which sale; the rest are
+// walk-ins.
+var saleCustomers = map[int]int{0: 0, 2: 1, 3: 0, 5: 2, 7: 3}
+
 type product struct {
 	price       float64
 	id, priceID int
@@ -223,15 +227,21 @@ func Run(db *sqlx.DB) (Summary, error) {
 	// A few regular customers, added by the cashier. The numbers are made up.
 	customerSvc := service.NewCustomerService(store)
 	till := as(constant.ViewCustomersPermissionKey, constant.ManageCustomersPermissionKey)
-	for _, c := range customers {
-		if _, err := customerSvc.CreateCustomer(till, c, cashier); err != nil {
+	customerIDs := make([]int, len(customers))
+	for i, c := range customers {
+		id, err := customerSvc.CreateCustomer(till, c, cashier)
+		if err != nil {
 			return Summary{}, fmt.Errorf("customer %s: %w", c.Name, err)
 		}
+		customerIDs[i] = id
 	}
 
 	// A day of sales by the cashier.
 	for n, s := range sales {
 		sale := types.Sale{CashierID: cashier, IdempotencyKey: fmt.Sprintf("demo-sale-%d", n+1)}
+		if who, ok := saleCustomers[n]; ok {
+			sale.CustomerID = customerIDs[who]
+		}
 		for _, l := range s.lines {
 			p := products[l.item]
 			total := p.price*float64(l.qty) - l.discount
@@ -248,7 +258,7 @@ func Run(db *sqlx.DB) (Summary, error) {
 			paid = s.tender
 		}
 		sale.Payments = []types.SalePayment{{Amount: paid, PaymentMethod: s.method}}
-		if _, err := saleSvc.CreateSale(mgr, sale); err != nil {
+		if _, err := saleSvc.CreateSale(till, sale); err != nil {
 			return Summary{}, fmt.Errorf("sale %d: %w", n+1, err)
 		}
 	}

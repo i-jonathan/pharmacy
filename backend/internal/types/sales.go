@@ -29,6 +29,7 @@ type SalePayment struct {
 type Sale struct {
 	CashierID         int
 	HeldSaleReference string        `json:"held_sale_reference"`
+	CustomerID        int           `json:"customer_id"` // picked at the till; 0 is a walk-in
 	IdempotencyKey    string        `json:"idempotency_key"`
 	Subtotal          float64       `json:"subtotal"`
 	Discount          float64       `json:"discount"`
@@ -60,6 +61,18 @@ type ReturnItemResponse struct {
 	Quantity     int     `json:"quantity"`
 }
 
+// SavedSale is what an earlier save under a retry key stored.
+type SavedSale struct {
+	ReceiptNumber string `db:"receipt_number"`
+	CustomerID    *int   `db:"customer_id"`
+}
+
+// SaleCustomer is who a sale was made to, as Sales History shows it.
+type SaleCustomer struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 type SaleResponse struct {
 	ID            int                   `json:"id"`
 	ReceiptNumber string                `json:"receipt_number"`
@@ -71,6 +84,8 @@ type SaleResponse struct {
 	Items         []SaleItemResponse    `json:"items"`
 	Payments      []SalePaymentResponse `json:"payments"`
 	Returns       []ReturnItemResponse  `json:"returns"`
+	// Customer is set only for a sale with a customer, and only for users who may see customers.
+	Customer *SaleCustomer `json:"customer"`
 }
 
 // ReceiptReprint is the server's answer to a reprint: the sale's number and when it was

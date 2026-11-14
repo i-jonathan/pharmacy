@@ -52,6 +52,15 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
+func (f *fixture) count(t *testing.T, query string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := f.db.Get(&n, query, args...); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+	return n
+}
+
 func (f *fixture) product(t *testing.T, name string) int {
 	t.Helper()
 	var category int

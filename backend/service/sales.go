@@ -26,6 +26,14 @@ func NewSaleService(repo repository.PharmacyRepository) *saleService {
 }
 
 func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (string, error) {
+	if saleParams.CustomerID < 0 {
+		return "", badRequest("customer was not found")
+	}
+	// Seeing customers is what lets a cashier pick one; a user without it sells to walk-ins.
+	if saleParams.CustomerID > 0 && !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
@@ -51,9 +59,16 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	if idempotencyKey != "" {
 		sale.IdempotencyKey = &idempotencyKey
 	}
+	if saleParams.CustomerID > 0 {
+		customerID := saleParams.CustomerID
+		sale.CustomerID = &customerID
+	}
 	sale.GenerateReceiptNumber()
 
 	saleID, err := s.repo.CreateSaleTx(ctx, tx, sale)
+	if errors.Is(err, repository.ErrInvalidReference) {
+		return "", badRequest("customer was not found")
+	}
 	if err != nil {
 		log.Println(err)
 		return "", httperror.ServerError("failed to create sale", err)
@@ -61,11 +76,43 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	if saleID == 0 {
 		log.Printf("duplicate sale idempotency key ignored: %s", idempotencyKey)
 		// The sale is saved, so a retry succeeds as it always did; only the number may be missing.
-		receipt, err := s.repo.FetchSaleReceiptNumberByKeyTx(ctx, tx, idempotencyKey)
+		saved, err := s.repo.FetchSaleByKeyTx(ctx, tx, idempotencyKey)
 		if err != nil {
 			log.Println(err)
+			return "", nil
 		}
-		return receipt, nil
+		// A retry that names a different customer is not the sale that was saved: answering it with
+		// the first save would leave the receipt and the record disagreeing.
+		if !sameCustomer(saved.CustomerID, saleParams.CustomerID) {
+			refusal := httperror.Conflict(
+				"this sale was already saved with a different customer; check Sales History before selling again",
+				errors.New("retry names a different customer"),
+			)
+			refusal.Reason = "already_saved"
+			return "", refusal
+		}
+		return saved.ReceiptNumber, nil
+	}
+
+	// Only a new sale is checked: a retry of a saved sale must still be answered with that sale,
+	// whatever has happened to its customer since.
+	if saleParams.CustomerID > 0 {
+		customer, err := s.repo.GetCustomerTx(ctx, tx, saleParams.CustomerID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", badRequest("customer was not found")
+		}
+		if err != nil {
+			log.Println(err)
+			return "", httperror.ServerError("failed to check the customer", err)
+		}
+		if !customer.Active {
+			refusal := httperror.Conflict(
+				"this customer has been deactivated; remove them from the sale, or ask a manager to reactivate them",
+				errors.New("customer is deactivated"),
+			)
+			refusal.Reason = "customer_inactive"
+			return "", refusal
+		}
 	}
 
 	saleItems := make([]model.SaleItem, len(saleParams.Items))
@@ -131,7 +178,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 			log.Println(err)
 		}
 	}
-	err = tx.Commit()
+	err = s.repo.CommitTx(tx)
 	if err != nil {
 		log.Println(err)
 		return "", httperror.ServerError("failed to commit transaction", err)
@@ -146,6 +193,12 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		log.Println(err)
 		return types.SaleHistory{}, httperror.ServerError("Failed to begin transaction", err)
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			s.repo.RollbackTx(tx)
+		}
+	}()
 
 	// fetch sales
 	sales, err := s.repo.FetchSalesTx(ctx, tx, filter)
@@ -238,6 +291,13 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		cashiersByID[c.ID] = c.UserName
 	}
 
+	// Customers are personal data: only users who may see customers get them.
+	customerNames, err := s.customerNamesFor(ctx, sales)
+	if err != nil {
+		log.Println(err)
+		return types.SaleHistory{}, httperror.ServerError("fetching customers failed", err)
+	}
+
 	responses := make([]types.SaleResponse, 0, len(sales))
 	canViewTotal := HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
 
@@ -316,13 +376,19 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 			Payments:      payments,
 			Returns:       returnsResp,
 		}
+		if s.CustomerID != nil {
+			if name, ok := customerNames[*s.CustomerID]; ok {
+				resp.Customer = &types.SaleCustomer{ID: *s.CustomerID, Name: name}
+			}
+		}
 		responses = append(responses, resp)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := s.repo.CommitTx(tx); err != nil {
 		log.Println(err)
 		return types.SaleHistory{}, httperror.ServerError("failed to commit transaction", err)
 	}
+	committed = true
 
 	history := types.SaleHistory{
 		Data:       responses,
@@ -336,6 +402,37 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	return history, nil
+}
+
+// sameCustomer says whether a saved sale's customer (nil for a walk-in) is the one a request names
+// (0 for a walk-in).
+func sameCustomer(saved *int, requested int) bool {
+	if saved == nil {
+		return requested <= 0
+	}
+	return *saved == requested
+}
+
+// customerNamesFor looks up, in one query, the customers of the given sales; nothing is looked up
+// for a user who may not see customers, or when no sale has one.
+func (s *saleService) customerNamesFor(
+	ctx context.Context, sales []model.Sale,
+) (map[int]string, error) {
+	if !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return nil, nil
+	}
+	seen := map[int]bool{}
+	var ids []int
+	for _, sale := range sales {
+		if sale.CustomerID != nil && !seen[*sale.CustomerID] {
+			seen[*sale.CustomerID] = true
+			ids = append(ids, *sale.CustomerID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return s.repo.FetchCustomerNames(ctx, ids)
 }
 
 // manufacturerName is a product's manufacturer, or empty when none was recorded.

@@ -108,6 +108,10 @@ type CustomerRepository interface {
 	// CustomerByPhoneTx returns the customer with this normalized phone, or nil.
 	CustomerByPhoneTx(ctx context.Context, tx *sqlx.Tx, phone string) (*types.Customer, error)
 	GetCustomer(ctx context.Context, id int) (types.Customer, error)
+	// GetCustomerTx reads a customer and holds a share lock on it until the transaction ends.
+	GetCustomerTx(ctx context.Context, tx *sqlx.Tx, id int) (types.Customer, error)
+	// FetchCustomerNames returns the names of the given customers, deactivated ones included.
+	FetchCustomerNames(ctx context.Context, ids []int) (map[int]string, error)
 	ListCustomers(
 		ctx context.Context, filter types.CustomerFilter, limit, offset int,
 	) ([]types.Customer, int, error)
@@ -128,7 +132,7 @@ type SaleRepository interface {
 	DeleteHeldTransactionByReferenceTx(ctx context.Context, tx *sqlx.Tx, reference string) error
 	FetchSaleByID(ctx context.Context, tx *sqlx.Tx, saleID int) (model.Sale, error)
 	FetchSaleReceiptNumberByID(ctx context.Context, tx *sqlx.Tx, saleID int) (string, error)
-	FetchSaleReceiptNumberByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (string, error)
+	FetchSaleByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (types.SavedSale, error)
 
 	ReturnRepository
 }

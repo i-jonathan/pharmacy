@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 // ErrCustomerPhoneTaken is returned when a customer is saved with a phone number another customer
@@ -82,6 +83,32 @@ func (r *repo) CustomerByPhoneTx(
 		return nil, err
 	}
 	return &c, nil
+}
+
+func (r *repo) GetCustomerTx(ctx context.Context, tx *sqlx.Tx, id int) (types.Customer, error) {
+	var c types.Customer
+	// FOR SHARE: a deactivation (an UPDATE) waits for the sale that is checking the customer, or
+	// is seen by it, so a customer can't be deactivated between the check and the commit.
+	err := tx.GetContext(ctx, &c,
+		`SELECT `+customerColumns+` FROM customer WHERE id = $1 FOR SHARE`, id)
+	return c, err
+}
+
+func (r *repo) FetchCustomerNames(ctx context.Context, ids []int) (map[int]string, error) {
+	var rows []struct {
+		ID   int    `db:"id"`
+		Name string `db:"name"`
+	}
+	err := r.Data.SelectContext(ctx, &rows,
+		`SELECT id, name FROM customer WHERE id = ANY($1)`, pq.Array(ids))
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[int]string, len(rows))
+	for _, row := range rows {
+		names[row.ID] = row.Name
+	}
+	return names, nil
 }
 
 func (r *repo) GetCustomer(ctx context.Context, id int) (types.Customer, error) {
