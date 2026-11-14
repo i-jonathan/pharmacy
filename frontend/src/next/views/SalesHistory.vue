@@ -177,6 +177,10 @@
             <span>&middot;</span>
             <span>{{ formatDate(detailSale.created_at) }}</span>
           </div>
+          <div v-if="detailSale.customer" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <User :size="12" class="shrink-0" aria-hidden="true" />
+            <span>Customer: <span class="font-medium text-foreground">{{ detailSale.customer.name }}</span></span>
+          </div>
         </div>
 
         <!-- Scrollable content area -->
@@ -435,7 +439,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from "vue";
-import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X, Undo2, Printer } from "lucide-vue-next";
+import { Search, RotateCw, AlertCircle, History, ChevronLeft, ChevronRight, X, Undo2, Printer, User } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
 import { readError } from "../lib/api.js";
@@ -751,6 +755,7 @@ function receiptFor(sale, reprint) {
   return {
     receiptNumber: sale.receipt_number,
     date: sale.created_at,
+    customer: sale.customer?.name || "",
     items: sale.items.map((item) => ({
       name: item.product_name,
       qty: item.quantity,

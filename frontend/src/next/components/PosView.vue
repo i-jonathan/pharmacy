@@ -19,6 +19,9 @@
         :cart="pos.cart"
         :payments="pos.payments"
         :customer="pos.customer.value"
+        :hidden-customer="!!pos.hiddenCustomer.value"
+        :can-complete="canComplete"
+        :can-hold="canHold"
         :subtotal="pos.subtotal.value"
         :total-discount="pos.totalDiscount.value"
         :total="pos.total.value"
@@ -201,6 +204,9 @@ async function runAction(action, successMessage) {
     }, 5000);
   } catch (e) {
     actionError.value = e.message || "The action could not be completed. Check your connection and try again.";
+    // The sale was saved on an earlier try (its reply was lost): this cart is that sale, so end it
+    // here, and Sales History shows what was saved.
+    if (e.code === "already_saved") pos.clearCart();
   } finally {
     processing.value = false;
   }
@@ -222,6 +228,19 @@ function handleRemoveItem(index) {
 async function handleHold() {
   await runAction(() => pos.holdCart(), "Sale held. You can resume it from Held Sales.");
 }
+
+// What the Complete and Hold buttons may do, used by the buttons and by F5 and F6 alike.
+const canComplete = computed(() => pos.cart.length > 0 && pos.amountOwed.value === 0 && !processing.value);
+const canHold = computed(() => pos.cart.length > 0 && !processing.value);
+pos.setShortcutActions({
+  complete: () => {
+    if (canComplete.value) return handleComplete();
+    if (pos.cart.length > 0 && !processing.value) {
+      actionError.value = "Enter the full payment before completing the sale.";
+    }
+  },
+  hold: () => canHold.value && handleHold(),
+});
 
 async function handleComplete() {
   await runAction(async () => {

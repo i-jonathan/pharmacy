@@ -13,7 +13,7 @@
             Held
           </Button>
         </router-link>
-        <Button variant="outline" size="sm" @click="$emit('hold')" :disabled="cart.length === 0 || processing">
+        <Button variant="outline" size="sm" @click="$emit('hold')" :disabled="!canHold">
           <Pause :size="13" class="mr-1" />
           Hold (F6)
         </Button>
@@ -25,20 +25,14 @@
     </div>
 
     <!-- Customer -->
-    <div class="px-4 py-1.5 border-border">
-      <div class="flex items-center gap-2">
-        <div class="flex items-center gap-2 flex-1">
-          <User :size="14" class="text-muted-foreground shrink-0" />
-          <input
-            :value="customer"
-            @input="$emit('update:customer', $event.target.value)"
-            class="flex-1 text-sm bg-transparent border-none outline-none"
-            placeholder="Walk-in Customer"
-          />
-        </div>
-        <Button variant="outline" size="sm" class="text-xs h-7">+ New</Button>
-      </div>
-    </div>
+    <CustomerPicker
+      :model-value="customer"
+      :disabled="processing"
+      @update:model-value="$emit('update:customer', $event)"
+    />
+    <p v-if="hiddenCustomer" class="px-4 pb-1.5 text-xs text-muted-foreground" role="status">
+      This held sale has a customer you can't see, so completing it records a walk-in sale.
+    </p>
 
     <!-- Cart Items -->
     <div class="min-h-0 flex-1 overflow-auto">
@@ -190,7 +184,7 @@
       <Button
         class="flex-1 disabled:opacity-50"
         size="lg"
-        :disabled="cart.length === 0 || amountOwed > 0 || processing"
+        :disabled="!canComplete"
         @click="$emit('complete')"
       >
         <CircleCheck v-if="!processing" :size="16" class="mr-2" />
@@ -201,7 +195,7 @@
         variant="outline"
         size="icon"
         class="h-11 w-11 shrink-0 disabled:opacity-50"
-        :disabled="cart.length === 0 || amountOwed > 0 || processing"
+        :disabled="!canComplete"
         aria-label="Complete sale and print receipt"
         title="Complete sale and print receipt"
         @click="$emit('complete-and-print')"
@@ -234,8 +228,9 @@
 
 <script setup>
 import { reactive, computed, onMounted, onUnmounted } from "vue";
-import { Pause, Trash2, User, Minus, Plus, X, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank, History, ShoppingCart } from "lucide-vue-next";
+import { Pause, Trash2, Minus, Plus, X, CircleCheck, Printer, ChevronDown, Banknote, CreditCard, PiggyBank, History, ShoppingCart } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
+import CustomerPicker from "./CustomerPicker.vue";
 import {
   Table,
   TableBody,
@@ -248,7 +243,10 @@ import {
 const props = defineProps({
   cart: { type: Array, required: true },
   payments: { type: Object, default: () => ({ Cash: 0, Card: 0, Transfer: 0 }) },
-  customer: { type: String, default: "Walk-in Customer" },
+  customer: { type: Object, default: null },
+  hiddenCustomer: { type: Boolean, default: false },
+  canComplete: { type: Boolean, default: false },
+  canHold: { type: Boolean, default: false },
   subtotal: { type: Number, default: 0 },
   totalDiscount: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
