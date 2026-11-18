@@ -216,6 +216,25 @@ func (r *repo) FetchSaleReceiptNumberByID(
 	return number, err
 }
 
+// FetchSaleCustomerForUpdateTx reads a sale's receipt, customer and whether it was made today,
+// and locks the sale until the transaction ends. sql.ErrNoRows when there is no such sale.
+func (r *repo) FetchSaleCustomerForUpdateTx(
+	ctx context.Context, tx *sqlx.Tx, saleID int,
+) (types.SaleCustomerState, error) {
+	var state types.SaleCustomerState
+	err := tx.GetContext(ctx, &state, fetchSaleCustomerForUpdateQuery, saleID)
+	return state, err
+}
+
+// UpdateSaleCustomerTx sets a sale's customer, or clears it when customerID is nil. An unknown
+// customer is ErrInvalidReference.
+func (r *repo) UpdateSaleCustomerTx(
+	ctx context.Context, tx *sqlx.Tx, saleID int, customerID *int,
+) error {
+	_, err := tx.ExecContext(ctx, updateSaleCustomerQuery, saleID, customerID)
+	return mapSaleCustomerError(err)
+}
+
 // FetchSaleByKeyTx finds the sale a retry key was first used for.
 func (r *repo) FetchSaleByKeyTx(
 	ctx context.Context, tx *sqlx.Tx, key string,

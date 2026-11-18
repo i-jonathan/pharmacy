@@ -133,6 +133,13 @@ type SaleRepository interface {
 	FetchSaleByID(ctx context.Context, tx *sqlx.Tx, saleID int) (model.Sale, error)
 	FetchSaleReceiptNumberByID(ctx context.Context, tx *sqlx.Tx, saleID int) (string, error)
 	FetchSaleByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (types.SavedSale, error)
+	// FetchSaleCustomerForUpdateTx reads a sale's receipt number, customer and whether it was made
+	// today, and locks the sale until the transaction ends (sql.ErrNoRows if there is none).
+	FetchSaleCustomerForUpdateTx(
+		ctx context.Context, tx *sqlx.Tx, saleID int,
+	) (types.SaleCustomerState, error)
+	// UpdateSaleCustomerTx sets a sale's customer; nil makes it a walk-in.
+	UpdateSaleCustomerTx(ctx context.Context, tx *sqlx.Tx, saleID int, customerID *int) error
 
 	ReturnRepository
 }

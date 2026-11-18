@@ -15,6 +15,7 @@ import (
 	"pharmacy/repository"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -368,6 +369,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 				Items:         items,
 				Payments:      payments,
 				Returns:       returnsResp,
+				MadeToday:     s.IsToday,
 			}
 			if s.CustomerID != nil {
 				if name, ok := customerNames[*s.CustomerID]; ok {
@@ -394,6 +396,139 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	return history, nil
+}
+
+// maxSaleCustomerNote is the longest note given with a change of a sale's customer; the page's
+// box allows the same.
+const maxSaleCustomerNote = 250
+
+// saleCustomerChangeReasons are the reasons given for changing the customer on a saved sale;
+// "other" needs a note.
+var saleCustomerChangeReasons = map[string]bool{
+	"picked_by_mistake": true, "customer_asked": true, "other": true,
+}
+
+// ChangeSaleCustomer changes or removes the customer on a saved sale. The sale is locked while it
+// is read, so two people fixing it cannot both succeed blind: the page says which customer it saw.
+func (s *saleService) ChangeSaleCustomer(
+	ctx context.Context, req types.ChangeSaleCustomerRequest, userID int,
+) (*types.SaleCustomer, error) {
+	if !HasPermission(ctx, constant.ManageCustomersPermissionKey) {
+		return nil, httperror.Forbidden("you are not allowed to change a sale's customer", nil)
+	}
+	// Seeing customers comes with the right to change them: without it the customer on a sale is
+	// never shown, and a refusal would reveal one.
+	if !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return nil, httperror.Forbidden(
+			"you are not allowed to see or change a sale's customer", nil,
+		)
+	}
+	if req.SaleID <= 0 {
+		return nil, badRequest("sale was not found")
+	}
+	if req.CustomerID < 0 || req.ExpectedCustomerID < 0 {
+		return nil, badRequest("customer was not found")
+	}
+	req.Reason = strings.ToLower(strings.TrimSpace(req.Reason))
+	if !saleCustomerChangeReasons[req.Reason] {
+		return nil, badRequest("choose a reason for the change")
+	}
+	note := strings.TrimSpace(req.Note)
+	if note == "" && req.Reason == "other" {
+		return nil, badRequest("say why the customer is changed")
+	}
+	if utf8.RuneCountInString(note) > maxSaleCustomerNote {
+		return nil, badRequest(
+			fmt.Sprintf("the note is limited to %d characters", maxSaleCustomerNote),
+		)
+	}
+
+	var result *types.SaleCustomer
+	err := runInTx(ctx, s.repo, "failed to save the customer", func(tx *sqlx.Tx) error {
+		sale, err := s.repo.FetchSaleCustomerForUpdateTx(ctx, tx, req.SaleID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return httperror.NotFound("sale was not found", err)
+		}
+		if err != nil {
+			return httperror.ServerError("failed to load the sale", err)
+		}
+		// The day rule comes first, so a cashier learns nothing about an older sale that Sales
+		// History does not already show.
+		if !sale.IsToday && !HasPermission(ctx, constant.ChangeOldSaleCustomerPermissionKey) {
+			refusal := httperror.Forbidden(
+				"only a manager can change the customer on an earlier day's sale", nil,
+			)
+			refusal.Reason = "sale_too_old"
+			return refusal
+		}
+		// A sale that already has the requested customer is answered as saved, whatever the page
+		// expected: a retry after a lost reply (or a double click) sends the old expectation and
+		// must not be told that someone else changed it. It writes and audits nothing.
+		unchanged := sameCustomer(sale.CustomerID, req.CustomerID)
+		if !unchanged && !sameCustomer(sale.CustomerID, req.ExpectedCustomerID) {
+			msg := "someone else changed this sale's customer; check who is on it now before changing it again"
+			refusal := httperror.Conflict(msg, errors.New(msg))
+			refusal.Reason = "customer_changed"
+			return refusal
+		}
+
+		if req.CustomerID > 0 {
+			customer, err := s.repo.GetCustomerTx(ctx, tx, req.CustomerID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return badRequest("customer was not found")
+			}
+			if err != nil {
+				return httperror.ServerError("failed to check the customer", err)
+			}
+			// Only a new attachment needs an active customer: a repeat of a change that already
+			// happened is answered as saved even if the customer has been deactivated since.
+			if !unchanged && !customer.Active {
+				refusal := httperror.Conflict(
+					"this customer has been deactivated; choose another, or ask a manager to reactivate them",
+					errors.New("customer is deactivated"),
+				)
+				refusal.Reason = "customer_inactive"
+				return refusal
+			}
+			result = &types.SaleCustomer{ID: customer.ID, Name: customer.Name}
+		}
+		if unchanged {
+			return nil
+		}
+
+		var target *int
+		if req.CustomerID > 0 {
+			target = &req.CustomerID
+		}
+		err = s.repo.UpdateSaleCustomerTx(ctx, tx, req.SaleID, target)
+		if errors.Is(err, repository.ErrInvalidReference) {
+			return badRequest("customer was not found")
+		}
+		if err != nil {
+			return httperror.ServerError("failed to save the customer", err)
+		}
+		reason := req.Reason
+		if note != "" {
+			reason += ": " + note
+		}
+		from := 0
+		if sale.CustomerID != nil {
+			from = *sale.CustomerID
+		}
+		return appendAudit(
+			ctx, s.repo, tx, userID, constant.AuditEntitySale, req.SaleID,
+			constant.AuditActionSaleCustomerChanged, reason,
+			map[string]any{
+				"receipt_number":   sale.ReceiptNumber,
+				"from_customer_id": from,
+				"to_customer_id":   req.CustomerID,
+			},
+		)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // sameCustomer says whether a saved sale's customer (nil for a walk-in) is the one a request names

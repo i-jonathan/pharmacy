@@ -21,3 +21,7 @@ const FlagStockPermissionKey = "stock:flag"
 // by default.
 const ViewCustomersPermissionKey = "customer:view"
 const ManageCustomersPermissionKey = "customer:manage"
+
+// ChangeOldSaleCustomerPermissionKey lets a user change or remove the customer on a sale made on
+// an earlier day (managers and admins). Anyone with customer:manage may do it for today's sales.
+const ChangeOldSaleCustomerPermissionKey = "sale:changeoldcustomer"

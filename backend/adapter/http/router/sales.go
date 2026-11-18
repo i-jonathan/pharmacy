@@ -6,6 +6,7 @@ import (
 	"pharmacy/adapter/http/controller"
 	"pharmacy/adapter/http/middleware"
 	"pharmacy/httperror"
+	"pharmacy/internal/constant"
 	"pharmacy/service"
 )
 
@@ -18,6 +19,12 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 		http.HandlerFunc(saleController.FilterSales),
 	))
 	saleMux.HandleFunc(http.MethodPost+" /{id}/reprint", saleController.ReprintReceipt)
+	// Changing the customer on a saved sale needs customer:manage and customer:view (the customer
+	// is never shown without the second); the service adds the rule for an earlier day's sale.
+	saleMux.Handle(http.MethodPut+" /{id}/customer", middleware.RequirePermissions(
+		constant.RequireAllPermissions,
+		constant.ManageCustomersPermissionKey, constant.ViewCustomersPermissionKey,
+	)(http.HandlerFunc(saleController.ChangeSaleCustomer)))
 	saleMux.HandleFunc(http.MethodPost+" /hold", saleController.HoldSaleTransaction)
 	saleMux.HandleFunc(http.MethodDelete+" /held/{reference}", saleController.DeleteHeldSale)
 	saleMux.HandleFunc(http.MethodPost+" /returns", saleController.ReturnItems)

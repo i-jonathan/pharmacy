@@ -69,6 +69,12 @@ type SaleService interface {
 	CreateSale(ctx context.Context, saleParams types.Sale) (string, error)
 	// ReprintReceipt records that userID reprinted a sale's receipt and says when.
 	ReprintReceipt(ctx context.Context, saleID, userID int) (types.ReceiptReprint, error)
+	// ChangeSaleCustomer changes or removes the customer on a saved sale and returns the new one
+	// (nil for a walk-in). Anyone with customer:manage may do it for today's sales; an earlier
+	// day's sale needs sale:changeoldcustomer.
+	ChangeSaleCustomer(
+		ctx context.Context, req types.ChangeSaleCustomerRequest, userID int,
+	) (*types.SaleCustomer, error)
 	FetchSalesHistory(ctx context.Context, filter types.SaleFilter) (types.SaleHistory, error)
 	HoldSale(ctx context.Context, holdSaleRequest types.HoldTransactionRequest) error
 	FetchHeldSaleTransactions(ctx context.Context) ([]types.HeldTransactionResponse, error)
