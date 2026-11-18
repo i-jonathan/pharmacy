@@ -177,9 +177,11 @@
             <span>&middot;</span>
             <span>{{ formatDate(detailSale.created_at) }}</span>
           </div>
-          <div v-if="detailSale.customer" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div v-if="detailSale.customer || canChangeCustomer" class="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User :size="12" class="shrink-0" aria-hidden="true" />
-            <span>Customer: <span class="font-medium text-foreground">{{ detailSale.customer.name }}</span></span>
+            <span v-if="detailSale.customer">Customer: <span class="font-medium text-foreground">{{ detailSale.customer.name }}</span></span>
+            <span v-else>Walk-in customer</span>
+            <Button v-if="canChangeCustomer" variant="ghost" size="sm" class="ml-auto h-6 px-2 text-xs" @click="openChangeCustomer">Change</Button>
           </div>
         </div>
 
@@ -431,6 +433,71 @@
       </section>
     </div>
 
+    <div
+      v-if="changeDialogOpen && detailSale"
+      class="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 sm:items-center sm:p-6"
+      @click.self="closeChangeCustomer"
+    >
+      <section
+        ref="changeDialogRef"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="change-customer-title"
+        class="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl"
+        @keydown.esc="closeChangeCustomer"
+      >
+        <header class="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 id="change-customer-title" class="text-base font-semibold text-foreground">Change customer</h2>
+            <p class="mt-0.5 text-xs text-muted-foreground">Receipt {{ detailSale.receipt_number }}</p>
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close" :disabled="changingCustomer" @click="closeChangeCustomer">
+            <X :size="16" />
+          </Button>
+        </header>
+
+        <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <div>
+            <div class="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer on this sale</div>
+            <div class="rounded-lg border border-border">
+              <CustomerPicker v-model="chosenCustomer" :disabled="changingCustomer" :allow-create="false" saved-sale />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <label for="change-customer-reason" class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reason</label>
+            <select
+              id="change-customer-reason"
+              v-model="changeReason"
+              :disabled="changingCustomer"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="" disabled>Choose a reason</option>
+              <option v-for="r in CUSTOMER_CHANGE_REASONS" :key="r.value" :value="r.value">{{ r.label }}</option>
+            </select>
+            <input
+              v-if="changeReason"
+              v-model="changeNote"
+              maxlength="250"
+              :disabled="changingCustomer"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              :placeholder="changeReason === 'other' ? 'Describe the reason' : 'More detail (optional)'"
+              aria-label="Reason detail"
+            />
+          </div>
+          <p v-if="changeError" role="alert" class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ changeError }}</p>
+        </div>
+
+        <footer class="flex flex-col-reverse gap-2 border-t border-border bg-muted/20 px-5 py-4 sm:flex-row sm:justify-end">
+          <Button variant="outline" :disabled="changingCustomer" @click="closeChangeCustomer">Cancel</Button>
+          <Button :disabled="!canSaveCustomerChange" @click="saveCustomerChange">
+            <RotateCw v-if="changingCustomer" :size="15" class="mr-2 animate-spin" />
+            {{ changingCustomer ? 'Saving…' : 'Save' }}
+          </Button>
+        </footer>
+      </section>
+    </div>
+
     <div v-if="toast" class="fixed bottom-5 right-5 z-[80] rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-xl" role="status">
       {{ toast }}
     </div>
@@ -444,6 +511,8 @@ import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
 import { readError } from "../lib/api.js";
 import { buildReceiptHtml, printReceiptHtml } from "../lib/receipt.js";
+import { usePermissions } from "../composables/usePermissions.js";
+import CustomerPicker from "../components/pos/CustomerPicker.vue";
 import {
   Table,
   TableBody,
@@ -728,13 +797,122 @@ async function submitReturn() {
     const refreshedIndex = sales.value.findIndex((sale) => sale.id === saleID);
     detailSale.value = refreshedIndex >= 0 ? sales.value[refreshedIndex] : null;
     selectedIndex.value = refreshedIndex;
-    toast.value = `Return processed · ₦${returnRefundTotal.value.toLocaleString()}`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toast.value = ""; }, 3500);
+    showToast(`Return processed · ₦${returnRefundTotal.value.toLocaleString()}`);
   } catch (e) {
     returnError.value = e.message || "Failed to process return";
   } finally {
     returnSubmitting.value = false;
+  }
+}
+
+// --- Change the customer on a saved sale ---
+// Anyone who manages customers may fix a sale made today; an earlier day's sale needs the manager's
+// permission. The server decides; this only decides whether to offer the button.
+const { hasPermission } = usePermissions();
+const CUSTOMER_CHANGE_REASONS = [
+  { value: "picked_by_mistake", label: "Picked by mistake" },
+  { value: "customer_asked", label: "Customer asked" },
+  { value: "other", label: "Other" },
+];
+const changeDialogOpen = ref(false);
+const changingCustomer = ref(false);
+const chosenCustomer = ref(null);
+const changeReason = ref("");
+const changeNote = ref("");
+const changeError = ref("");
+const changeDialogRef = ref(null);
+
+const canChangeCustomer = computed(() => {
+  const sale = detailSale.value;
+  if (!sale || !hasPermission("customer:view") || !hasPermission("customer:manage")) return false;
+  // The server says which sales are from today, on the same date basis as its own rule.
+  return sale.made_today === true || hasPermission("sale:changeoldcustomer");
+});
+
+const canSaveCustomerChange = computed(() => {
+  if (changingCustomer.value || !changeReason.value) return false;
+  if (changeReason.value === "other" && !changeNote.value.trim()) return false;
+  // Nothing to save until the customer is different from the one on the sale.
+  return (chosenCustomer.value?.id || 0) !== (detailSale.value?.customer?.id || 0);
+});
+
+// The dialog belongs to one sale; moving to another closes it.
+watch(
+  () => detailSale.value?.id,
+  () => {
+    if (!changingCustomer.value) changeDialogOpen.value = false;
+  },
+);
+
+function openChangeCustomer() {
+  const sale = detailSale.value;
+  if (!sale) return;
+  chosenCustomer.value = sale.customer ? { id: sale.customer.id, name: sale.customer.name, phone: "", active: true } : null;
+  changeReason.value = "";
+  changeNote.value = "";
+  changeError.value = "";
+  changeDialogOpen.value = true;
+  nextTick(() => changeDialogRef.value?.focus());
+}
+
+function closeChangeCustomer() {
+  if (changingCustomer.value) return;
+  changeDialogOpen.value = false;
+  changeError.value = "";
+}
+
+function showToast(message) {
+  toast.value = message;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.value = ""; }, 3500);
+}
+
+async function saveCustomerChange() {
+  const sale = detailSale.value;
+  if (!sale || !canSaveCustomerChange.value) return;
+  changingCustomer.value = true;
+  changeError.value = "";
+  try {
+    const response = await csrfFetch(`${API}/sales/${sale.id}/customer`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer_id: chosenCustomer.value?.id || 0,
+        // The customer this page showed, so a change made by someone else in the meantime is refused.
+        expected_customer_id: sale.customer?.id || 0,
+        reason: changeReason.value,
+        note: changeNote.value.trim(),
+      }),
+    });
+    if (!response.ok) {
+      const { message, code } = await readError(response, `Could not change the customer (${response.status})`);
+      if (code === "customer_changed") {
+        // Someone else changed it first: show what is saved now, and say why nothing was done.
+        changeDialogOpen.value = false;
+        await goPage(currentPage.value);
+        const at = filteredSales.value.findIndex((s) => s.id === sale.id);
+        detailSale.value = at >= 0 ? filteredSales.value[at] : null;
+        selectedIndex.value = at;
+        showToast(message);
+        return;
+      }
+      throw new Error(message);
+    }
+    const body = await response.json();
+    // Update the row in place, so the next reprint names the new customer. The page may have been
+    // reloaded while the request ran (a return, another page), so the row is found again by id.
+    const customer = body.customer || null;
+    sale.customer = customer;
+    const row = sales.value.find((s) => s.id === sale.id);
+    if (row) row.customer = customer;
+    changeDialogOpen.value = false;
+    showToast(body.customer ? `Customer changed to ${body.customer.name}` : "Customer removed from the sale");
+  } catch (e) {
+    changeError.value = e instanceof TypeError
+      ? "Could not reach the server. Check the connection and try again."
+      : e.message || "Could not change the customer.";
+  } finally {
+    changingCustomer.value = false;
   }
 }
 
@@ -822,9 +1000,7 @@ async function printReceiptCopy() {
       throw new Error("The reprint was recorded, but the browser could not print it. Try again.");
     }
     previewHtml.value = "";
-    toast.value = `Receipt ${sale.receipt_number} sent to print`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toast.value = ""; }, 3500);
+    showToast(`Receipt ${sale.receipt_number} sent to print`);
   } catch (e) {
     reprintError.value = e.message || "Could not reprint the receipt.";
   } finally {

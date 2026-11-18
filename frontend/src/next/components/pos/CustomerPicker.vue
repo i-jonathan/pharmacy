@@ -134,17 +134,22 @@ import { usePermissions } from "../../composables/usePermissions.js";
 import { useConfirm } from "../../composables/useConfirm.js";
 
 // The customer on the sale. modelValue is {id, name, phone, active} or null (a walk-in). Seeing customers
-// (customer:view) is needed to pick one; adding one at the till needs customer:manage.
+// (customer:view) is needed to pick one; adding one at the till needs customer:manage. Where a new
+// customer makes no sense (changing the customer on a saved sale), allowCreate is false.
 const props = defineProps({
   modelValue: { type: Object, default: null },
   disabled: { type: Boolean, default: false },
+  allowCreate: { type: Boolean, default: true },
+  // True when picking for a sale that is already saved: the pick is only a choice until the
+  // person saves it, but a reactivation happens at once.
+  savedSale: { type: Boolean, default: false },
 });
 const emit = defineEmits(["update:modelValue"]);
 
 const { hasPermission } = usePermissions();
 const canLookup = hasPermission("customer:view");
-const canCreate = hasPermission("customer:manage");
-const canManage = canCreate;
+const canManage = hasPermission("customer:manage");
+const canCreate = computed(() => props.allowCreate && canManage);
 const { confirm } = useConfirm();
 
 const mode = ref("idle"); // idle | search | new
@@ -265,10 +270,12 @@ async function reactivate(c) {
   const mine = createCount;
   await confirm({
     title: "Reactivate customer?",
-    message: "They will be reactivated and added to this sale.",
+    message: props.savedSale
+      ? "They will be reactivated now and chosen for this sale. The sale itself changes only when you save."
+      : "They will be reactivated and added to this sale.",
     detail: c.name,
     tone: "warning",
-    confirmLabel: "Reactivate and add",
+    confirmLabel: props.savedSale ? "Reactivate and choose" : "Reactivate and add",
     busyLabel: "Saving…",
     run: async () => {
       let r;
