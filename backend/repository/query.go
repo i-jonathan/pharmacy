@@ -666,6 +666,15 @@ const fetchAuditLogQuery = `
 	ORDER BY a.occurred_at DESC, a.id DESC
 `
 
+const fetchSaleCustomerChangesQuery = `
+	SELECT a.entity_id AS sale_id, a.occurred_at, COALESCE(u.username, '') AS actor, a.reason,
+		a.details
+	FROM audit_log a
+	LEFT JOIN users u ON u.id = a.actor_id
+	WHERE a.entity_type = 'sale' AND a.action = 'customer_changed' AND a.entity_id = ANY($1)
+	ORDER BY a.occurred_at DESC, a.id DESC
+`
+
 const setPurchaseOrderStatusQuery = `
 	UPDATE purchase_order
 	SET status = $2, version = version + 1, updated_at = NOW()

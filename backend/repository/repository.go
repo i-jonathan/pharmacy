@@ -38,6 +38,11 @@ type InventoryRepository interface {
 	PurchaseOrderExists(ctx context.Context, id int) (bool, error)
 	InsertAuditLogTx(ctx context.Context, tx *sqlx.Tx, entry types.AuditEntry) error
 	FetchAuditLog(ctx context.Context, entityType string, entityID int) ([]types.AuditRecord, error)
+	// FetchSaleCustomerChanges returns the customer_changed audit entries of the given sales,
+	// newest first.
+	FetchSaleCustomerChanges(
+		ctx context.Context, tx *sqlx.Tx, saleIDs []int,
+	) ([]types.SaleCustomerChangeRow, error)
 	CreateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) (int, error)
 	UpdateProductTx(ctx context.Context, tx *sqlx.Tx, product model.Product) error
 
