@@ -89,7 +89,19 @@ flowchart LR
 |---|---|---|
 | Request | `GET /sales/filter` | `FetchSalesHistory` selects `customer_id` and, only for callers with `customer:view`, makes one `FetchCustomerNames` lookup for the page, on the same transaction |
 | Response | `SaleResponse.customer`, `SaleResponse.made_today` | `customer` is `{id, name}` or null; deactivated customers are still named; the name is the current one. `made_today` is the database's `created_at::date = CURRENT_DATE` for the sale, used by the change-customer button |
+| Response | `SaleResponse.customer_changes` | See [Show who changed the customer](#show-who-changed-the-customer-on-a-saved-sale) |
 | Screens | `SalesHistory.vue` | Customer line in the sale details; `receiptFor` passes the name to `receipt.js`, which prints `Customer: <name>` (the phone is never printed). The POS receipt does the same from the picked customer |
+
+### Show who changed the customer on a saved sale
+
+| Step | Where | Detail |
+|---|---|---|
+| Request | `GET /sales/filter` | Same request as the history page; no new route and no migration |
+| Gate | `customerChangeRowsFor` in `service/sales.go` | Only callers with `customer:view` get entries (they name customers); for anyone else nothing is read and every sale carries `customer_changes: []` |
+| Data | `FetchSaleCustomerChanges` (`repository/customers.go`, `fetchSaleCustomerChangesQuery`) | One query per page: `audit_log` rows with `entity_type = 'sale'`, `action = 'customer_changed'` and `entity_id = ANY(page sale ids)`, joined to `users` for the username, newest first (`occurred_at DESC, id DESC`). It filters on the action because reprints (`receipt_reprinted`) are audited under the same entity. Uses `audit_log_entity_idx` |
+| Service | `decodeCustomerChanges`, `customerChangesOf`, `splitChangeReason` | Reads `from_customer_id` and `to_customer_id` from `details` (0 means walk-in, sent as `null`); an entry whose details cannot be read is skipped and logged, not a failure of the page. The stored reason (`code` or `code: note`) is split back into `reason` and `note`; text that does not start with a known code is all note. The customer ids join the sale customers in the single `FetchCustomerNames` lookup, so names are today's names (an audit entry stores ids only) |
+| Response | `SaleResponse.customer_changes[]` | `{at (RFC3339), by (username), from, to ({id, name} or null), reason (code or ""), note}`; always an array |
+| Screens | `SalesHistory.vue` | "Customer Changes" section in the sale details, shown when the list is not empty; `changeReasonLabel` maps the code to the same labels as the change dialog. After a successful change, `refreshCustomerChanges` re-reads the current page and copies only `customer_changes` onto the open sale (the server writes the actor and time), leaving selection and page as they are |
 
 ### Deactivate and reactivate
 
@@ -160,6 +172,7 @@ Keys come from the `permissions` rows `Customer/View`, `Customer/Manage` and `Sa
 - `service/customers_integration_test.go` (needs `PHARMACY_TEST_DSN`): the real SQL, anchored and anywhere phone search, `LIKE` escaping, the database-stamped consent time, paging, concurrent creates, audit order.
 - `db/migrations_test.go` `TestCustomerMigration` (permissions by role, unique and blank-name rules, rollback), `TestSalesCustomerMigration` (nullable column, foreign key, index, rollback and re-apply) and `TestSaleOldCustomerMigration` (the permission goes to Manager and Admin only, rollback and re-apply).
 - `service/sale_customer_test.go`: walk-in, stored customer, permission, negative and unknown ids, deactivated customer rolled back, retry skips the check, history names the customer only with `customer:view`. `service/sale_customer_integration_test.go`: the same against the real database.
+- `service/sale_customer_history_test.go`: changes listed with actor, time, walk-in as null, reason and note split; one query and one name lookup per page; nothing read without `customer:view`; unreadable details skipped; rollback when the read fails. `service/sale_customer_history_integration_test.go`: the real SQL, newest first, a reprint entry left out, actor name, unchanged sale empty.
 - `service/sale_customer_change_test.go`: permission and validation refusals, change, removal (also of a deactivated customer), stale, no-op, deactivated and unknown targets, the earlier-day rule, audit content. `service/sale_customer_integration_test.go` `TestChangingTheCustomerOnASavedSaleAgainstTheDatabase`: the same against the real database, including migration 50's role grants and a backdated sale.
 - `adapter/http/router/customers_test.go`: each route's permission and what reaches the service. `adapter/http/router/sales_test.go`: `PUT /sales/:id/customer` needs `customer:manage`, takes the sale id from the path, answers a walk-in with `null`.
 - `internal/demoseed`: the demo shop includes customers, and five demo sales have one.

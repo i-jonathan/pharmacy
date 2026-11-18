@@ -295,7 +295,13 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		}
 
 		// Customers are personal data: only users who may see customers get them.
-		customerNames, err := s.customerNamesFor(ctx, tx, sales)
+		changeRows, err := s.customerChangeRowsFor(ctx, tx, saleIDs)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching customer changes failed", err)
+		}
+		changes, changedCustomerIDs := decodeCustomerChanges(changeRows)
+		customerNames, err := s.customerNamesFor(ctx, tx, sales, changedCustomerIDs)
 		if err != nil {
 			log.Println(err)
 			return httperror.ServerError("fetching customers failed", err)
@@ -384,6 +390,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 					resp.Customer = &types.SaleCustomer{ID: *s.CustomerID, Name: name}
 				}
 			}
+			resp.CustomerChanges = customerChangesOf(changes[s.ID], customerNames)
 			responses = append(responses, resp)
 		}
 		return nil
@@ -566,26 +573,118 @@ func sameCustomer(saved *int, requested int) bool {
 	return *saved == requested
 }
 
-// customerNamesFor looks up, in one query, the customers of the given sales; nothing is looked up
-// for a user who may not see customers, or when no sale has one.
+// customerNamesFor looks up, in one query, the customers of the given sales and the extra ones
+// (customers named in changes); nothing is looked up for a user who may not see customers.
 func (s *saleService) customerNamesFor(
-	ctx context.Context, tx *sqlx.Tx, sales []model.Sale,
+	ctx context.Context, tx *sqlx.Tx, sales []model.Sale, extra []int,
 ) (map[int]string, error) {
 	if !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
 		return nil, nil
 	}
 	seen := map[int]bool{}
 	var ids []int
-	for _, sale := range sales {
-		if sale.CustomerID != nil && !seen[*sale.CustomerID] {
-			seen[*sale.CustomerID] = true
-			ids = append(ids, *sale.CustomerID)
+	add := func(id int) {
+		if id > 0 && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
 		}
+	}
+	for _, sale := range sales {
+		if sale.CustomerID != nil {
+			add(*sale.CustomerID)
+		}
+	}
+	for _, id := range extra {
+		add(id)
 	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	return s.repo.FetchCustomerNames(ctx, tx, ids)
+}
+
+// customerChangeRowsFor reads the customer changes of the given sales in one query. Only users who
+// may see customers get them: the entries name customers.
+func (s *saleService) customerChangeRowsFor(
+	ctx context.Context, tx *sqlx.Tx, saleIDs []int,
+) ([]types.SaleCustomerChangeRow, error) {
+	if len(saleIDs) == 0 || !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return nil, nil
+	}
+	return s.repo.FetchSaleCustomerChanges(ctx, tx, saleIDs)
+}
+
+// customerChangeDetails is what ChangeSaleCustomer stores in an audit entry's details: customer
+// ids, 0 for a walk-in.
+type customerChangeDetails struct {
+	From int `json:"from_customer_id"`
+	To   int `json:"to_customer_id"`
+}
+
+// decodedCustomerChange is a stored change with its customer ids read out.
+type decodedCustomerChange struct {
+	row      types.SaleCustomerChangeRow
+	from, to int
+}
+
+// decodeCustomerChanges groups the stored changes by sale, keeping their order (newest first), and
+// lists the customer ids they name. An entry whose details cannot be read is left out and logged,
+// so one bad row never costs the whole page.
+func decodeCustomerChanges(
+	rows []types.SaleCustomerChangeRow,
+) (map[int][]decodedCustomerChange, []int) {
+	bySale := map[int][]decodedCustomerChange{}
+	var ids []int
+	for _, row := range rows {
+		var details customerChangeDetails
+		if err := json.Unmarshal(row.Details, &details); err != nil {
+			log.Printf("skipping a customer change on sale %d: %v", row.SaleID, err)
+			continue
+		}
+		bySale[row.SaleID] = append(
+			bySale[row.SaleID], decodedCustomerChange{row: row, from: details.From, to: details.To},
+		)
+		ids = append(ids, details.From, details.To)
+	}
+	return bySale, ids
+}
+
+// customerChangesOf shapes one sale's changes for the page. The list is never nil, so the page
+// can read its length.
+func customerChangesOf(
+	changes []decodedCustomerChange, names map[int]string,
+) []types.SaleCustomerChange {
+	out := make([]types.SaleCustomerChange, 0, len(changes))
+	who := func(id int) *types.SaleCustomer {
+		if id <= 0 {
+			return nil
+		}
+		return &types.SaleCustomer{ID: id, Name: names[id]}
+	}
+	for _, c := range changes {
+		reason, note := splitChangeReason(c.row.Reason)
+		out = append(out, types.SaleCustomerChange{
+			At:     c.row.OccurredAt.Format(time.RFC3339),
+			By:     c.row.Actor,
+			From:   who(c.from),
+			To:     who(c.to),
+			Reason: reason,
+			Note:   note,
+		})
+	}
+	return out
+}
+
+// splitChangeReason undoes how ChangeSaleCustomer stores its reason: the reason code, then ": " and
+// the note when there is one. Text that does not start with a known code is all note.
+func splitChangeReason(stored string) (reason, note string) {
+	if saleCustomerChangeReasons[stored] {
+		return stored, ""
+	}
+	if code, rest, found := strings.Cut(stored, ": "); found && saleCustomerChangeReasons[code] {
+		return code, strings.TrimSpace(rest)
+	}
+	return "", stored
 }
 
 // manufacturerName is a product's manufacturer, or empty when none was recorded.

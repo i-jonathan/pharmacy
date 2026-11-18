@@ -395,3 +395,9 @@ func TestSalesHistoryWithNoCustomersLooksNothingUp(t *testing.T) {
 		t.Fatalf("err %v, lookups %d", err, repo.namesFetched)
 	}
 }
+
+func (r *customerSaleRepo) FetchSaleCustomerChanges(
+	context.Context, *sqlx.Tx, []int,
+) ([]types.SaleCustomerChangeRow, error) {
+	return nil, nil
+}

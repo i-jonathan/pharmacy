@@ -83,6 +83,17 @@ Use this when the wrong customer was put on a sale and the sale is already saved
 
 **Save** stays off until you have chosen a different customer and a reason. **Change** only shows if you may see and manage customers. For a sale from an earlier day it shows only for a manager or an admin. A deactivated customer cannot be put on a sale, but one who is already on the sale can be taken off. A manager can reactivate a deactivated customer from the search, the same way as at the till. Reactivating happens at once, even if you then close the box without saving; only the sale waits for **Save**.
 
+### See who changed a sale's customer
+
+Every time the customer on a sale is changed or removed, the sale keeps a record of it.
+
+1. Open **Sales History** and choose the sale.
+2. If its customer was ever changed, a **Customer Changes** list shows under the items, newest first.
+
+**You'll see:** for each change, the old customer, an arrow and the new customer (**Walk-in** when there was none), then who made the change and when, the reason, and the words they added if any. A sale whose customer was never changed has no such list.
+
+Only people who may see customers see this list. Customer names in it are the names as they are today: if a customer has been renamed since, the new name shows. A change you have just saved appears in the list at once.
+
 ### Deactivate a customer
 
 Use this for someone who should no longer be on the list, for example a duplicate entry or a customer who asked to be left out.

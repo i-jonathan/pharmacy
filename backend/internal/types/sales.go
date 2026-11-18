@@ -91,6 +91,28 @@ type SaleCustomer struct {
 	Name string `json:"name"`
 }
 
+// SaleCustomerChange is one time the customer on a saved sale was changed or removed, as Sales
+// History shows it. From and To are nil for a walk-in. Reason is one of the codes the change
+// screen offers (empty if the stored text did not start with one); Note is what was typed.
+type SaleCustomerChange struct {
+	At     string        `json:"at"`
+	By     string        `json:"by"`
+	From   *SaleCustomer `json:"from"`
+	To     *SaleCustomer `json:"to"`
+	Reason string        `json:"reason"`
+	Note   string        `json:"note"`
+}
+
+// SaleCustomerChangeRow is a stored customer_changed audit entry as the repository reads it.
+// Details holds from_customer_id and to_customer_id (0 for a walk-in).
+type SaleCustomerChangeRow struct {
+	SaleID     int             `db:"sale_id"`
+	OccurredAt time.Time       `db:"occurred_at"`
+	Actor      string          `db:"actor"`
+	Reason     string          `db:"reason"`
+	Details    json.RawMessage `db:"details"`
+}
+
 type SaleResponse struct {
 	ID            int                   `json:"id"`
 	ReceiptNumber string                `json:"receipt_number"`
@@ -107,6 +129,9 @@ type SaleResponse struct {
 	MadeToday bool `json:"made_today"`
 	// Customer is set only for a sale with a customer, and only for users who may see customers.
 	Customer *SaleCustomer `json:"customer"`
+	// CustomerChanges lists each change of the sale's customer, newest first. It is always an
+	// array, and empty for users who may not see customers.
+	CustomerChanges []SaleCustomerChange `json:"customer_changes"`
 }
 
 // ReceiptReprint is the server's answer to a reprint: the sale's number and when it was

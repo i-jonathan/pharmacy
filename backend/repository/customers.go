@@ -152,3 +152,13 @@ func (r *repo) ListCustomers(
 		filter.IncludeInactive, name, filter.PhoneDigits, filter.PhonePrefix, limit, offset)
 	return customers, total, err
 }
+
+// FetchSaleCustomerChanges reads the customer_changed audit entries of the given sales in one
+// query, newest first, with the actor's username.
+func (r *repo) FetchSaleCustomerChanges(
+	ctx context.Context, tx *sqlx.Tx, saleIDs []int,
+) ([]types.SaleCustomerChangeRow, error) {
+	rows := []types.SaleCustomerChangeRow{}
+	err := tx.SelectContext(ctx, &rows, fetchSaleCustomerChangesQuery, pq.Array(saleIDs))
+	return rows, err
+}
