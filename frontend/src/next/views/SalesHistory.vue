@@ -277,6 +277,26 @@
             </div>
           </div>
 
+          <!-- Who changed the customer, when and why (only users who may see customers get this) -->
+          <div v-if="detailSale.customer_changes?.length" class="px-4 py-3 border-t border-border">
+            <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer Changes</div>
+            <ul class="border border-border rounded-sm divide-y divide-border/50" aria-label="Customer changes, newest first">
+              <li v-for="(change, i) in detailSale.customer_changes" :key="i" class="px-2 py-1.5 text-[11px]">
+                <div class="text-xs font-medium">
+                  {{ change.from ? change.from.name : "Walk-in" }} &rarr; {{ change.to ? change.to.name : "Walk-in" }}
+                </div>
+                <div class="text-muted-foreground">
+                  {{ change.by || "Unknown user" }} &middot; {{ formatDate(change.at) }}
+                </div>
+                <div v-if="change.reason || change.note" class="text-muted-foreground">
+                  <span v-if="change.reason">{{ changeReasonLabel(change.reason) }}</span>
+                  <span v-if="change.reason && change.note"> &mdash; </span>
+                  <span v-if="change.note">{{ change.note }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+
           <div class="flex flex-wrap items-center gap-2 border-t border-border px-4 py-4">
             <Button class="w-full sm:w-auto" variant="outline" @click="openReceiptPreview">
               <Printer :size="15" class="mr-2" />
@@ -693,6 +713,15 @@ async function fetchSales() {
   }
 }
 
+function pageParams(p) {
+  const params = new URLSearchParams();
+  if (dateStart.value) params.set("start", dateStart.value);
+  if (dateEnd.value) params.set("end", dateEnd.value);
+  params.set("page", String(p));
+  params.set("per_page", String(perPage.value));
+  return params;
+}
+
 async function goPage(p) {
   if (p < 1 || p > totalPages.value) return;
   currentPage.value = p;
@@ -700,12 +729,7 @@ async function goPage(p) {
   selectedIndex.value = -1;
   loading.value = true;
   try {
-    const params = new URLSearchParams();
-    if (dateStart.value) params.set("start", dateStart.value);
-    if (dateEnd.value) params.set("end", dateEnd.value);
-    params.set("page", String(p));
-    params.set("per_page", String(perPage.value));
-    const res = await fetch(`${API}/sales/filter?${params}`);
+    const res = await fetch(`${API}/sales/filter?${pageParams(p)}`);
     if (!res.ok) throw new Error(`Server error (${res.status})`);
     const data = await res.json();
     sales.value = data.data || [];
@@ -814,6 +838,9 @@ const CUSTOMER_CHANGE_REASONS = [
   { value: "customer_asked", label: "Customer asked" },
   { value: "other", label: "Other" },
 ];
+function changeReasonLabel(code) {
+  return CUSTOMER_CHANGE_REASONS.find((r) => r.value === code)?.label || code;
+}
 const changeDialogOpen = ref(false);
 const changingCustomer = ref(false);
 const chosenCustomer = ref(null);
@@ -907,12 +934,28 @@ async function saveCustomerChange() {
     if (row) row.customer = customer;
     changeDialogOpen.value = false;
     showToast(body.customer ? `Customer changed to ${body.customer.name}` : "Customer removed from the sale");
+    await refreshCustomerChanges(sale.id);
   } catch (e) {
     changeError.value = e instanceof TypeError
       ? "Could not reach the server. Check the connection and try again."
       : e.message || "Could not change the customer.";
   } finally {
     changingCustomer.value = false;
+  }
+}
+
+// The server writes who and when, so the new entry is read back from it. Only the list is updated, so
+// the open sale, the selection and the page stay where they are. A failure is not worth an error:
+// the change itself is saved, and the list shows after the next load.
+async function refreshCustomerChanges(saleId) {
+  try {
+    const res = await fetch(`${API}/sales/filter?${pageParams(currentPage.value)}`);
+    if (!res.ok) return;
+    const fresh = (await res.json()).data?.find((s) => s.id === saleId);
+    const row = sales.value.find((s) => s.id === saleId);
+    if (fresh && row) row.customer_changes = fresh.customer_changes || [];
+  } catch {
+    // keep what is shown
   }
 }
 
