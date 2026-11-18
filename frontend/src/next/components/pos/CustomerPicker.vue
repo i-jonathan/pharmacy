@@ -1,5 +1,5 @@
 <template>
-  <div v-if="canLookup || modelValue" class="px-4 py-1.5" @keydown.esc.stop="close">
+  <div v-if="canLookup || modelValue" class="px-4 py-1.5" @keydown.esc="onEscape">
     <!-- Finding a customer -->
     <div v-if="mode === 'search'" class="space-y-1.5">
       <div class="flex items-center gap-2">
@@ -239,6 +239,13 @@ function reset() {
   error.value = "";
   newName.value = "";
   newPhone.value = "";
+}
+
+// Escape closes an open search or form and goes no further. When the picker is idle inside the
+// change-customer dialog it is left to reach the dialog, so Escape still closes that.
+function onEscape(event) {
+  if (mode.value !== "idle" || !props.savedSale) event.stopPropagation();
+  close();
 }
 
 function close() {
