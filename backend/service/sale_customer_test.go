@@ -268,7 +268,7 @@ func TestRetryUnderADifferentCustomerIsRefusedNotAnsweredWithTheFirstSave(t *tes
 		saved   *int
 		request int
 	}{
-		"another customer":       {&five, 6},
+		"another customer":        {&five, 6},
 		"a customer, was walk-in": {nil, 5},
 		"walk-in, had a customer": {&five, 0},
 	} {
