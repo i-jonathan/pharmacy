@@ -117,6 +117,27 @@ func (c *saleController) ReprintReceipt(w http.ResponseWriter, r *http.Request) 
 	helper.JSONResponse(w, http.StatusOK, reply)
 }
 
+// ChangeSaleCustomer changes or removes the customer on a saved sale. The sale comes from the
+// address, never from the body.
+func (c *saleController) ChangeSaleCustomer(w http.ResponseWriter, r *http.Request) {
+	saleID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || saleID <= 0 {
+		httperror.BadRequest("Invalid sale id", err).JSONRespond(w)
+		return
+	}
+	var req types.ChangeSaleCustomerRequest
+	if !decodeLimitedJSON(w, r, &req) {
+		return
+	}
+	req.SaleID = saleID
+	customer, err := c.service.ChangeSaleCustomer(r.Context(), req, requestUserID(r))
+	if err != nil {
+		respondServiceError(w, err, "could not change the customer")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, map[string]*types.SaleCustomer{"customer": customer})
+}
+
 func (c *saleController) HoldSaleTransaction(w http.ResponseWriter, r *http.Request) {
 	var heldTransaction types.HoldTransactionRequest
 

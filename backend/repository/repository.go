@@ -108,10 +108,12 @@ type CustomerRepository interface {
 	// CustomerByPhoneTx returns the customer with this normalized phone, or nil.
 	CustomerByPhoneTx(ctx context.Context, tx *sqlx.Tx, phone string) (*types.Customer, error)
 	GetCustomer(ctx context.Context, id int) (types.Customer, error)
-	// GetCustomerTx reads a customer and holds a share lock on it until the transaction ends.
-	GetCustomerTx(ctx context.Context, tx *sqlx.Tx, id int) (types.Customer, error)
-	// FetchCustomerNames returns the names of the given customers, deactivated ones included.
-	FetchCustomerNames(ctx context.Context, ids []int) (map[int]string, error)
+	// GetCustomerRefTx reads a customer's name and whether they are active, and holds a share lock
+	// on the row until the transaction ends.
+	GetCustomerRefTx(ctx context.Context, tx *sqlx.Tx, id int) (types.CustomerRef, error)
+	// FetchCustomerNames returns the names of the given customers, deactivated ones included, on
+	// the caller's transaction.
+	FetchCustomerNames(ctx context.Context, tx *sqlx.Tx, ids []int) (map[int]string, error)
 	ListCustomers(
 		ctx context.Context, filter types.CustomerFilter, limit, offset int,
 	) ([]types.Customer, int, error)
@@ -133,6 +135,13 @@ type SaleRepository interface {
 	FetchSaleByID(ctx context.Context, tx *sqlx.Tx, saleID int) (model.Sale, error)
 	FetchSaleReceiptNumberByID(ctx context.Context, tx *sqlx.Tx, saleID int) (string, error)
 	FetchSaleByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (types.SavedSale, error)
+	// FetchSaleCustomerForUpdateTx reads a sale's receipt number, customer and whether it was made
+	// today, and locks the sale until the transaction ends (sql.ErrNoRows if there is none).
+	FetchSaleCustomerForUpdateTx(
+		ctx context.Context, tx *sqlx.Tx, saleID int,
+	) (types.SaleCustomerState, error)
+	// UpdateSaleCustomerTx sets a sale's customer; nil makes it a walk-in.
+	UpdateSaleCustomerTx(ctx context.Context, tx *sqlx.Tx, saleID int, customerID *int) error
 
 	ReturnRepository
 }

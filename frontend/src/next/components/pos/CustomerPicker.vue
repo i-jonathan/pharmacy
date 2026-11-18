@@ -1,5 +1,5 @@
 <template>
-  <div v-if="canLookup || modelValue" class="px-4 py-1.5" @keydown.esc.stop="close">
+  <div v-if="canLookup || modelValue" class="px-4 py-1.5" @keydown.esc="onEscape">
     <!-- Finding a customer -->
     <div v-if="mode === 'search'" class="space-y-1.5">
       <div class="flex items-center gap-2">
@@ -134,17 +134,22 @@ import { usePermissions } from "../../composables/usePermissions.js";
 import { useConfirm } from "../../composables/useConfirm.js";
 
 // The customer on the sale. modelValue is {id, name, phone, active} or null (a walk-in). Seeing customers
-// (customer:view) is needed to pick one; adding one at the till needs customer:manage.
+// (customer:view) is needed to pick one; adding one at the till needs customer:manage. Where a new
+// customer makes no sense (changing the customer on a saved sale), allowCreate is false.
 const props = defineProps({
   modelValue: { type: Object, default: null },
   disabled: { type: Boolean, default: false },
+  allowCreate: { type: Boolean, default: true },
+  // True when picking for a sale that is already saved: the pick is only a choice until the
+  // person saves it, but a reactivation happens at once.
+  savedSale: { type: Boolean, default: false },
 });
 const emit = defineEmits(["update:modelValue"]);
 
 const { hasPermission } = usePermissions();
 const canLookup = hasPermission("customer:view");
-const canCreate = hasPermission("customer:manage");
-const canManage = canCreate;
+const canManage = hasPermission("customer:manage");
+const canCreate = computed(() => props.allowCreate && canManage);
 const { confirm } = useConfirm();
 
 const mode = ref("idle"); // idle | search | new
@@ -178,13 +183,12 @@ async function search() {
   searching.value = true;
   try {
     // Deactivated customers are listed too, marked, so the cashier learns it before saving a sale.
-    const r = await fetch(`/customers/?q=${encodeURIComponent(text)}&inactive=1`);
+    // The server puts the active ones first, so a page of matches never fills with deactivated ones.
+    const r = await fetch(`/customers/?q=${encodeURIComponent(text)}&inactive=1&active_first=1`);
     if (!r.ok) throw new Error((await readError(r, "Could not search customers.")).message);
     const body = await r.json();
     if (mine !== searchCount) return;
-    // Active customers first, so deactivated ones never crowd them out of the short list.
-    const found = body.data || [];
-    results.value = [...found.filter((c) => c.active !== false), ...found.filter((c) => c.active === false)];
+    results.value = body.data || [];
     searched.value = true;
   } catch (e) {
     if (mine === searchCount) error.value = e.message || "Could not search customers.";
@@ -236,6 +240,13 @@ function reset() {
   newPhone.value = "";
 }
 
+// Escape closes an open search or form and goes no further. When the picker is idle inside the
+// change-customer dialog it is left to reach the dialog, so Escape still closes that.
+function onEscape(event) {
+  if (mode.value !== "idle" || !props.savedSale) event.stopPropagation();
+  close();
+}
+
 function close() {
   if (mode.value === "idle") return;
   reset();
@@ -265,10 +276,12 @@ async function reactivate(c) {
   const mine = createCount;
   await confirm({
     title: "Reactivate customer?",
-    message: "They will be reactivated and added to this sale.",
+    message: props.savedSale
+      ? "They will be reactivated now and chosen for this sale. The sale itself changes only when you save."
+      : "They will be reactivated and added to this sale.",
     detail: c.name,
     tone: "warning",
-    confirmLabel: "Reactivate and add",
+    confirmLabel: props.savedSale ? "Reactivate and choose" : "Reactivate and add",
     busyLabel: "Saving…",
     run: async () => {
       let r;

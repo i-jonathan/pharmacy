@@ -10,7 +10,10 @@
     "backend/db/migrations/*customers*",
     "frontend/src/next/components/pos/CustomerPicker.vue",
     "frontend/src/next/lib/phone.js",
-    "backend/db/migrations/*sales_customer*"
+    "backend/db/migrations/*sales_customer*",
+    "backend/db/migrations/*sale_customer*",
+    "backend/service/sale_customer*",
+    "backend/adapter/http/router/sales_test.go"
   ],
   "purchase-orders": [
     "frontend/src/next/views/PurchaseOrders.vue",

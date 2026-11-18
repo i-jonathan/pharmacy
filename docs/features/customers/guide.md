@@ -12,6 +12,8 @@ Keep a list of the pharmacy's customers: their name, phone number, email, any no
 | Manager | The same |
 | Admin | The same |
 
+Fixing the customer on a sale that is already saved: a cashier can do it for a sale made today. A manager or an admin can do it for a sale from any day.
+
 A user whose role has neither permission does not see **Customers** in the menu and has no customer box at the till: their sales are walk-in sales. Picking a customer at the till needs permission to see customers; adding a new one there needs permission to manage them. An administrator can change who has access in Administration → Permissions.
 
 ## Where to find it
@@ -67,6 +69,20 @@ A held sale keeps its customer. A sale with no customer is a walk-in: nothing is
 
 Choose a sale in **Sales History**: **Customer** shows beside the cashier and the date. **Reprint receipt** prints the copy with **Customer: <name>**.
 
+### Change or remove the customer on a saved sale
+
+Use this when the wrong customer was put on a sale and the sale is already saved.
+
+1. Open **Sales History** and choose the sale.
+2. In the sale details, beside **Customer:** (or **Walk-in customer**), choose **Change**.
+3. In **Customer on this sale**, choose **Change** and search for the right customer, or choose **x** to take the customer off so the sale becomes a walk-in sale. On a walk-in sale, choose **Add customer**.
+4. Under **Reason**, choose **Picked by mistake**, **Customer asked** or **Other**. You can add a few words of detail. For **Other** the words are required.
+5. Choose **Save**.
+
+**You'll see:** "Customer changed to <name>" (or "Customer removed from the sale") at the bottom of the page, and the new name in the sale details. **Reprint receipt** now prints the new customer.
+
+**Save** stays off until you have chosen a different customer and a reason. **Change** only shows if you may see and manage customers. For a sale from an earlier day it shows only for a manager or an admin. A deactivated customer cannot be put on a sale, but one who is already on the sale can be taken off. A manager can reactivate a deactivated customer from the search, the same way as at the till. Reactivating happens at once, even if you then close the box without saving; only the sale waits for **Save**.
+
 ### Deactivate a customer
 
 Use this for someone who should no longer be on the list, for example a duplicate entry or a customer who asked to be left out.
@@ -81,6 +97,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 - Every add, change, deactivation and reactivation is recorded with who did it and when. Whether a customer agreed to be contacted is recorded each time it changes.
 - A sale with a customer shows that customer in Sales History, and the receipt (and every reprint) prints **Customer: <name>**. A walk-in sale prints no customer line.
 - Only people who may see customers see the customer on Sales History and reprints.
+- Every change of the customer on a saved sale is recorded with who did it, when, the reason, the receipt number, and which customer it was and became. Nobody can see that record on a screen yet (T-127).
 
 ## Rules and limits
 
@@ -88,7 +105,8 @@ Use this for someone who should no longer be on the list, for example a duplicat
 - Each phone number belongs to one customer. This includes deactivated customers, so a number is never handed to someone else by mistake. A second person who shares a number can be added without a phone, with a note.
 - A Nigerian phone number has 10 digits after the first 0 (11 with the 0): `0803 123 4567`. A number from another country must start with `+` and the country code.
 - Customers are never deleted, only deactivated. A deactivated customer is shown at the till marked **Deactivated** and cannot be put on a sale until they are reactivated.
-- The customer on a saved sale cannot be changed or removed yet (T-124).
+- A cashier can change the customer only on a sale made today. A sale from an earlier day needs a manager or an admin. "Today" is the same day Sales History shows for the sale.
+- Changing the customer does not change the sale's items, payments, stock or totals.
 - Someone who cannot see customers prints a reprint without the customer line. If they resume a held sale that has a customer, the till says it will be recorded as a walk-in; holding it again keeps the customer for someone who can see customers.
 - You can see the list with permission to see customers; adding and changing needs permission to manage customers. Someone who can only see customers sees the details but no **Add customer**, **Save changes** or **Deactivate** buttons.
 
@@ -104,9 +122,15 @@ Use this for someone who should no longer be on the list, for example a duplicat
 | Enter a valid email address, or leave it empty | The email is not written like an address. | Correct it or clear the box. |
 | This customer was changed by someone else; reload and try again. Your changes are still in the form. Save again to replace theirs, or close this panel to keep theirs. | Another person saved a change first. | Your typing is kept. Look at the list to see what they changed, then either save again to replace their change or close the panel to keep theirs. |
 | This customer has been deactivated; remove them from the sale, or ask a manager to reactivate them | The customer was deactivated after you picked them, while the sale was open. The sale was not saved. | Choose **Reactivate** beside the customer in the sale (or remove them with the **x**), then complete the sale. |
-| This sale was already saved with a different customer; check Sales History before selling again | The sale was saved a moment ago (the connection dropped before you saw it) and you have since changed the customer on this screen. | Open Sales History, find the sale and check it. It cannot be changed yet (T-124). Do not sell it again. The till empties the sale for you, because it was already saved. |
+| This sale was already saved with a different customer; check Sales History before selling again | The sale was saved a moment ago (the connection dropped before you saw it) and you have since changed the customer on this screen. | Open Sales History, find the sale and check it. If the customer is wrong, change it there. Do not sell it again. The till empties the sale for you, because it was already saved. |
 | You are not allowed to attach customers to a sale | Your role cannot see customers. | Sell as a walk-in, or ask an administrator. |
 | You are not allowed to change customers | Your role may see customers but not change them. | Ask a manager or an administrator. |
+| You are not allowed to change a sale's customer / You are not allowed to see or change a sale's customer | Your role cannot manage customers, or cannot see them. | Ask a manager or an administrator. |
+| Only a manager can change the customer on an earlier day's sale | The sale was made on an earlier day and you are a cashier. | Ask a manager to change it. |
+| Someone else changed this sale's customer; check who is on it now before changing it again | Another person changed the customer after you opened the sale. Nothing was saved. | Sales History reloads and shows the customer as it is now. Check it, and change it again only if it is still wrong. |
+| Choose a reason for the change / Say why the customer is changed | No reason was chosen, or **Other** has no words. | Choose a reason, and write a few words for **Other**. |
+| This customer has been deactivated; choose another, or ask a manager to reactivate them | You picked a customer who was deactivated. | Pick someone else, or ask a manager to reactivate them. |
+| Customer was not found | The customer or the sale no longer exists. | Search again. |
 | Could not reach the server. Check the connection, then check the list before trying again. | The connection dropped while saving. | Look in the list to see whether the customer was saved before you add them again. |
 
 ## Questions people ask
@@ -117,8 +141,10 @@ Use this for someone who should no longer be on the list, for example a duplicat
 
 **Does the customer's name always print on the receipt?** Only when a customer is on the sale. Their phone number is never printed.
 
-**I picked the wrong customer and already completed the sale.** It cannot be changed yet; this is planned (T-124).
+**I picked the wrong customer and already completed the sale.** Open the sale in Sales History and choose **Change** beside the customer. See "Change or remove the customer on a saved sale". A cashier can do this on the same day; an earlier day's sale needs a manager.
+
+**Can I see who changed a customer on a sale?** Not on a screen yet (T-127). It is recorded.
 
 ## Related
 
-- Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121), change the customer on a saved sale (T-124).
+- Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121), see who changed a sale's customer (T-127).

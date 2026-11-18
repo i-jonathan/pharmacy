@@ -397,7 +397,7 @@ func TestReadingCustomersNeedsTheViewPermission(t *testing.T) {
 	} else {
 		requireHTTPStatus(t, err, http.StatusForbidden)
 	}
-	if _, err := svc.ListCustomers(contextWith(), "", false, 1); err == nil {
+	if _, err := svc.ListCustomers(contextWith(), "", false, false, 1); err == nil {
 		t.Error("ListCustomers should be refused")
 	} else {
 		requireHTTPStatus(t, err, http.StatusForbidden)
@@ -433,7 +433,9 @@ func TestListCustomersSearchesNamesByTextAndPhonesByDigits(t *testing.T) {
 		{"7038", types.CustomerFilter{PhoneDigits: "7038"}},
 	} {
 		repo := &fakeCustomerRepo{}
-		_, err := newCustomerService(repo).ListCustomers(viewerOfCustomers(), tc.search, false, 1)
+		_, err := newCustomerService(
+			repo,
+		).ListCustomers(viewerOfCustomers(), tc.search, false, false, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -447,7 +449,7 @@ func TestListCustomersPagesAndOnlyShowsDeactivatedWhenAsked(t *testing.T) {
 	repo := &fakeCustomerRepo{}
 	svc := newCustomerService(repo)
 
-	page, err := svc.ListCustomers(viewerOfCustomers(), "", true, 3)
+	page, err := svc.ListCustomers(viewerOfCustomers(), "", true, false, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -462,9 +464,18 @@ func TestListCustomersPagesAndOnlyShowsDeactivatedWhenAsked(t *testing.T) {
 		)
 	}
 
+	// Only the till asks for active customers first.
+	if repo.listed.ActiveFirst {
+		t.Fatal("the active-first order is off unless asked for")
+	}
+	if _, err = svc.ListCustomers(viewerOfCustomers(), "", true, true, 1); err != nil ||
+		!repo.listed.ActiveFirst {
+		t.Fatalf("active first should reach the repository: %+v, %v", repo.listed, err)
+	}
+
 	// A page number that is nonsense falls back to the first page instead of an odd offset.
 	for _, bad := range []int{0, -4, maxCustomerPage + 1} {
-		if page, err = svc.ListCustomers(viewerOfCustomers(), "", false, bad); err != nil ||
+		if page, err = svc.ListCustomers(viewerOfCustomers(), "", false, false, bad); err != nil ||
 			page.Page != 1 || repo.offset != 0 {
 			t.Errorf("page %d gave page %d offset %d err %v", bad, page.Page, repo.offset, err)
 		}

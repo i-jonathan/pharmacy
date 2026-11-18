@@ -61,18 +61,21 @@ func (r *customerSaleRepo) CreateSaleTx(_ context.Context, _ *sqlx.Tx, s model.S
 func (r *customerSaleRepo) FetchSaleByKeyTx(
 	context.Context, *sqlx.Tx, string,
 ) (types.SavedSale, error) {
+	if !r.duplicate {
+		return types.SavedSale{}, sql.ErrNoRows // the key was never used
+	}
 	return types.SavedSale{ReceiptNumber: "2490-7777", CustomerID: r.savedFor}, nil
 }
 
-func (r *customerSaleRepo) GetCustomerTx(
+func (r *customerSaleRepo) GetCustomerRefTx(
 	_ context.Context, _ *sqlx.Tx, id int,
-) (types.Customer, error) {
+) (types.CustomerRef, error) {
 	r.sawCustomer = append(r.sawCustomer, id)
 	c, ok := r.customers[id]
 	if !ok {
-		return types.Customer{}, sql.ErrNoRows
+		return types.CustomerRef{}, sql.ErrNoRows
 	}
-	return c, nil
+	return types.CustomerRef{ID: c.ID, Name: c.Name, Active: c.Active}, nil
 }
 
 func (r *customerSaleRepo) FetchPriceByID(context.Context, int) (model.ProductPrice, error) {
@@ -141,7 +144,7 @@ func (r *customerSaleRepo) BulkFetchUserByIDTx(
 }
 
 func (r *customerSaleRepo) FetchCustomerNames(
-	_ context.Context, ids []int,
+	_ context.Context, _ *sqlx.Tx, ids []int,
 ) (map[int]string, error) {
 	r.namesFetched++
 	r.namesAsked = append(r.namesAsked, ids)
@@ -201,8 +204,41 @@ func TestSaleWithACustomerNeedsPermissionToSeeCustomers(t *testing.T) {
 	repo := &customerSaleRepo{customers: activeCustomers()}
 	_, err := NewSaleService(repo).CreateSale(contextWith(), saleFor(5))
 	requireHTTPStatus(t, err, http.StatusForbidden)
-	if repo.begins != 0 || len(repo.sales) != 0 {
-		t.Fatal("nothing should be started or saved")
+	// The key is looked up first, so a retry of a saved sale can still be answered; this one is new,
+	// so nothing is inserted and nothing is committed.
+	if len(repo.sales) != 0 || repo.commits != 0 || repo.rollbacks != 1 {
+		t.Fatalf(
+			"sales %d, commits %d, rollbacks %d",
+			len(repo.sales),
+			repo.commits,
+			repo.rollbacks,
+		)
+	}
+}
+
+func TestRetryOfASavedSaleIsAnsweredEvenIfTheUserCanNoLongerSeeCustomers(t *testing.T) {
+	five := 5
+	repo := &customerSaleRepo{
+		customers: activeCustomers(), duplicate: true, savedFor: &five,
+	}
+	// Their right to see customers was removed after the first save; the reply was lost.
+	receipt, err := NewSaleService(repo).CreateSale(contextWith(), saleFor(5))
+	if err != nil || receipt != "2490-7777" {
+		t.Fatalf("a retry should answer with the first save: %q, %v", receipt, err)
+	}
+	if len(repo.sawCustomer) != 0 || len(repo.sales) != 1 {
+		t.Fatalf("customers read %v, inserts tried %d", repo.sawCustomer, len(repo.sales))
+	}
+}
+
+func TestSaleWithoutAKeyForACustomerTheUserCannotSeeIsRefused(t *testing.T) {
+	repo := &customerSaleRepo{customers: activeCustomers(), duplicate: true}
+	sale := saleFor(5)
+	sale.IdempotencyKey = ""
+	_, err := NewSaleService(repo).CreateSale(contextWith(), sale)
+	requireHTTPStatus(t, err, http.StatusForbidden)
+	if len(repo.sales) != 0 || repo.commits != 0 {
+		t.Fatal("nothing should be saved")
 	}
 }
 

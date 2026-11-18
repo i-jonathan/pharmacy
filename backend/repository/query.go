@@ -163,6 +163,11 @@ const createSaleQuery = `
 	RETURNING id;
 `
 const fetchSaleReceiptNumberByIDQuery = `SELECT receipt_number FROM sales WHERE id = $1`
+const fetchSaleCustomerForUpdateQuery = `
+	SELECT receipt_number, customer_id, created_at::date = CURRENT_DATE AS is_today
+	FROM sales WHERE id = $1 FOR UPDATE
+`
+const updateSaleCustomerQuery = `UPDATE sales SET customer_id = $2 WHERE id = $1`
 const fetchSaleByKeyQuery = `
 	SELECT receipt_number, customer_id FROM sales WHERE idempotency_key = $1
 `
@@ -183,7 +188,8 @@ const bulkCreateSalePaymentQuery = `
 	VALUES (:sale_id, :amount, :payment_method);
 `
 const fetchSalesQuery = `
-  SELECT id, receipt_number, cashier_id, subtotal, discount, total, customer_id, created_at
+  SELECT id, receipt_number, cashier_id, subtotal, discount, total, customer_id, created_at,
+    created_at::date = CURRENT_DATE AS is_today
   FROM sales
   WHERE
     ($1::date IS NULL OR created_at::date >= $1::date)

@@ -23,6 +23,7 @@ const (
 	customerMigration        = 47
 	overReceiptMigration     = 48
 	salesCustomerMigration   = 49
+	saleOldCustomerMigration = 50
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -532,5 +533,39 @@ func TestSalesCustomerMigration(t *testing.T) {
 	testdb.Migrate(t, db, salesCustomerMigration-1, salesCustomerMigration)
 	if n := count(t, db, `SELECT count(*) FROM pg_indexes WHERE indexname = 'sales_customer_idx'`); n != 1 {
 		t.Fatalf("expected the index again after re-applying, got %d", n)
+	}
+}
+
+func TestSaleOldCustomerMigration(t *testing.T) {
+	db := testdb.New(t, saleOldCustomerMigration-1)
+	testdb.Migrate(t, db, saleOldCustomerMigration-1, saleOldCustomerMigration)
+
+	grants := func() string {
+		var rows []string
+		err := db.Select(&rows, `
+			SELECT r.name || ':' || lower(p.resource || ':' || p.action)
+			FROM role_permissions rp
+			JOIN roles r ON r.id = rp.role_id
+			JOIN permissions p ON p.id = rp.permission_id
+			WHERE p.resource = 'Sale'
+			ORDER BY 1`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.Join(rows, ",")
+	}
+	// Managers and admins only: the key is the permission lowercased, as at sign-in.
+	want := "Admin:sale:changeoldcustomer,Manager:sale:changeoldcustomer"
+	if got := grants(); got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+
+	testdb.Rollback(t, db, saleOldCustomerMigration)
+	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'Sale'`); n != 0 {
+		t.Fatalf("rolling back must remove the permission, found %d", n)
+	}
+	testdb.Migrate(t, db, saleOldCustomerMigration-1, saleOldCustomerMigration)
+	if got := grants(); got != want {
+		t.Fatalf("expected %s again after re-applying, got %s", want, got)
 	}
 }

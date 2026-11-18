@@ -16,6 +16,8 @@ type Sale struct {
 	Total          int     `db:"total"`
 	IdempotencyKey *string `db:"idempotency_key"`
 	CustomerID     *int    `db:"customer_id"`
+	// IsToday is read only by Sales History: whether the database dates the sale today.
+	IsToday bool `db:"is_today"`
 
 	SaleItems []SaleItem
 	Payments  []SalePayment
