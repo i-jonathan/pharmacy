@@ -30,7 +30,10 @@ func (c *customerController) ListCustomers(w http.ResponseWriter, r *http.Reques
 	query := r.URL.Query()
 	page, _ := strconv.Atoi(query.Get("page"))
 	includeInactive := query.Get("inactive") == "1" || query.Get("inactive") == "true"
-	result, err := c.service.ListCustomers(r.Context(), query.Get("q"), includeInactive, page)
+	activeFirst := query.Get("active_first") == "1" || query.Get("active_first") == "true"
+	result, err := c.service.ListCustomers(
+		r.Context(), query.Get("q"), includeInactive, activeFirst, page,
+	)
 	if err != nil {
 		respondServiceError(w, err, "could not fetch customers")
 		return

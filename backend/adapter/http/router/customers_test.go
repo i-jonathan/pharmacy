@@ -20,6 +20,8 @@ type fakeCustomerService struct {
 	search  string
 	showOff bool
 	page    int
+
+	activeFirst bool
 }
 
 func (f *fakeCustomerService) CreateCustomer(
@@ -49,9 +51,9 @@ func (f *fakeCustomerService) GetCustomer(_ context.Context, id int) (types.Cust
 }
 
 func (f *fakeCustomerService) ListCustomers(
-	_ context.Context, search string, includeInactive bool, page int,
+	_ context.Context, search string, includeInactive, activeFirst bool, page int,
 ) (types.CustomerPage, error) {
-	f.search, f.showOff, f.page = search, includeInactive, page
+	f.search, f.showOff, f.activeFirst, f.page = search, includeInactive, activeFirst, page
 	return types.CustomerPage{Page: page, Data: []types.Customer{}}, nil
 }
 
@@ -147,12 +149,15 @@ func TestDeactivateAndReactivateRoutes(t *testing.T) {
 func TestListCustomersRoutePassesTheSearchAndPage(t *testing.T) {
 	svc := &fakeCustomerService{}
 	req := withSession(t,
-		httptest.NewRequest(http.MethodGet, "/customers/?q=0803&page=2&inactive=1", nil),
+		httptest.NewRequest(
+			http.MethodGet, "/customers/?q=0803&page=2&inactive=1&active_first=1", nil,
+		),
 		constant.ViewCustomersPermissionKey)
 
 	rec := serve(InitCustomerRouter(svc, errorPage), req)
 
-	if rec.Code != http.StatusOK || svc.search != "0803" || svc.page != 2 || !svc.showOff {
+	if rec.Code != http.StatusOK || svc.search != "0803" || svc.page != 2 || !svc.showOff ||
+		!svc.activeFirst {
 		t.Fatalf(
 			"got %d, search %q, page %d, inactive %v",
 			rec.Code,

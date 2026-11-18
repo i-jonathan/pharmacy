@@ -183,13 +183,12 @@ async function search() {
   searching.value = true;
   try {
     // Deactivated customers are listed too, marked, so the cashier learns it before saving a sale.
-    const r = await fetch(`/customers/?q=${encodeURIComponent(text)}&inactive=1`);
+    // The server puts the active ones first, so a page of matches never fills with deactivated ones.
+    const r = await fetch(`/customers/?q=${encodeURIComponent(text)}&inactive=1&active_first=1`);
     if (!r.ok) throw new Error((await readError(r, "Could not search customers.")).message);
     const body = await r.json();
     if (mine !== searchCount) return;
-    // Active customers first, so deactivated ones never crowd them out of the short list.
-    const found = body.data || [];
-    results.value = [...found.filter((c) => c.active !== false), ...found.filter((c) => c.active === false)];
+    results.value = body.data || [];
     searched.value = true;
   } catch (e) {
     if (mine === searchCount) error.value = e.message || "Could not search customers.";

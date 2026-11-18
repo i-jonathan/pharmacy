@@ -108,10 +108,12 @@ type CustomerRepository interface {
 	// CustomerByPhoneTx returns the customer with this normalized phone, or nil.
 	CustomerByPhoneTx(ctx context.Context, tx *sqlx.Tx, phone string) (*types.Customer, error)
 	GetCustomer(ctx context.Context, id int) (types.Customer, error)
-	// GetCustomerTx reads a customer and holds a share lock on it until the transaction ends.
-	GetCustomerTx(ctx context.Context, tx *sqlx.Tx, id int) (types.Customer, error)
-	// FetchCustomerNames returns the names of the given customers, deactivated ones included.
-	FetchCustomerNames(ctx context.Context, ids []int) (map[int]string, error)
+	// GetCustomerRefTx reads a customer's name and whether they are active, and holds a share lock
+	// on the row until the transaction ends.
+	GetCustomerRefTx(ctx context.Context, tx *sqlx.Tx, id int) (types.CustomerRef, error)
+	// FetchCustomerNames returns the names of the given customers, deactivated ones included, on
+	// the caller's transaction.
+	FetchCustomerNames(ctx context.Context, tx *sqlx.Tx, ids []int) (map[int]string, error)
 	ListCustomers(
 		ctx context.Context, filter types.CustomerFilter, limit, offset int,
 	) ([]types.Customer, int, error)

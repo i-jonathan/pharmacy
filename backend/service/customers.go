@@ -284,7 +284,7 @@ func (s *customerService) GetCustomer(ctx context.Context, id int) (types.Custom
 }
 
 func (s *customerService) ListCustomers(
-	ctx context.Context, search string, includeInactive bool, page int,
+	ctx context.Context, search string, includeInactive, activeFirst bool, page int,
 ) (types.CustomerPage, error) {
 	if err := requireCustomerViewer(ctx); err != nil {
 		return types.CustomerPage{}, err
@@ -294,6 +294,7 @@ func (s *customerService) ListCustomers(
 	}
 	filter := customerFilter(search)
 	filter.IncludeInactive = includeInactive
+	filter.ActiveFirst = activeFirst
 
 	customers, total, err := s.repo.ListCustomers(
 		ctx, filter, customersPerPage, (page-1)*customersPerPage,

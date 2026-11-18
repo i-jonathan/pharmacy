@@ -92,7 +92,7 @@ func TestCustomerLifecycleAgainstTheDatabase(t *testing.T) {
 		// 803 not at the start of the number matches wherever it appears; 0803 only at the start.
 		"803": 2, "2348031234": 1, "0703": 1, "0": 2, "+234": 2, "+44": 0,
 	} {
-		page, err := svc.ListCustomers(customerCtx, search, false, 1)
+		page, err := svc.ListCustomers(customerCtx, search, false, false, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -141,10 +141,10 @@ func TestCustomerLifecycleAgainstTheDatabase(t *testing.T) {
 	if err = svc.SetCustomerActive(customerCtx, ada, 3, false, f.uid); err != nil {
 		t.Fatal(err)
 	}
-	if page, _ := svc.ListCustomers(customerCtx, "ada", false, 1); page.TotalCount != 0 {
+	if page, _ := svc.ListCustomers(customerCtx, "ada", false, false, 1); page.TotalCount != 0 {
 		t.Errorf("deactivated customers are hidden by default, found %d", page.TotalCount)
 	}
-	if page, _ := svc.ListCustomers(customerCtx, "ada", true, 1); page.TotalCount != 1 {
+	if page, _ := svc.ListCustomers(customerCtx, "ada", true, false, 1); page.TotalCount != 1 {
 		t.Errorf("deactivated customers show when asked, found %d", page.TotalCount)
 	}
 	_, err = svc.CreateCustomer(
@@ -198,7 +198,7 @@ func TestTwoRequestsForTheSamePhoneSaveOneCustomer(t *testing.T) {
 	if saved != 1 {
 		t.Fatalf("exactly one request should save the customer, %d did", saved)
 	}
-	page, _ := svc.ListCustomers(customerCtx, "", true, 1)
+	page, _ := svc.ListCustomers(customerCtx, "", true, false, 1)
 	if page.TotalCount != 1 {
 		t.Fatalf("expected one customer, found %d", page.TotalCount)
 	}
@@ -216,7 +216,19 @@ func TestListCustomersWithDeactivatedPutsActiveFirst(t *testing.T) {
 	}
 	active := mustCreate(t, svc, f.uid, types.CustomerRequest{Name: "Olawale"})
 
-	page, err := svc.ListCustomers(customerCtx, "ola", true, 1)
+	// Without the till's ask, the Customers page keeps one alphabetical list.
+	alphabetical, err := svc.ListCustomers(customerCtx, "ola", true, false, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if alphabetical.Data[0].Active || alphabetical.Data[0].Name != "Ola A" {
+		t.Fatalf(
+			"expected one alphabetical list starting with Ola A, got %+v",
+			alphabetical.Data[0],
+		)
+	}
+
+	page, err := svc.ListCustomers(customerCtx, "ola", true, true, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,8 +255,8 @@ func TestListCustomersPages(t *testing.T) {
 			},
 		)
 	}
-	first, _ := svc.ListCustomers(customerCtx, "", false, 1)
-	second, _ := svc.ListCustomers(customerCtx, "", false, 2)
+	first, _ := svc.ListCustomers(customerCtx, "", false, false, 1)
+	second, _ := svc.ListCustomers(customerCtx, "", false, false, 2)
 	if first.TotalCount != 27 || len(first.Data) != 25 || len(second.Data) != 2 {
 		t.Fatalf(
 			"total %d, page sizes %d and %d",

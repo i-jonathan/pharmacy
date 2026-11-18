@@ -18,6 +18,14 @@ type Customer struct {
 	UpdatedAt        time.Time  `json:"updated_at"         db:"updated_at"`
 }
 
+// CustomerRef is the part of a customer a sale needs: who they are and whether they may be put
+// on a sale. It is read instead of the whole row, which holds phone, email and notes.
+type CustomerRef struct {
+	ID     int    `db:"id"`
+	Name   string `db:"name"`
+	Active bool   `db:"active"`
+}
+
 // CustomerRequest adds a customer (ID 0) or edits one; an edit sends the version it loaded.
 type CustomerRequest struct {
 	ID             int    `json:"id"`
@@ -60,4 +68,8 @@ type CustomerFilter struct {
 	PhonePrefix     string
 	PhoneDigits     string
 	IncludeInactive bool
+	// ActiveFirst lists active customers before deactivated ones (each group by name); otherwise
+	// the list is one alphabetical run. The till asks for it so a page of matches never fills
+	// with deactivated customers ahead of an active one.
+	ActiveFirst bool
 }

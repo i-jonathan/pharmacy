@@ -58,8 +58,10 @@ type CustomerService interface {
 	SetCustomerActive(ctx context.Context, id, version int, active bool, userID int) error
 	GetCustomer(ctx context.Context, id int) (types.Customer, error)
 	// ListCustomers searches names (text) or phone numbers (digits) and pages the result.
+	// activeFirst lists active customers before deactivated ones (the till); otherwise one
+	// alphabetical list.
 	ListCustomers(
-		ctx context.Context, search string, includeInactive bool, page int,
+		ctx context.Context, search string, includeInactive, activeFirst bool, page int,
 	) (types.CustomerPage, error)
 }
 

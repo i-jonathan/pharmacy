@@ -32,11 +32,6 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	if saleParams.CustomerID < 0 {
 		return "", badRequest("customer was not found")
 	}
-	// Seeing customers is what lets a cashier pick one; a user without it sells to walk-ins.
-	if saleParams.CustomerID > 0 && !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
-		return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
-	}
-
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
@@ -50,6 +45,19 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	}()
 
 	idempotencyKey := strings.TrimSpace(saleParams.IdempotencyKey)
+
+	// Seeing customers is what lets a cashier pick one; a user without it sells to walk-ins. Only a
+	// new sale is refused: a retry of a saved sale is answered with that sale even if the user's
+	// rights have changed since, so the key is looked up first.
+	if saleParams.CustomerID > 0 && !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		saved, err := s.saleKeyUsed(ctx, tx, idempotencyKey)
+		if err != nil {
+			return "", err
+		}
+		if !saved {
+			return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
+		}
+	}
 
 	sale := model.Sale{
 		Status:         constant.CompleteSaleStatus,
@@ -97,7 +105,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	// Only a new sale is checked: a retry of a saved sale must still be answered with that sale,
 	// whatever has happened to its customer since.
 	if saleParams.CustomerID > 0 {
-		customer, err := s.repo.GetCustomerTx(ctx, tx, saleParams.CustomerID)
+		customer, err := s.repo.GetCustomerRefTx(ctx, tx, saleParams.CustomerID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", badRequest("customer was not found")
 		}
@@ -287,7 +295,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 		}
 
 		// Customers are personal data: only users who may see customers get them.
-		customerNames, err := s.customerNamesFor(ctx, sales)
+		customerNames, err := s.customerNamesFor(ctx, tx, sales)
 		if err != nil {
 			log.Println(err)
 			return httperror.ServerError("fetching customers failed", err)
@@ -473,7 +481,7 @@ func (s *saleService) ChangeSaleCustomer(
 		}
 
 		if req.CustomerID > 0 {
-			customer, err := s.repo.GetCustomerTx(ctx, tx, req.CustomerID)
+			customer, err := s.repo.GetCustomerRefTx(ctx, tx, req.CustomerID)
 			if errors.Is(err, sql.ErrNoRows) {
 				return badRequest("customer was not found")
 			}
@@ -531,6 +539,24 @@ func (s *saleService) ChangeSaleCustomer(
 	return result, nil
 }
 
+// saleKeyUsed says whether a sale was already saved under the retry key. An empty key was never
+// used.
+func (s *saleService) saleKeyUsed(
+	ctx context.Context, tx *sqlx.Tx, key string,
+) (bool, error) {
+	if key == "" {
+		return false, nil
+	}
+	_, err := s.repo.FetchSaleByKeyTx(ctx, tx, key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, httperror.ServerError("failed to check the sale", err)
+	}
+	return true, nil
+}
+
 // sameCustomer says whether a saved sale's customer (nil for a walk-in) is the one a request names
 // (0 for a walk-in).
 func sameCustomer(saved *int, requested int) bool {
@@ -543,7 +569,7 @@ func sameCustomer(saved *int, requested int) bool {
 // customerNamesFor looks up, in one query, the customers of the given sales; nothing is looked up
 // for a user who may not see customers, or when no sale has one.
 func (s *saleService) customerNamesFor(
-	ctx context.Context, sales []model.Sale,
+	ctx context.Context, tx *sqlx.Tx, sales []model.Sale,
 ) (map[int]string, error) {
 	if !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
 		return nil, nil
@@ -559,7 +585,7 @@ func (s *saleService) customerNamesFor(
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	return s.repo.FetchCustomerNames(ctx, ids)
+	return s.repo.FetchCustomerNames(ctx, tx, ids)
 }
 
 // manufacturerName is a product's manufacturer, or empty when none was recorded.
