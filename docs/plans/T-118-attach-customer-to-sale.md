@@ -168,3 +168,12 @@ and pictures, `docs/whats-new/README.md`).
 - [Cin7 Core: add a customer to a POS sale](https://help.core.cin7.com/hc/en-us/articles/10553585082383-Add-a-customer-to-a-POS-sale): walk-in default
 - [Retailcloud: add customer to a sale](https://retailcloud.freshdesk.com/support/solutions/articles/12000005905-add-customer-to-a-sale): partial phone search
 - [Irish DPC: e-receipts guidance](https://www.dataprotection.ie/en/dpc-guidance/guidance-retailers-issuing-e-receipts): keep personal details at checkout optional
+
+## Changed after review (2026-11-18)
+
+The owner reversed the earlier rule that a deactivated customer is hidden at the till. The search now
+lists deactivated customers (`inactive=1`), marked and never pickable. A user with `customer:manage`
+can reactivate one from the till, which attaches them to the sale. A resumed held sale with a
+deactivated customer shows it at once and cannot be completed until they are reactivated or
+removed. The server's 409 `customer_inactive` stays as the backstop. Design:
+`docs/superpowers/specs/2026-11-18-till-deactivated-customers-design.md`.

@@ -27,6 +27,9 @@ const state = reactive({
 });
 let resolver = null;
 let runs = {};
+// Each confirm() takes the next number. A `run` that was still going when a newer dialog replaced
+// its own must not settle, or write its error or busy state into, the newer one.
+let generation = 0;
 
 function settle(answer) {
   state.open = false;
@@ -40,15 +43,16 @@ async function choose(answer) {
   if (state.busy) return;
   const run = runs[answer === true ? "confirm" : "alternate"];
   if (!run) return settle(answer);
+  const mine = generation;
   state.busy = true;
   state.error = "";
   try {
     await run();
-    settle(answer);
+    if (mine === generation) settle(answer);
   } catch (e) {
-    state.error = e?.message || "Something went wrong. Please try again.";
+    if (mine === generation) state.error = e?.message || "Something went wrong. Please try again.";
   } finally {
-    state.busy = false;
+    if (mine === generation) state.busy = false;
   }
 }
 
@@ -67,6 +71,7 @@ export function useConfirm() {
   }) {
     // A second request replaces the first, which counts as cancelled.
     if (resolver) settle(false);
+    generation++;
     runs = { confirm: run, alternate: alternate?.run || null };
     Object.assign(state, {
       open: true,

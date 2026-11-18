@@ -204,6 +204,33 @@ func TestTwoRequestsForTheSamePhoneSaveOneCustomer(t *testing.T) {
 	}
 }
 
+// The till asks for deactivated customers too, one page at a time: the active matches must come
+// first, or enough deactivated ones that sort earlier would push every active one off page 1.
+func TestListCustomersWithDeactivatedPutsActiveFirst(t *testing.T) {
+	svc, f := newCustomerFixture(t)
+	for i := 0; i < 26; i++ {
+		id := mustCreate(t, svc, f.uid, types.CustomerRequest{Name: "Ola " + string(rune('A'+i))})
+		if err := svc.SetCustomerActive(customerCtx, id, 1, false, f.uid); err != nil {
+			t.Fatal(err)
+		}
+	}
+	active := mustCreate(t, svc, f.uid, types.CustomerRequest{Name: "Olawale"})
+
+	page, err := svc.ListCustomers(customerCtx, "ola", true, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.TotalCount != 27 || len(page.Data) != 25 {
+		t.Fatalf("total %d, page size %d", page.TotalCount, len(page.Data))
+	}
+	if page.Data[0].ID != active || !page.Data[0].Active {
+		t.Fatalf("the active customer should be first, got %+v", page.Data[0])
+	}
+	if page.Data[1].Active {
+		t.Fatalf("the rest of the page should be deactivated customers, got %+v", page.Data[1])
+	}
+}
+
 func TestListCustomersPages(t *testing.T) {
 	svc, f := newCustomerFixture(t)
 	for i := 0; i < 27; i++ {

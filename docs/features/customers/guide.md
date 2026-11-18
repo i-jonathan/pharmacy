@@ -57,6 +57,10 @@ If you have typed changes and then open another customer, choose **Add customer*
 
 If the customer is not on the list, choose **Add "<what you typed>" as a new customer**, fill in the name (and phone if they give one) and choose **Save and add to sale**. They are saved on the Customers page and put on the sale in one step. If that phone number already belongs to someone, the box says so and lists that customer so you can pick them.
 
+A customer who was deactivated still appears in the search, greyed out and marked **Deactivated**, below the active matches. You cannot put them on the sale as they are. If you have permission to manage customers, choose **Reactivate** beside them and confirm: they are reactivated and put on the sale in one step. Otherwise the row says **Ask a manager**. Pressing Enter does not take a deactivated customer, even when they are the only match.
+
+A held sale keeps its customer. If that customer was deactivated while the sale was held, the sale shows them marked **Deactivated** as soon as you resume it, and **Complete** stays off until you choose **Reactivate** or remove them with the **x**.
+
 A held sale keeps its customer. A sale with no customer is a walk-in: nothing is printed for the customer.
 
 ### See who bought
@@ -83,7 +87,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 - A name is required, up to 120 characters. Notes can be up to 1,000 characters.
 - Each phone number belongs to one customer. This includes deactivated customers, so a number is never handed to someone else by mistake. A second person who shares a number can be added without a phone, with a note.
 - A Nigerian phone number has 10 digits after the first 0 (11 with the 0): `0803 123 4567`. A number from another country must start with `+` and the country code.
-- Customers are never deleted, only deactivated. A deactivated customer is not found at the till.
+- Customers are never deleted, only deactivated. A deactivated customer is shown at the till marked **Deactivated** and cannot be put on a sale until they are reactivated.
 - The customer on a saved sale cannot be changed or removed yet (T-124).
 - Someone who cannot see customers prints a reprint without the customer line. If they resume a held sale that has a customer, the till says it will be recorded as a walk-in; holding it again keeps the customer for someone who can see customers.
 - You can see the list with permission to see customers; adding and changing needs permission to manage customers. Someone who can only see customers sees the details but no **Add customer**, **Save changes** or **Deactivate** buttons.
@@ -95,11 +99,11 @@ Use this for someone who should no longer be on the list, for example a duplicat
 | Enter the customer's name. | The name box is empty. | Type a name. |
 | Enter a Nigerian number with 11 digits starting 0 (e.g. 0803 123 4567), or a number starting with + and the country code | The phone number has the wrong number of digits or a stray character. | Check the number with the customer and type it again. |
 | This phone number is already saved for <name> | Another customer already has this number. | Search for that customer and change them instead. |
-| This phone number is already saved for <name> (deactivated; reactivate them instead) | The number belongs to a deactivated customer. | Search with **Show deactivated** ticked, open them and choose **Reactivate**. |
+| This phone number is already saved for <name> (deactivated; reactivate them instead) | The number belongs to a deactivated customer. | At the till, they now show in the list marked **Deactivated**: choose **Reactivate**. On the Customers page, search with **Show deactivated** ticked, open them and choose **Reactivate**. |
 | The name, email and notes can't contain control characters | Something invisible was pasted into a box. | Retype the text instead of pasting it. |
 | Enter a valid email address, or leave it empty | The email is not written like an address. | Correct it or clear the box. |
 | This customer was changed by someone else; reload and try again. Your changes are still in the form. Save again to replace theirs, or close this panel to keep theirs. | Another person saved a change first. | Your typing is kept. Look at the list to see what they changed, then either save again to replace their change or close the panel to keep theirs. |
-| This customer has been deactivated; remove them from the sale, or ask a manager to reactivate them | The customer was deactivated after you picked them (for example on a held sale). The sale was not saved. | Remove the customer with the **x**, or ask a manager to reactivate them, then complete the sale. |
+| This customer has been deactivated; remove them from the sale, or ask a manager to reactivate them | The customer was deactivated after you picked them, while the sale was open. The sale was not saved. | Choose **Reactivate** beside the customer in the sale (or remove them with the **x**), then complete the sale. |
 | This sale was already saved with a different customer; check Sales History before selling again | The sale was saved a moment ago (the connection dropped before you saw it) and you have since changed the customer on this screen. | Open Sales History, find the sale and check it. It cannot be changed yet (T-124). Do not sell it again. The till empties the sale for you, because it was already saved. |
 | You are not allowed to attach customers to a sale | Your role cannot see customers. | Sell as a walk-in, or ask an administrator. |
 | You are not allowed to change customers | Your role may see customers but not change them. | Ask a manager or an administrator. |

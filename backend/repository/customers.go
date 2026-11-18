@@ -118,7 +118,8 @@ func (r *repo) GetCustomer(ctx context.Context, id int) (types.Customer, error) 
 }
 
 // ListCustomers returns one page ordered by name, and the number of customers the filter matches
-// in all.
+// in all. When deactivated customers are included they come after the active ones, so a page
+// never fills with them ahead of an active match (the till asks for both on page one).
 func (r *repo) ListCustomers(
 	ctx context.Context, filter types.CustomerFilter, limit, offset int,
 ) ([]types.Customer, int, error) {
@@ -139,7 +140,7 @@ func (r *repo) ListCustomers(
 	customers := []types.Customer{}
 	err = r.Data.SelectContext(ctx, &customers, `
 		SELECT `+customerColumns+` FROM customer`+where+`
-		ORDER BY lower(name), id LIMIT $5 OFFSET $6`,
+		ORDER BY active DESC, lower(name), id LIMIT $5 OFFSET $6`,
 		filter.IncludeInactive, name, filter.PhoneDigits, filter.PhonePrefix, limit, offset)
 	return customers, total, err
 }

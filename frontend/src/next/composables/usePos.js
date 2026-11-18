@@ -2,6 +2,7 @@ import { reactive, computed, ref, onMounted, onUnmounted } from "vue";
 import { csrfFetch } from "../lib/csrf.js";
 import { readError } from "../lib/api.js";
 import { usePermissions } from "./usePermissions.js";
+import { useConfirm } from "./useConfirm.js";
 import { buildReceiptHtml, printReceiptHtml } from "../lib/receipt.js";
 
 const API_BASE = "";
@@ -279,7 +280,15 @@ export function usePos() {
 
   // printReceipt prints the cart as a receipt. Call it before the cart is cleared, with the number
   // the server gave the saved sale (the same one Sales History shows).
-  function printReceipt(receiptNumber) {
+  async function printReceipt(receiptNumber) {
+    // A resumed held sale knows only its customer's id until the name is read. Printing the
+    // placeholder would put the wrong name on the receipt, so read it now or refuse to print.
+    if (customer.value?.named === false) {
+      await refreshCustomer(customer.value.id);
+      if (customer.value?.named === false) {
+        throw new Error("The customer's name could not be read, so the receipt was not printed.");
+      }
+    }
     return printReceiptHtml(
       buildReceiptHtml({
         receiptNumber,
@@ -315,9 +324,10 @@ export function usePos() {
       const resp = await fetch(`${API_BASE}/customers/${id}`);
       if (!resp.ok || customer.value?.id !== id) return;
       const latest = await resp.json();
-      customer.value = { id, name: latest.name, phone: latest.phone || "" };
+      if (customer.value?.id !== id) return;
+      customer.value = { id, name: latest.name, phone: latest.phone || "", active: latest.active };
     } catch {
-      // The saved details are shown instead.
+      // The placeholder stays, and the receipt is not printed until the name is read.
     }
   }
 
@@ -348,8 +358,11 @@ export function usePos() {
     const held = payload.customer;
     if (held && typeof held === "object" && held.id) {
       if (hasPermission("customer:view")) {
-        // Shown as soon as it is read from the customer list; an older held sale kept the name.
-        customer.value = { id: held.id, name: held.name || "Customer", phone: held.phone || "" };
+        // An older held sale kept the name and phone; a newer one keeps only the id, and shows a
+        // placeholder (named: false) until the name is read.
+        customer.value = held.name
+          ? { id: held.id, name: held.name, phone: held.phone || "" }
+          : { id: held.id, name: "Customer", phone: "", named: false };
         refreshCustomer(held.id);
       } else {
         hiddenCustomer.value = { id: held.id };
@@ -378,7 +391,15 @@ export function usePos() {
     Object.assign(shortcutActions, actions);
   }
 
+  const { state: confirmState } = useConfirm();
+
   function onKeyDown(e) {
+    // A dialog is waiting for an answer (for example Reactivate): the sale must not complete or be
+    // held behind it. The key is still taken, so the browser does not reload on F5.
+    if (confirmState.open && (e.key === "F5" || e.key === "F6")) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === "F3") {
       e.preventDefault();
       focusSearch();
