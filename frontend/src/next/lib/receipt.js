@@ -106,7 +106,7 @@ export function buildReceiptHtml(r) {
   ${r.change > 0 ? row("Change", money(r.change)) : ""}
   ${returns}
   <hr/>
-  ${r.customer ? `<div class="center small">${escapeHtml(r.customer)}</div>` : ""}
+  ${r.customer ? `<div class="center small">Customer: ${escapeHtml(r.customer)}</div>` : ""}
   <div class="center small" style="margin-top:6px">Thank you</div>
 </body>
 </html>`;

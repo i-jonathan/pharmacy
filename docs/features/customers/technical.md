@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A stored list of customers (name, phone, email, notes, consent to be contacted) with a screen to manage it. Nothing reads it yet: attaching a customer to a sale is T-118. Staff guide: [guide.md](./guide.md)
+A stored list of customers (name, phone, email, notes, consent to be contacted) with a screen to manage it, and the till attaches a customer to a sale (`sales.customer_id`), so Sales History and receipts know who bought. Staff guide: [guide.md](./guide.md)
 
 ## Overview
 
@@ -25,15 +25,15 @@ flowchart LR
 
 | Layer | Location |
 |---|---|
-| Screens | `frontend/src/next/views/Customers.vue` (list, search, side panel form); `components/PagerBar.vue`; `composables/useConfirm.js` |
+| Screens | `frontend/src/next/views/Customers.vue` (list, search, side panel form); `components/PagerBar.vue`; `composables/useConfirm.js`; at the till `components/pos/CustomerPicker.vue` (used by `CartPanel.vue`), `composables/usePos.js`; `views/SalesHistory.vue` (customer line and reprint); `lib/receipt.js`; `lib/phone.js` (`showPhone`) |
 | Entry points | `components/Sidebar.vue` (Sales section, shown with `customer:view`); `router.js` route `/customers` |
 | Routes | `backend/adapter/http/router/customers.go` `InitCustomerRouter`, mounted at `/customers/` in `main.go`; the Vite dev proxy lists `/customers` in `frontend/vite.config.js` |
 | Controller | `backend/adapter/http/controller/customers.go` |
-| Service | `backend/service/customers.go` (`CustomerService` in `interfaces.go`); the shared `runInTx` and `appendAudit` are in `service/helpers.go` |
+| Service | `backend/service/customers.go` (`CustomerService` in `interfaces.go`); sales: `CreateSale` and `FetchSalesHistory` in `service/sales.go`; the shared `runInTx` and `appendAudit` are in `service/helpers.go` |
 | Phone rules | `backend/model/phone.go` `NormalizePhone` |
 | Repository | `backend/repository/customers.go` (`CustomerRepository` in `repository.go`) |
 | Types | `backend/internal/types/customer.go` |
-| Migrations | `000047_customers` (table, indexes, `Customer/View` and `Customer/Manage` permissions and role grants) |
+| Migrations | `000047_customers` (table, indexes, `Customer/View` and `Customer/Manage` permissions and role grants); `000049_sales_customer` (`sales.customer_id`, index `sales_customer_idx`) |
 | Demo data | `backend/internal/demoseed/demoseed.go` `customers` |
 
 ## Actions
@@ -60,6 +60,26 @@ flowchart LR
 | Data | `customer` (`version = version + 1`, `updated_at`), `audit_log` | The audit entry holds field names, not the old or new phone, email or notes |
 | Response | `204` | On a stale-version 409 the page fetches `GET /customers/:id`, takes its `version`, and keeps what the person typed, with a message saying that saving again replaces the other person's change |
 
+### Attach a customer to a sale
+
+| Step | Where | Detail |
+|---|---|---|
+| Starts | `CustomerPicker.vue` (in `CartPanel.vue`) | Hidden without `customer:view` unless a customer is already on the sale. Search starts at 2 characters, 250 ms debounce, `GET /customers/?q=&inactive=1` (deactivated customers are listed too, after the active ones, shown greyed with a "Deactivated" label and never picked); Enter takes the first result only when it is the only one and is active; "Reactivate" (needs `customer:manage`, else "Ask a manager") opens the shared confirm dialog, reads `GET /customers/:id` for the current `version`, `POST /customers/:id/reactivate`, reads it back and picks it, unless the picker was closed or the sale moved on meanwhile (the `createCount` token); "Add … as a new customer" needs `customer:manage` and `POST /customers/` (on `phone_taken` it shows the message and searches that phone, so the owner appears, with Reactivate when deactivated) |
+| State | `usePos.js` `customer` | `null` or `{id, name, phone}`; cleared by `clearCart`; a held sale stores only `{id}` (the held-sale list is readable by every signed-in user); `restoreHeld` ignores an older typed-text value, restores the customer only for users with `customer:view` (otherwise it is kept in `hiddenCustomer`, not shown or sold to, shown as a note in `CartPanel.vue`, and written back if the sale is held again), and refreshes the name and phone from `GET /customers/:id`. F5 and F6 call the handlers `PosView.vue` registers with `setShortcutActions`, the same ones the buttons use (one request at a time, the server's reason shown, nothing for an empty or unpaid cart) |
+| Request | `POST /sales/` | `completeSale` adds `customer_id` (omitted for a walk-in); 400, 403 and 409 replies pass the server's message and `code` on; on `already_saved` `PosView.vue` clears the cart (the sale is saved) and shows the message. Enter in the picker takes a match only when it is the only one |
+| Gate | `AuthMiddleware` → `AddPermissionsToContext` | Service: `customer_id > 0` needs `customer:view` (403); a negative id is 400 |
+| Service | `CreateSale` | Inserts the sale with `customer_id` (an unknown id is the foreign key failing, mapped to `ErrInvalidReference`, 400). Only when the sale is new, `GetCustomerTx` must find an active customer, or 409 with `code: "customer_inactive"` and the transaction rolls back. A retry of a saved sale (idempotency key) returns before this check: the same customer (or still a walk-in) gets the first save, a different one gets 409 `code: "already_saved"` so the receipt can't disagree with the record |
+| Data | `sales.customer_id` (the customer's row is read `FOR SHARE`, so a deactivation waits for, or is seen by, the sale) | NULL for walk-ins and every sale made before migration 49; no audit entry (sales are not audited) |
+| Response | `{receipt_number}` | Unchanged |
+
+### Show the customer on history and receipts
+
+| Step | Where | Detail |
+|---|---|---|
+| Request | `GET /sales/filter` | `FetchSalesHistory` selects `customer_id` and, only for callers with `customer:view`, makes one `FetchCustomerNames` lookup for the page |
+| Response | `SaleResponse.customer` | `{id, name}` or null; deactivated customers are still named; the name is the current one |
+| Screens | `SalesHistory.vue` | Customer line in the sale details; `receiptFor` passes the name to `receipt.js`, which prints `Customer: <name>` (the phone is never printed). The POS receipt does the same from the picked customer |
+
 ### Deactivate and reactivate
 
 | Step | Where | Detail |
@@ -77,14 +97,14 @@ flowchart LR
 | Request | `GET /customers/?q=&page=&inactive=1` | `GET /customers/:id` reads one |
 | Gate | `RequirePermissions(all, customer:view)` | Service re-checks |
 | Service | `ListCustomers`, `customerFilter` | Text with a letter searches names. Otherwise it is a phone search: a number written from its start with a leading `0` or `+` is anchored with `PhonePrefix` `+234` (or `+` for another country) so `0803` matches only numbers that start `+234803`; any other digits, including ones that begin `234`, match anywhere in the number so the end of a number is always findable; no digits means no filter Pages of 25 (`customersPerPage`); a page below 1 or above `maxCustomerPage` becomes 1 |
-| Data | `ListCustomers` in `repository/customers.go` | `lower(name) LIKE` with `%`, `_` and `\` escaped (`likeEscaper`), or `phone LIKE prefix || digits || '%'` / `'%' || digits || '%'`; ordered by name; count and page are separate queries; deactivated customers only with `inactive` |
+| Data | `ListCustomers` in `repository/customers.go` | `lower(name) LIKE` with `%`, `_` and `\` escaped (`likeEscaper`), or `phone LIKE prefix || digits || '%'` / `'%' || digits || '%'`; ordered by name, and with `inactive` the active customers come first (so a page of 25 never fills with deactivated ones ahead of an active match); count and page are separate queries; deactivated customers only with `inactive` |
 
 ## Permissions
 
 | Key | Default roles | Checked in |
 |---|---|---|
-| `customer:view` | Cashier, Manager, Admin (migration 47, by role name) | Routes (GET), `requireCustomerViewer` in the service, sidebar link and page |
-| `customer:manage` | Cashier, Manager, Admin | Routes (POST, PUT), `requireCustomerManager`, page controls |
+| `customer:view` | Cashier, Manager, Admin (migration 47, by role name) | Routes (GET), `requireCustomerViewer` in the service, sidebar link and page; `CreateSale` (attach a customer) and `FetchSalesHistory` (see the customer); the picker |
+| `customer:manage` | Cashier, Manager, Admin | Routes (POST, PUT), `requireCustomerManager`, page controls; "add a new customer" in the picker |
 
 Keys come from the `permissions` rows `Customer/View` and `Customer/Manage`, lowercased at login. People must sign in again to receive them. Constants are in `internal/constant/permissions.go`.
 
@@ -93,6 +113,7 @@ Keys come from the `permissions` rows `Customer/View` and `Customer/Manage`, low
 | Table | Role in this feature | Notes |
 |---|---|---|
 | `customer` | One row per person | `phone` is stored as `+234…` or `+<country code>…`, NULL when none; unique index `customer_phone_unique` (`WHERE phone IS NOT NULL`) includes deactivated customers; `name` check (`customer_name_check`) refuses blank; `version` starts at 1; no deletes |
+| `sales` | `customer_id BIGINT REFERENCES customer(id)`, nullable | The customer on a sale; the foreign key means a customer with sales can never be deleted (they are only deactivated) |
 | `audit_log` | Append-only history (`entity_type = 'customer'`) | Actions `created`, `updated`, `deactivated`, `reactivated`; written in the same transaction |
 
 ## Invariants and how they're enforced
@@ -122,18 +143,22 @@ Keys come from the `permissions` rows `Customer/View` and `Customer/Manage`, low
 - `model/phone_test.go`: every written form of a Nigerian number, refusals, foreign numbers.
 - `service/customers_test.go`: mock repository; permissions, validation, duplicate phone, version conflict, audit entries, search filter, paging.
 - `service/customers_integration_test.go` (needs `PHARMACY_TEST_DSN`): the real SQL, anchored and anywhere phone search, `LIKE` escaping, the database-stamped consent time, paging, concurrent creates, audit order.
-- `db/migrations_test.go` `TestCustomerMigration`: permissions by role, unique and blank-name rules, rollback.
+- `db/migrations_test.go` `TestCustomerMigration` (permissions by role, unique and blank-name rules, rollback) and `TestSalesCustomerMigration` (nullable column, foreign key, index, rollback and re-apply).
+- `service/sale_customer_test.go`: walk-in, stored customer, permission, negative and unknown ids, deactivated customer rolled back, retry skips the check, history names the customer only with `customer:view`. `service/sale_customer_integration_test.go`: the same against the real database.
 - `adapter/http/router/customers_test.go`: each route's permission and what reaches the service.
-- `internal/demoseed`: the demo shop includes customers.
-- Not covered: the Vue page (the repo has no JS tests); it was checked by hand at desktop and phone width.
+- `internal/demoseed`: the demo shop includes customers, and five demo sales have one.
+- Not covered: the Vue pages and the picker (the repo has no JS tests); they were checked by hand in a browser on demo data.
 
 ## Known gaps
 
-- Nothing uses the list yet — T-118 (attach to a sale), T-119 (history and totals), T-120 (import and merge).
+- The customer on a saved sale cannot be changed or removed — T-124.
+- A customer's own history and totals, and a Sales History filter by customer — T-119. Import and merge — T-120.
+- Sales have no request fingerprint: a retry is compared on its customer only, so other differences (items, payments) still get the first save as before.
 - No way to erase or anonymize a customer on request, or to export what is stored about them — T-121.
 - The audit trail has no screen; it can only be read from the database.
 - Creating a customer has no retry key (see Concurrency and retries) — T-122.
 
 ## History
 
-- T-040 (this PR): the customer table, permissions, service, routes and Customers page. Split from the original card, which also covered the till link, history, import and merge. Plan: `docs/plans/T-040-customer-profiles.md`.
+- T-118: `sales.customer_id`, the customer picker at the till, the customer on Sales History, reprints and receipts. Plan: `docs/plans/T-118-attach-customer-to-sale.md`.
+- T-040: the customer table, permissions, service, routes and Customers page. Split from the original card, which also covered the till link, history, import and merge. Plan: `docs/plans/T-040-customer-profiles.md`.

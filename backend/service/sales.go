@@ -15,6 +15,8 @@ import (
 	"pharmacy/repository"
 	"strings"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type saleService struct {
@@ -26,6 +28,14 @@ func NewSaleService(repo repository.PharmacyRepository) *saleService {
 }
 
 func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (string, error) {
+	if saleParams.CustomerID < 0 {
+		return "", badRequest("customer was not found")
+	}
+	// Seeing customers is what lets a cashier pick one; a user without it sells to walk-ins.
+	if saleParams.CustomerID > 0 && !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
@@ -51,9 +61,16 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	if idempotencyKey != "" {
 		sale.IdempotencyKey = &idempotencyKey
 	}
+	if saleParams.CustomerID > 0 {
+		customerID := saleParams.CustomerID
+		sale.CustomerID = &customerID
+	}
 	sale.GenerateReceiptNumber()
 
 	saleID, err := s.repo.CreateSaleTx(ctx, tx, sale)
+	if errors.Is(err, repository.ErrInvalidReference) {
+		return "", badRequest("customer was not found")
+	}
 	if err != nil {
 		log.Println(err)
 		return "", httperror.ServerError("failed to create sale", err)
@@ -61,11 +78,40 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	if saleID == 0 {
 		log.Printf("duplicate sale idempotency key ignored: %s", idempotencyKey)
 		// The sale is saved, so a retry succeeds as it always did; only the number may be missing.
-		receipt, err := s.repo.FetchSaleReceiptNumberByKeyTx(ctx, tx, idempotencyKey)
+		saved, err := s.repo.FetchSaleByKeyTx(ctx, tx, idempotencyKey)
 		if err != nil {
 			log.Println(err)
+			return "", nil
 		}
-		return receipt, nil
+		// A retry that names a different customer is not the sale that was saved: answering it with
+		// the first save would leave the receipt and the record disagreeing.
+		if !sameCustomer(saved.CustomerID, saleParams.CustomerID) {
+			return "", alreadySaved(
+				"this sale was already saved with a different customer; check Sales History before selling again",
+			)
+		}
+		return saved.ReceiptNumber, nil
+	}
+
+	// Only a new sale is checked: a retry of a saved sale must still be answered with that sale,
+	// whatever has happened to its customer since.
+	if saleParams.CustomerID > 0 {
+		customer, err := s.repo.GetCustomerTx(ctx, tx, saleParams.CustomerID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", badRequest("customer was not found")
+		}
+		if err != nil {
+			log.Println(err)
+			return "", httperror.ServerError("failed to check the customer", err)
+		}
+		if !customer.Active {
+			refusal := httperror.Conflict(
+				"this customer has been deactivated; remove them from the sale, or ask a manager to reactivate them",
+				errors.New("customer is deactivated"),
+			)
+			refusal.Reason = "customer_inactive"
+			return "", refusal
+		}
 	}
 
 	saleItems := make([]model.SaleItem, len(saleParams.Items))
@@ -131,7 +177,7 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 			log.Println(err)
 		}
 	}
-	err = tx.Commit()
+	err = s.repo.CommitTx(tx)
 	if err != nil {
 		log.Println(err)
 		return "", httperror.ServerError("failed to commit transaction", err)
@@ -141,187 +187,199 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 }
 
 func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFilter) (types.SaleHistory, error) {
-	tx, err := s.repo.BeginTx(ctx)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("Failed to begin transaction", err)
-	}
-
-	// fetch sales
-	sales, err := s.repo.FetchSalesTx(ctx, tx, filter)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("fetching sales failed", err)
-	}
-
-	totalCount, err := s.repo.CountSales(ctx, filter)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("counting sales failed", err)
-	}
-
-	// index sales by sale id and fetch all sale id's to use in getting sale items and payments
-	salesByID := make(map[int]*model.Sale)
-	saleIDs := make([]int, len(sales))
-	cashierIDs := make(map[int]struct{})
-	for i, s := range sales {
-		salesByID[sales[i].ID] = &sales[i]
-		saleIDs[i] = sales[i].ID
-		cashierIDs[s.CashierID] = struct{}{}
-	}
-
-	// fetch sale items, from sale items, extract product id's.
-	// Then, assign sale items to the already indexed sales map created earlier
-	saleItems, err := s.repo.BulkFetchSaleItems(ctx, tx, saleIDs)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("fetching sale items failed", err)
-	}
-
-	productIDs := make([]int, len(saleItems))
-	for i, item := range saleItems {
-		salesByID[item.SaleID].SaleItems = append(salesByID[item.SaleID].SaleItems, item)
-		productIDs[i] = item.ProductID
-	}
-
-	// fetch all sales payments, and assign to the already indexed sales. Again.
-	payments, err := s.repo.BulkFetchSalePayments(ctx, tx, saleIDs)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("fetching sale payments failed", err)
-	}
-
-	for i := range payments {
-		salesByID[payments[i].SaleID].Payments = append(salesByID[payments[i].SaleID].Payments, payments[i])
-	}
-
-	// fetch return items (joined with returns table to get sale_id)
-	returns, err := s.repo.BulkFetchReturnItemsBySaleIDs(ctx, saleIDs)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("fetching return items failed", err)
-	}
-
-	// group return items by sale_id
-	returnsBySaleID := make(map[int][]model.ReturnItemWithSale)
-	returnedQuantityBySaleItemID := make(map[int]int)
-	for _, r := range returns {
-		returnsBySaleID[r.SaleID] = append(returnsBySaleID[r.SaleID], r)
-		returnedQuantityBySaleItemID[r.SaleItemID] += r.Quantity
-	}
-
-	// fetch & index products to prepare for final structuring
-	products, err := s.repo.BulkFetchProductByIDsTx(ctx, tx, productIDs)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("fetching products failed", err)
-	}
-
-	productsByID := make(map[int]model.Product)
-	for _, p := range products {
-		productsByID[p.ID] = p
-	}
-
-	ids := make([]int, 0, len(cashierIDs))
-	for id := range cashierIDs {
-		ids = append(ids, id)
-	}
-
-	cashiers, err := s.repo.BulkFetchUserByIDTx(ctx, tx, ids)
-	if err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("fetching cashiers failed", err)
-	}
-
-	cashiersByID := make(map[int]string)
-	for _, c := range cashiers {
-		cashiersByID[c.ID] = c.UserName
-	}
-
-	responses := make([]types.SaleResponse, 0, len(sales))
-	canViewTotal := HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
-
-	var salesHistoryTotal int
-	if canViewTotal {
-		t, err := s.repo.SumSalesTotal(ctx, filter)
+	var (
+		totalCount        int
+		responses         []types.SaleResponse
+		canViewTotal      bool
+		salesHistoryTotal int
+	)
+	err := runInTx(ctx, s.repo, "failed to commit transaction", func(tx *sqlx.Tx) error {
+		// fetch sales
+		sales, err := s.repo.FetchSalesTx(ctx, tx, filter)
 		if err != nil {
 			log.Println(err)
-			return types.SaleHistory{}, httperror.ServerError("summing sales total failed", err)
+			return httperror.ServerError("fetching sales failed", err)
 		}
-		salesHistoryTotal = t
 
-		// Subtract return refunds so the period total reflects net sales
-		refundTotal, err := s.repo.SumReturnTotal(ctx, filter)
+		totalCount, err = s.repo.CountSales(ctx, filter)
 		if err != nil {
 			log.Println(err)
-			return types.SaleHistory{}, httperror.ServerError("summing return total failed", err)
-		}
-		salesHistoryTotal -= refundTotal
-	}
-
-	for _, s := range sales {
-		saleItemsByID := make(map[int]model.SaleItem)
-
-		// build items
-		items := make([]types.SaleItemResponse, 0, len(s.SaleItems))
-		for _, item := range s.SaleItems {
-			p := productsByID[item.ProductID]
-			items = append(items, types.SaleItemResponse{
-				ID:               item.ID,
-				ProductName:      p.Name,
-				Manufacturer:     manufacturerName(p),
-				Quantity:         item.Quantity,
-				ReturnedQuantity: returnedQuantityBySaleItemID[item.ID],
-				UnitPrice:        float64(item.UnitPrice) / 100,
-				Discount:         float64(item.Discount) / 100,
-			})
-
-			saleItemsByID[item.ID] = item
+			return httperror.ServerError("counting sales failed", err)
 		}
 
-		// build payments
-		payments := make([]types.SalePaymentResponse, 0, len(s.Payments))
-		for _, pay := range s.Payments {
-			payments = append(payments, types.SalePaymentResponse{
-				MethodName: pay.PaymentMethod,
-				Amount:     float64(pay.Amount) / 100,
-			})
+		// index sales by sale id and fetch all sale id's to use in getting sale items and payments
+		salesByID := make(map[int]*model.Sale)
+		saleIDs := make([]int, len(sales))
+		cashierIDs := make(map[int]struct{})
+		for i, s := range sales {
+			salesByID[sales[i].ID] = &sales[i]
+			saleIDs[i] = sales[i].ID
+			cashierIDs[s.CashierID] = struct{}{}
 		}
 
-		// build returns
-		returnsResp := make([]types.ReturnItemResponse, 0, len(returnsBySaleID[s.ID]))
-		for _, r := range returnsBySaleID[s.ID] {
-			item := saleItemsByID[r.SaleItemID]
-			p := productsByID[item.ProductID]
-			returnsResp = append(returnsResp, types.ReturnItemResponse{
-				SaleItemID:   r.SaleItemID,
-				Name:         p.Name,
-				Manufacturer: manufacturerName(p),
-				UnitPrice:    float64(item.UnitPrice) / 100,
-				Quantity:     r.Quantity,
-			})
-
+		// fetch sale items, from sale items, extract product id's.
+		// Then, assign sale items to the already indexed sales map created earlier
+		saleItems, err := s.repo.BulkFetchSaleItems(ctx, tx, saleIDs)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching sale items failed", err)
 		}
 
-		// build the final response
-		resp := types.SaleResponse{
-			ID:            s.ID,
-			ReceiptNumber: s.ReceiptNumber,
-			Cashier:       cashiersByID[s.CashierID],
-			CreatedAt:     s.CreatedAt.Format(time.RFC3339),
-			Subtotal:      float64(s.Subtotal) / 100,
-			Discount:      float64(s.Discount) / 100,
-			Total:         float64(s.Total) / 100,
-			Items:         items,
-			Payments:      payments,
-			Returns:       returnsResp,
+		productIDs := make([]int, len(saleItems))
+		for i, item := range saleItems {
+			salesByID[item.SaleID].SaleItems = append(salesByID[item.SaleID].SaleItems, item)
+			productIDs[i] = item.ProductID
 		}
-		responses = append(responses, resp)
-	}
 
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
-		return types.SaleHistory{}, httperror.ServerError("failed to commit transaction", err)
+		// fetch all sales payments, and assign to the already indexed sales. Again.
+		payments, err := s.repo.BulkFetchSalePayments(ctx, tx, saleIDs)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching sale payments failed", err)
+		}
+
+		for i := range payments {
+			salesByID[payments[i].SaleID].Payments = append(salesByID[payments[i].SaleID].Payments, payments[i])
+		}
+
+		// fetch return items (joined with returns table to get sale_id)
+		returns, err := s.repo.BulkFetchReturnItemsBySaleIDs(ctx, saleIDs)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching return items failed", err)
+		}
+
+		// group return items by sale_id
+		returnsBySaleID := make(map[int][]model.ReturnItemWithSale)
+		returnedQuantityBySaleItemID := make(map[int]int)
+		for _, r := range returns {
+			returnsBySaleID[r.SaleID] = append(returnsBySaleID[r.SaleID], r)
+			returnedQuantityBySaleItemID[r.SaleItemID] += r.Quantity
+		}
+
+		// fetch & index products to prepare for final structuring
+		products, err := s.repo.BulkFetchProductByIDsTx(ctx, tx, productIDs)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching products failed", err)
+		}
+
+		productsByID := make(map[int]model.Product)
+		for _, p := range products {
+			productsByID[p.ID] = p
+		}
+
+		ids := make([]int, 0, len(cashierIDs))
+		for id := range cashierIDs {
+			ids = append(ids, id)
+		}
+
+		cashiers, err := s.repo.BulkFetchUserByIDTx(ctx, tx, ids)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching cashiers failed", err)
+		}
+
+		cashiersByID := make(map[int]string)
+		for _, c := range cashiers {
+			cashiersByID[c.ID] = c.UserName
+		}
+
+		// Customers are personal data: only users who may see customers get them.
+		customerNames, err := s.customerNamesFor(ctx, sales)
+		if err != nil {
+			log.Println(err)
+			return httperror.ServerError("fetching customers failed", err)
+		}
+
+		responses = make([]types.SaleResponse, 0, len(sales))
+		canViewTotal = HasPermission(ctx, constant.ViewSalesTotalPermissionKey)
+
+		if canViewTotal {
+			t, err := s.repo.SumSalesTotal(ctx, filter)
+			if err != nil {
+				log.Println(err)
+				return httperror.ServerError("summing sales total failed", err)
+			}
+			salesHistoryTotal = t
+
+			// Subtract return refunds so the period total reflects net sales
+			refundTotal, err := s.repo.SumReturnTotal(ctx, filter)
+			if err != nil {
+				log.Println(err)
+				return httperror.ServerError("summing return total failed", err)
+			}
+			salesHistoryTotal -= refundTotal
+		}
+
+		for _, s := range sales {
+			saleItemsByID := make(map[int]model.SaleItem)
+
+			// build items
+			items := make([]types.SaleItemResponse, 0, len(s.SaleItems))
+			for _, item := range s.SaleItems {
+				p := productsByID[item.ProductID]
+				items = append(items, types.SaleItemResponse{
+					ID:               item.ID,
+					ProductName:      p.Name,
+					Manufacturer:     manufacturerName(p),
+					Quantity:         item.Quantity,
+					ReturnedQuantity: returnedQuantityBySaleItemID[item.ID],
+					UnitPrice:        float64(item.UnitPrice) / 100,
+					Discount:         float64(item.Discount) / 100,
+				})
+
+				saleItemsByID[item.ID] = item
+			}
+
+			// build payments
+			payments := make([]types.SalePaymentResponse, 0, len(s.Payments))
+			for _, pay := range s.Payments {
+				payments = append(payments, types.SalePaymentResponse{
+					MethodName: pay.PaymentMethod,
+					Amount:     float64(pay.Amount) / 100,
+				})
+			}
+
+			// build returns
+			returnsResp := make([]types.ReturnItemResponse, 0, len(returnsBySaleID[s.ID]))
+			for _, r := range returnsBySaleID[s.ID] {
+				item := saleItemsByID[r.SaleItemID]
+				p := productsByID[item.ProductID]
+				returnsResp = append(returnsResp, types.ReturnItemResponse{
+					SaleItemID:   r.SaleItemID,
+					Name:         p.Name,
+					Manufacturer: manufacturerName(p),
+					UnitPrice:    float64(item.UnitPrice) / 100,
+					Quantity:     r.Quantity,
+				})
+
+			}
+
+			// build the final response
+			resp := types.SaleResponse{
+				ID:            s.ID,
+				ReceiptNumber: s.ReceiptNumber,
+				Cashier:       cashiersByID[s.CashierID],
+				CreatedAt:     s.CreatedAt.Format(time.RFC3339),
+				Subtotal:      float64(s.Subtotal) / 100,
+				Discount:      float64(s.Discount) / 100,
+				Total:         float64(s.Total) / 100,
+				Items:         items,
+				Payments:      payments,
+				Returns:       returnsResp,
+			}
+			if s.CustomerID != nil {
+				if name, ok := customerNames[*s.CustomerID]; ok {
+					resp.Customer = &types.SaleCustomer{ID: *s.CustomerID, Name: name}
+				}
+			}
+			responses = append(responses, resp)
+		}
+		return nil
+	})
+	if err != nil {
+		return types.SaleHistory{}, err
 	}
 
 	history := types.SaleHistory{
@@ -336,6 +394,37 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 	}
 
 	return history, nil
+}
+
+// sameCustomer says whether a saved sale's customer (nil for a walk-in) is the one a request names
+// (0 for a walk-in).
+func sameCustomer(saved *int, requested int) bool {
+	if saved == nil {
+		return requested <= 0
+	}
+	return *saved == requested
+}
+
+// customerNamesFor looks up, in one query, the customers of the given sales; nothing is looked up
+// for a user who may not see customers, or when no sale has one.
+func (s *saleService) customerNamesFor(
+	ctx context.Context, sales []model.Sale,
+) (map[int]string, error) {
+	if !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return nil, nil
+	}
+	seen := map[int]bool{}
+	var ids []int
+	for _, sale := range sales {
+		if sale.CustomerID != nil && !seen[*sale.CustomerID] {
+			seen[*sale.CustomerID] = true
+			ids = append(ids, *sale.CustomerID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return s.repo.FetchCustomerNames(ctx, ids)
 }
 
 // manufacturerName is a product's manufacturer, or empty when none was recorded.

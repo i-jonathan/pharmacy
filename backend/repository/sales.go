@@ -11,20 +11,31 @@ import (
 	"github.com/lib/pq"
 )
 
+// saleCustomerKey is the foreign key from sales.customer_id to customer; a violation of any other
+// key (a cashier who no longer exists) is not a customer problem and is returned as it is.
+const saleCustomerKey = "sales_customer_id_fkey"
+
+func mapSaleCustomerError(err error) error {
+	if isForeignKeyViolation(err, saleCustomerKey) {
+		return ErrInvalidReference
+	}
+	return err
+}
+
 func (r *repo) CreateSaleTx(ctx context.Context, tx *sqlx.Tx, sale model.Sale) (int, error) {
 	var id int
 
 	err := tx.QueryRowContext(
 		ctx, createSaleQuery, sale.ReceiptNumber, sale.Status,
 		sale.CashierID, sale.Subtotal, sale.Discount, sale.Total,
-		sale.IdempotencyKey,
+		sale.IdempotencyKey, sale.CustomerID,
 	).Scan(&id)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, nil
 		}
-		return 0, err
+		return 0, mapSaleCustomerError(err)
 	}
 	return id, nil
 }
@@ -205,13 +216,13 @@ func (r *repo) FetchSaleReceiptNumberByID(
 	return number, err
 }
 
-// FetchSaleReceiptNumberByKeyTx finds the sale a retry key was first used for.
-func (r *repo) FetchSaleReceiptNumberByKeyTx(
+// FetchSaleByKeyTx finds the sale a retry key was first used for.
+func (r *repo) FetchSaleByKeyTx(
 	ctx context.Context, tx *sqlx.Tx, key string,
-) (string, error) {
-	var number string
-	err := tx.GetContext(ctx, &number, fetchSaleReceiptNumberByKeyQuery, key)
-	return number, err
+) (types.SavedSale, error) {
+	var saved types.SavedSale
+	err := tx.GetContext(ctx, &saved, fetchSaleByKeyQuery, key)
+	return saved, err
 }
 
 func (r *repo) FetchAllSaleReturns(ctx context.Context, tx *sqlx.Tx, saleID int) ([]model.ReturnItems, error) {

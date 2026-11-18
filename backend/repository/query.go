@@ -155,14 +155,16 @@ const updateProductPricesQuery = `
 	WHERE id = (SELECT default_price_id FROM updated_product);
 `
 const createSaleQuery = `
-	INSERT INTO sales (receipt_number, status, cashier_id, subtotal, discount, total, idempotency_key)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	INSERT INTO sales (
+		receipt_number, status, cashier_id, subtotal, discount, total, idempotency_key, customer_id
+	)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 	RETURNING id;
 `
 const fetchSaleReceiptNumberByIDQuery = `SELECT receipt_number FROM sales WHERE id = $1`
-const fetchSaleReceiptNumberByKeyQuery = `
-	SELECT receipt_number FROM sales WHERE idempotency_key = $1
+const fetchSaleByKeyQuery = `
+	SELECT receipt_number, customer_id FROM sales WHERE idempotency_key = $1
 `
 const createSaleItemQuery = `
 	INSERT INTO sales_item (sale_id, product_id, quantity, stock_quantity_per_unit, unit_price, discount, total_price)
@@ -181,7 +183,7 @@ const bulkCreateSalePaymentQuery = `
 	VALUES (:sale_id, :amount, :payment_method);
 `
 const fetchSalesQuery = `
-  SELECT id, receipt_number, cashier_id, subtotal, discount, total, created_at
+  SELECT id, receipt_number, cashier_id, subtotal, discount, total, customer_id, created_at
   FROM sales
   WHERE
     ($1::date IS NULL OR created_at::date >= $1::date)

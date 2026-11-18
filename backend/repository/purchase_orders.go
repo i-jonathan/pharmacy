@@ -30,9 +30,16 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-func mapForeignKeyError(err error) error {
+// isForeignKeyViolation reports whether err is a foreign key violation, of the named constraint
+// when one is given and of any when it is empty.
+func isForeignKeyViolation(err error, constraint string) bool {
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+	return errors.As(err, &pgErr) && pgErr.Code == "23503" &&
+		(constraint == "" || pgErr.ConstraintName == constraint)
+}
+
+func mapForeignKeyError(err error) error {
+	if isForeignKeyViolation(err, "") {
 		return ErrInvalidReference
 	}
 	return err

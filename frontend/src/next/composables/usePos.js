@@ -1,5 +1,8 @@
 import { reactive, computed, ref, onMounted, onUnmounted } from "vue";
 import { csrfFetch } from "../lib/csrf.js";
+import { readError } from "../lib/api.js";
+import { usePermissions } from "./usePermissions.js";
+import { useConfirm } from "./useConfirm.js";
 import { buildReceiptHtml, printReceiptHtml } from "../lib/receipt.js";
 
 const API_BASE = "";
@@ -25,9 +28,14 @@ function cloneForStorage(obj) {
 }
 
 export function usePos() {
+  const { hasPermission } = usePermissions();
   const cart = reactive([]);
   const payments = reactive({ Cash: 0, Card: 0, Transfer: 0 });
-  const customer = ref("Walk-in Customer");
+  // The customer picked for this sale, {id, name, phone}, or null for a walk-in.
+  const customer = ref(null);
+  // The customer on a held sale that this user may not see: not shown and not sold to, but kept
+  // so holding the sale again doesn't erase it.
+  const hiddenCustomer = ref(null);
   const holdReference = ref(null);
   const saleIdempotencyKey = ref(createIdempotencyKey());
   const amountTendered = ref(0);
@@ -147,10 +155,16 @@ export function usePos() {
       // Clearing the active in-memory cart still succeeds without storage.
     }
     Object.keys(payments).forEach((k) => (payments[k] = 0));
-    customer.value = "Walk-in Customer";
+    customer.value = null;
+    hiddenCustomer.value = null;
     holdReference.value = null;
     saleIdempotencyKey.value = createIdempotencyKey();
     amountTendered.value = 0;
+  }
+
+  // The customer a held sale remembers: the one on screen, or one this user may not see.
+  function heldCustomerId() {
+    return (customer.value || hiddenCustomer.value)?.id || 0;
   }
 
   // --- API Methods ---
@@ -162,7 +176,8 @@ export function usePos() {
       payload: {
         cart: cloneForStorage(cart),
         payments: { ...payments },
-        customer: customer.value,
+        // Only the id: the held-sale list is readable by every signed-in user, so no name or phone.
+        customer: heldCustomerId() ? { id: heldCustomerId() } : null,
         saleIdempotencyKey: saleIdempotencyKey.value,
       },
     };
@@ -235,6 +250,7 @@ export function usePos() {
         })),
     };
 
+    if (customer.value?.id) payload.customer_id = customer.value.id;
     if (holdReference.value) {
       payload.held_sale_reference = holdReference.value;
     }
@@ -244,7 +260,15 @@ export function usePos() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!resp.ok) throw new Error("Failed to complete sale");
+    if (!resp.ok) {
+      // A refusal the cashier can act on (400, 403, 409: for example a deactivated customer, or no
+      // permission to attach one) says why; a server error keeps the plain message.
+      if ([400, 403, 409].includes(resp.status)) {
+        const { message, code } = await readError(resp, "Failed to complete sale");
+        throw Object.assign(new Error(message), { code });
+      }
+      throw new Error("Failed to complete sale");
+    }
     return resp.json();
   }
 
@@ -256,12 +280,20 @@ export function usePos() {
 
   // printReceipt prints the cart as a receipt. Call it before the cart is cleared, with the number
   // the server gave the saved sale (the same one Sales History shows).
-  function printReceipt(receiptNumber) {
+  async function printReceipt(receiptNumber) {
+    // A resumed held sale knows only its customer's id until the name is read. Printing the
+    // placeholder would put the wrong name on the receipt, so read it now or refuse to print.
+    if (customer.value?.named === false) {
+      await refreshCustomer(customer.value.id);
+      if (customer.value?.named === false) {
+        throw new Error("The customer's name could not be read, so the receipt was not printed.");
+      }
+    }
     return printReceiptHtml(
       buildReceiptHtml({
         receiptNumber,
         date: new Date(),
-        customer: customer.value,
+        customer: customer.value?.name || "",
         items: cart.map((item) => ({
           name: item.name,
           qty: item.qty,
@@ -283,6 +315,20 @@ export function usePos() {
       method: "DELETE",
     });
     if (!resp.ok) throw new Error("Failed to delete held transaction");
+  }
+
+  // A held sale remembers only who the customer is; read the name and phone that are on file now.
+  // A deactivated customer stays on the sale: completing it says so.
+  async function refreshCustomer(id) {
+    try {
+      const resp = await fetch(`${API_BASE}/customers/${id}`);
+      if (!resp.ok || customer.value?.id !== id) return;
+      const latest = await resp.json();
+      if (customer.value?.id !== id) return;
+      customer.value = { id, name: latest.name, phone: latest.phone || "", active: latest.active };
+    } catch {
+      // The placeholder stays, and the receipt is not printed until the name is read.
+    }
   }
 
   function restoreHeld(transaction) {
@@ -307,7 +353,21 @@ export function usePos() {
         payments[k] = payload.payments[k] || 0;
       });
     }
-    if (payload.customer) customer.value = payload.customer;
+    // Older held sales kept a typed name; only a customer picked from the list is restored.
+    // A user who may not see customers gets none: the sale would be refused with the customer on it.
+    const held = payload.customer;
+    if (held && typeof held === "object" && held.id) {
+      if (hasPermission("customer:view")) {
+        // An older held sale kept the name and phone; a newer one keeps only the id, and shows a
+        // placeholder (named: false) until the name is read.
+        customer.value = held.name
+          ? { id: held.id, name: held.name, phone: held.phone || "" }
+          : { id: held.id, name: "Customer", phone: "", named: false };
+        refreshCustomer(held.id);
+      } else {
+        hiddenCustomer.value = { id: held.id };
+      }
+    }
     if (payload.saleIdempotencyKey) saleIdempotencyKey.value = payload.saleIdempotencyKey;
 
     holdReference.value = transaction.reference;
@@ -324,21 +384,33 @@ export function usePos() {
     requestAnimationFrame(() => searchInputRef?.focus());
   }
 
+  // F5 and F6 do what the buttons do: the page registers its handlers, which run one at a time and
+  // show the server's reason when a sale is refused.
+  const shortcutActions = { complete: null, hold: null };
+  function setShortcutActions(actions) {
+    Object.assign(shortcutActions, actions);
+  }
+
+  const { state: confirmState } = useConfirm();
+
   function onKeyDown(e) {
+    // A dialog is waiting for an answer (for example Reactivate): the sale must not complete or be
+    // held behind it. The key is still taken, so the browser does not reload on F5.
+    if (confirmState.open && (e.key === "F5" || e.key === "F6")) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === "F3") {
       e.preventDefault();
       focusSearch();
     }
     if (e.key === "F5") {
       e.preventDefault();
-      if (cart.length > 0) completeSale().then(() => {
-        clearCart();
-        focusSearch();
-      });
+      shortcutActions.complete?.();
     }
     if (e.key === "F6") {
       e.preventDefault();
-      if (cart.length > 0) holdCart();
+      shortcutActions.hold?.();
     }
   }
 
@@ -385,6 +457,7 @@ export function usePos() {
     cart,
     payments,
     customer,
+    hiddenCustomer,
     holdReference,
     saleIdempotencyKey,
     amountTendered,
@@ -409,6 +482,7 @@ export function usePos() {
     deleteHeldTransaction,
     restoreHeld,
     setSearchRef,
+    setShortcutActions,
     focusSearch,
   };
 }

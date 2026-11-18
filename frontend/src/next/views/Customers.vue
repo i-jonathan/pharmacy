@@ -97,7 +97,7 @@
                   </button>
                   <span v-if="!c.active" class="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Deactivated</span>
                 </td>
-                <td class="whitespace-nowrap px-4 py-3 tabular-nums text-muted-foreground">{{ showPhone(c.phone) }}</td>
+                <td class="whitespace-nowrap px-4 py-3 tabular-nums text-muted-foreground">{{ showPhone(c.phone) || "—" }}</td>
                 <td class="px-4 py-3 text-muted-foreground" :class="panelOpen ? 'hidden' : 'hidden md:table-cell'">{{ c.email || "—" }}</td>
                 <td class="px-4 py-3 text-muted-foreground">{{ c.contact_consent ? "Yes" : "No" }}</td>
               </tr>
@@ -224,6 +224,7 @@ import { Button } from "@/components/ui/button";
 import PagerBar from "../components/PagerBar.vue";
 import { csrfFetch } from "../lib/csrf.js";
 import { readError } from "../lib/api.js";
+import { showPhone } from "../lib/phone.js";
 import { useConfirm } from "../composables/useConfirm.js";
 import { usePermissions } from "../composables/usePermissions.js";
 
@@ -322,13 +323,6 @@ function showNotice(text, error = false) {
   notice.value = { text, error };
   clearTimeout(noticeTimer);
   noticeTimer = setTimeout(() => (notice.value = null), error ? 8000 : 4000);
-}
-
-// +2348031234567 → 0803 123 4567; anything else (a foreign number) as stored.
-function showPhone(phone) {
-  const m = /^\+234(\d{3})(\d{3})(\d{4})$/.exec(phone || "");
-  if (m) return `0${m[1]} ${m[2]} ${m[3]}`;
-  return phone || "—";
 }
 
 function showDate(iso) {

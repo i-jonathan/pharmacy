@@ -40,13 +40,13 @@ func (r *duplicateSaleRepo) CreateSaleTx(_ context.Context, _ *sqlx.Tx, sale mod
 	return 0, nil
 }
 
-func (r *duplicateSaleRepo) FetchSaleReceiptNumberByKeyTx(
+func (r *duplicateSaleRepo) FetchSaleByKeyTx(
 	_ context.Context, _ *sqlx.Tx, key string,
-) (string, error) {
+) (types.SavedSale, error) {
 	if key != "sale-key-1" {
 		r.t.Fatalf("expected the normalized key, got %q", key)
 	}
-	return "2490-7777", nil
+	return types.SavedSale{ReceiptNumber: "2490-7777"}, nil
 }
 
 func (r *duplicateSaleRepo) BulkCreateSaleItemsTx(context.Context, *sqlx.Tx, []model.SaleItem) error {

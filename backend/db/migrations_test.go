@@ -22,6 +22,7 @@ const (
 	requestHashMigration     = 46
 	customerMigration        = 47
 	overReceiptMigration     = 48
+	salesCustomerMigration   = 49
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -493,4 +494,43 @@ func TestOverReceiptMigrationFindsARenamedCheck(t *testing.T) {
 	testdb.Migrate(t, db, overReceiptMigration-1, overReceiptMigration)
 	db.MustExec(`INSERT INTO purchase_order_item (purchase_order_id, item_name, quantity, received_quantity)
 		VALUES ((SELECT id FROM purchase_order), 'Alpha', 10, 12)`)
+}
+
+func TestSalesCustomerMigration(t *testing.T) {
+	db := testdb.New(t, salesCustomerMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('cashier', 'x')`)
+	addSale := `INSERT INTO sales (receipt_number, status, cashier_id, subtotal, total, customer_id)
+		VALUES ($1, 'complete', (SELECT id FROM users), 100, 100, $2)`
+	db.MustExec(`INSERT INTO sales (receipt_number, status, cashier_id, subtotal, total)
+		VALUES ('OLD-1', 'complete', (SELECT id FROM users), 100, 100)`)
+
+	testdb.Migrate(t, db, salesCustomerMigration-1, salesCustomerMigration)
+
+	// Sales made before the migration have no customer.
+	if n := count(t, db, `SELECT count(*) FROM sales WHERE customer_id IS NULL`); n != 1 {
+		t.Fatalf("the earlier sale should have no customer, got %d without", n)
+	}
+	db.MustExec(`INSERT INTO customer (name, created_by_id) VALUES ('Ada', (SELECT id FROM users))`)
+	var customer int
+	if err := db.Get(&customer, `SELECT id FROM customer`); err != nil {
+		t.Fatal(err)
+	}
+	db.MustExec(addSale, "NEW-1", customer)
+	db.MustExec(addSale, "NEW-2", nil) // a walk-in
+	mustFail(t, db, "sales_customer_id_fkey", addSale, "NEW-3", customer+100)
+	// A customer with sales can't be deleted from under them.
+	mustFail(t, db, "sales_customer_id_fkey", `DELETE FROM customer WHERE id = $1`, customer)
+	if n := count(t, db, `SELECT count(*) FROM pg_indexes WHERE indexname = 'sales_customer_idx'`); n != 1 {
+		t.Fatalf("expected the sales_customer_idx index, got %d", n)
+	}
+
+	testdb.Rollback(t, db, salesCustomerMigration)
+	mustFail(t, db, "customer_id", `SELECT customer_id FROM sales`)
+	if n := count(t, db, `SELECT count(*) FROM sales`); n != 3 {
+		t.Fatalf("rolling back must keep the sales, got %d", n)
+	}
+	testdb.Migrate(t, db, salesCustomerMigration-1, salesCustomerMigration)
+	if n := count(t, db, `SELECT count(*) FROM pg_indexes WHERE indexname = 'sales_customer_idx'`); n != 1 {
+		t.Fatalf("expected the index again after re-applying, got %d", n)
+	}
 }

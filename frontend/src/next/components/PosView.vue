@@ -19,6 +19,9 @@
         :cart="pos.cart"
         :payments="pos.payments"
         :customer="pos.customer.value"
+        :hidden-customer="!!pos.hiddenCustomer.value"
+        :can-complete="canComplete"
+        :can-hold="canHold"
         :subtotal="pos.subtotal.value"
         :total-discount="pos.totalDiscount.value"
         :total="pos.total.value"
@@ -89,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Check, PackageSearch, ShoppingCart } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
@@ -201,6 +204,19 @@ async function runAction(action, successMessage) {
     }, 5000);
   } catch (e) {
     actionError.value = e.message || "The action could not be completed. Check your connection and try again.";
+    // F5 and F6 can be pressed from the products pane, where the cart's message is hidden.
+    mobilePane.value = "cart";
+    // The sale was saved on an earlier try (its reply was lost): this cart is that sale, so end it
+    // here, and Sales History shows what was saved.
+    if (e.code === "already_saved") pos.clearCart();
+    // The server knows the customer was deactivated since they were picked (or a resumed held sale
+    // had not read them yet): show it on the customer, with Reactivate, and stop Complete.
+    // The till's own wording replaces the server's ("ask a manager"), which no longer applies now
+    // that Reactivate is on the customer, and is cleared again when they are reactivated.
+    if (e.code === "customer_inactive" && pos.customer.value) {
+      pos.customer.value = { ...pos.customer.value, active: false };
+      actionError.value = DEACTIVATED_MESSAGE;
+    }
   } finally {
     processing.value = false;
   }
@@ -222,6 +238,30 @@ function handleRemoveItem(index) {
 async function handleHold() {
   await runAction(() => pos.holdCart(), "Sale held. You can resume it from Held Sales.");
 }
+
+// What the Complete and Hold buttons may do, used by the buttons and by F5 and F6 alike.
+const customerDeactivated = computed(() => pos.customer.value?.active === false);
+const DEACTIVATED_MESSAGE = "This customer is deactivated. Reactivate them or remove them from the sale.";
+// The message is about a state that no longer holds once the customer is reactivated or removed.
+watch(customerDeactivated, (now) => {
+  if (!now && actionError.value === DEACTIVATED_MESSAGE) actionError.value = "";
+});
+const canComplete = computed(
+  () => pos.cart.length > 0 && pos.amountOwed.value === 0 && !processing.value && !customerDeactivated.value,
+);
+const canHold = computed(() => pos.cart.length > 0 && !processing.value);
+pos.setShortcutActions({
+  complete: () => {
+    if (canComplete.value) return handleComplete();
+    if (pos.cart.length > 0 && !processing.value) {
+      actionError.value = customerDeactivated.value
+        ? DEACTIVATED_MESSAGE
+        : "Enter the full payment before completing the sale.";
+      mobilePane.value = "cart";
+    }
+  },
+  hold: () => canHold.value && handleHold(),
+});
 
 async function handleComplete() {
   await runAction(async () => {
