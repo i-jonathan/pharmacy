@@ -33,7 +33,7 @@ Two changes to the rule for correcting the customer on a saved sale:
 - **Repository:** both queries use `created_at >= now() - interval '24 hours' AS is_recent`; `db:"is_recent"` on `types.SaleCustomerState` and `model.Sale`. No migration.
 - **Service:** in `ChangeSaleCustomer`, compute `unchanged` first. Apply the old-sale rule only when `!unchanged` (permission `sale:changeoldcustomer` unchanged); then the stale check. Refusal text: "only a manager can change the customer on a sale more than 24 hours old". Code stays `sale_too_old`.
 - **Response:** `SaleResponse.made_today` is now true for a sale within the last 24 hours. Name kept; comment updated.
-- **UI:** no behaviour change; comment in `SalesHistory.vue` reworded. Not rebuilding assets.
+- **UI:** comment in `SalesHistory.vue` reworded. Added after review: a `sale_too_old` refusal is handled like `customer_changed` (dialog closes, the page reloads, a toast gives the server's message, and the Change button goes for a cashier), because a sale can now pass 24 hours while the dialog is open. Needs `make build-frontend` before the binary shows it; no new Tailwind classes.
 - **Docs:** `CLAUDE.md` and the two customer feature docs reworded to the 24-hour rule and the retry behaviour.
 - Permissions, audit entries, idempotency: unchanged.
 

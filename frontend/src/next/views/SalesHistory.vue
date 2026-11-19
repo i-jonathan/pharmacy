@@ -831,7 +831,8 @@ async function submitReturn() {
 
 // --- Change the customer on a saved sale ---
 // Anyone who manages customers may fix a sale less than 24 hours old; an older sale needs the
-// manager's permission (`made_today` is the server's name for that test). The server decides; this only decides whether to offer the button.
+// manager's permission (`made_today` is the server's name for that test). The server decides;
+// this only decides whether to offer the button.
 const { hasPermission } = usePermissions();
 const CUSTOMER_CHANGE_REASONS = [
   { value: "picked_by_mistake", label: "Picked by mistake" },
@@ -913,8 +914,9 @@ async function saveCustomerChange() {
     });
     if (!response.ok) {
       const { message, code } = await readError(response, `Could not change the customer (${response.status})`);
-      if (code === "customer_changed") {
-        // Someone else changed it first: show what is saved now, and say why nothing was done.
+      if (code === "customer_changed" || code === "sale_too_old") {
+        // Someone else changed it first, or the sale passed 24 hours while the box was open: show
+        // what is saved now (the Change button goes for a cashier), and say why nothing was done.
         changeDialogOpen.value = false;
         await goPage(currentPage.value);
         const at = filteredSales.value.findIndex((s) => s.id === sale.id);
