@@ -72,8 +72,9 @@ type SaleService interface {
 	// ReprintReceipt records that userID reprinted a sale's receipt and says when.
 	ReprintReceipt(ctx context.Context, saleID, userID int) (types.ReceiptReprint, error)
 	// ChangeSaleCustomer changes or removes the customer on a saved sale and returns the new one
-	// (nil for a walk-in). Anyone with customer:manage may do it for today's sales; an earlier
-	// day's sale needs sale:changeoldcustomer.
+	// (nil for a walk-in). Anyone with customer:manage may do it for a sale less than 24 hours
+	// old; an older sale needs sale:changeoldcustomer. A repeat of a change that already saved is
+	// answered as saved at any age.
 	ChangeSaleCustomer(
 		ctx context.Context, req types.ChangeSaleCustomerRequest, userID int,
 	) (*types.SaleCustomer, error)

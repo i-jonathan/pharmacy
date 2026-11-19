@@ -216,8 +216,9 @@ func (r *repo) FetchSaleReceiptNumberByID(
 	return number, err
 }
 
-// FetchSaleCustomerForUpdateTx reads a sale's receipt, customer and whether it was made today,
-// and locks the sale until the transaction ends. sql.ErrNoRows when there is no such sale.
+// FetchSaleCustomerForUpdateTx reads a sale's receipt, customer and whether it is less than 24
+// hours old, and locks the sale until the transaction ends. sql.ErrNoRows when there is no such
+// sale.
 func (r *repo) FetchSaleCustomerForUpdateTx(
 	ctx context.Context, tx *sqlx.Tx, saleID int,
 ) (types.SaleCustomerState, error) {

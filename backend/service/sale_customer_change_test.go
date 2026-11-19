@@ -45,9 +45,9 @@ func (r *changeRepo) InsertAuditLogTx(
 	return nil
 }
 
-// aSaleOf is a sale made today that names the given customer (0 for a walk-in).
+// aSaleOf is a recent sale (under 24 hours old) that names the given customer (0 for a walk-in).
 func aSaleOf(customerID int) types.SaleCustomerState {
-	state := types.SaleCustomerState{ReceiptNumber: "2490-1234", IsToday: true}
+	state := types.SaleCustomerState{ReceiptNumber: "2490-1234", IsRecent: true}
 	if customerID > 0 {
 		state.CustomerID = intPtr(customerID)
 	}
@@ -60,7 +60,7 @@ func changeTo(to, expected int) types.ChangeSaleCustomerRequest {
 	}
 }
 
-// aCashier may change today's sales; aManager may change any.
+// aCashier may change recent sales; aManager may change any.
 func aCashier() context.Context {
 	return contextWith(constant.ViewCustomersPermissionKey, constant.ManageCustomersPermissionKey)
 }
@@ -294,12 +294,12 @@ func TestAttachingADeactivatedOrUnknownCustomerIsRefused(t *testing.T) {
 	}
 }
 
-func TestOnlyAManagerChangesTheCustomerOfAnEarlierDaysSale(t *testing.T) {
+func TestOnlyAManagerChangesTheCustomerOfAnOlderSale(t *testing.T) {
 	older := aSaleOf(5)
-	older.IsToday = false
+	older.IsRecent = false
 	repo := &changeRepo{sale: older, customerSaleRepo: customerSaleRepo{customers: twoCustomers()}}
 
-	// Even a request that is also stale gets the day rule first: a cashier learns nothing more
+	// Even a request that is also stale gets the age rule first: a cashier learns nothing more
 	// about an older sale than History already shows.
 	_, err := NewSaleService(repo).ChangeSaleCustomer(aCashier(), changeTo(6, 99), 1)
 	requireHTTPStatus(t, err, http.StatusForbidden)
@@ -313,6 +313,44 @@ func TestOnlyAManagerChangesTheCustomerOfAnEarlierDaysSale(t *testing.T) {
 	}
 	if len(repo.updated) != 1 || *repo.updated[0] != 6 {
 		t.Fatalf("the manager's change should be saved, got %v", repo.updated)
+	}
+}
+
+func TestRetryOfAChangeOnAnOldSaleIsAnsweredAsSavedForACashier(t *testing.T) {
+	// The first request was made inside the window and committed; the reply was lost and the retry
+	// comes after the sale has aged out. It is the same change, so it is answered as saved and
+	// writes nothing, whoever asks.
+	older := aSaleOf(6)
+	older.IsRecent = false
+	repo := &changeRepo{sale: older, customerSaleRepo: customerSaleRepo{customers: twoCustomers()}}
+	got, err := NewSaleService(repo).ChangeSaleCustomer(aCashier(), changeTo(6, 5), 1)
+	if err != nil || got == nil || got.ID != 6 {
+		t.Fatalf("a retry on an old sale is answered as saved: %+v, %v", got, err)
+	}
+	if len(repo.updated) != 0 || len(repo.audits) != 0 {
+		t.Fatal("a retry must not write or audit anything")
+	}
+
+	// A retried removal on an old sale that is already a walk-in.
+	oldWalkIn := aSaleOf(0)
+	oldWalkIn.IsRecent = false
+	walkIn := &changeRepo{sale: oldWalkIn}
+	got, err = NewSaleService(walkIn).ChangeSaleCustomer(aCashier(), changeTo(0, 5), 1)
+	if err != nil || got != nil || len(walkIn.updated) != 0 || len(walkIn.audits) != 0 {
+		t.Fatalf("a retried removal on an old sale is answered as saved: %+v, %v", got, err)
+	}
+}
+
+func TestACashierStillCannotMakeARealChangeOnAnOldSale(t *testing.T) {
+	older := aSaleOf(5)
+	older.IsRecent = false
+	repo := &changeRepo{sale: older, customerSaleRepo: customerSaleRepo{customers: twoCustomers()}}
+	// Not a repeat (the sale is on 5, the request asks for 6), and not stale either.
+	_, err := NewSaleService(repo).ChangeSaleCustomer(aCashier(), changeTo(6, 5), 1)
+	requireHTTPStatus(t, err, http.StatusForbidden)
+	requireReason(t, err, "sale_too_old")
+	if len(repo.updated) != 0 || len(repo.audits) != 0 || repo.commits != 0 {
+		t.Fatal("a refused change must leave nothing behind")
 	}
 }
 

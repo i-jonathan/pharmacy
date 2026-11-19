@@ -163,8 +163,13 @@ const createSaleQuery = `
 	RETURNING id;
 `
 const fetchSaleReceiptNumberByIDQuery = `SELECT receipt_number FROM sales WHERE id = $1`
+
+// saleIsRecentSQL is the one definition of a "recent" sale: less than 24 hours old. A cashier may
+// change the customer only on a recent sale, and Sales History's Change button must agree with the
+// server, so both queries below use this expression.
+const saleIsRecentSQL = `created_at >= now() - interval '24 hours'`
 const fetchSaleCustomerForUpdateQuery = `
-	SELECT receipt_number, customer_id, created_at::date = CURRENT_DATE AS is_today
+	SELECT receipt_number, customer_id, ` + saleIsRecentSQL + ` AS is_recent
 	FROM sales WHERE id = $1 FOR UPDATE
 `
 const updateSaleCustomerQuery = `UPDATE sales SET customer_id = $2 WHERE id = $1`
@@ -189,7 +194,7 @@ const bulkCreateSalePaymentQuery = `
 `
 const fetchSalesQuery = `
   SELECT id, receipt_number, cashier_id, subtotal, discount, total, customer_id, created_at,
-    created_at::date = CURRENT_DATE AS is_today
+    ` + saleIsRecentSQL + ` AS is_recent
   FROM sales
   WHERE
     ($1::date IS NULL OR created_at::date >= $1::date)

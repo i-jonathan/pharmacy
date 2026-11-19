@@ -383,7 +383,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 				Items:         items,
 				Payments:      payments,
 				Returns:       returnsResp,
-				MadeToday:     s.IsToday,
+				IsRecent:      s.IsRecent,
 			}
 			if s.CustomerID != nil {
 				if name, ok := customerNames[*s.CustomerID]; ok {
@@ -467,19 +467,22 @@ func (s *saleService) ChangeSaleCustomer(
 		if err != nil {
 			return httperror.ServerError("failed to load the sale", err)
 		}
-		// The day rule comes first, so a cashier learns nothing about an older sale that Sales
-		// History does not already show.
-		if !sale.IsToday && !HasPermission(ctx, constant.ChangeOldSaleCustomerPermissionKey) {
+		// A sale that already has the requested customer is answered as saved, whatever the page
+		// expected: a retry after a lost reply (or a double click) sends the old expectation and
+		// must not be told that someone else changed it. It writes and audits nothing, and shows
+		// only the customer Sales History already shows, so the age of the sale does not matter: a
+		// retry that arrives after the sale has aged out is still the change that was saved.
+		unchanged := sameCustomer(sale.CustomerID, req.CustomerID)
+		// For a real change the age rule comes before the stale check, so a cashier learns nothing
+		// about an older sale that Sales History does not already show.
+		if !unchanged && !sale.IsRecent &&
+			!HasPermission(ctx, constant.ChangeOldSaleCustomerPermissionKey) {
 			refusal := httperror.Forbidden(
-				"only a manager can change the customer on an earlier day's sale", nil,
+				"only a manager can change the customer on a sale more than 24 hours old", nil,
 			)
 			refusal.Reason = "sale_too_old"
 			return refusal
 		}
-		// A sale that already has the requested customer is answered as saved, whatever the page
-		// expected: a retry after a lost reply (or a double click) sends the old expectation and
-		// must not be told that someone else changed it. It writes and audits nothing.
-		unchanged := sameCustomer(sale.CustomerID, req.CustomerID)
 		if !unchanged && !sameCustomer(sale.CustomerID, req.ExpectedCustomerID) {
 			msg := "someone else changed this sale's customer; check who is on it now before changing it again"
 			refusal := httperror.Conflict(msg, errors.New(msg))

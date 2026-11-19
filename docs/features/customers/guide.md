@@ -12,7 +12,7 @@ Keep a list of the pharmacy's customers: their name, phone number, email, any no
 | Manager | The same |
 | Admin | The same |
 
-Fixing the customer on a sale that is already saved: a cashier can do it for a sale made today. A manager or an admin can do it for a sale from any day.
+Fixing the customer on a sale that is already saved: a cashier can do it for a sale made in the last 24 hours. A manager or an admin can do it for a sale of any age.
 
 A user whose role has neither permission does not see **Customers** in the menu and has no customer box at the till: their sales are walk-in sales. Picking a customer at the till needs permission to see customers; adding a new one there needs permission to manage them. An administrator can change who has access in Administration → Permissions.
 
@@ -81,7 +81,7 @@ Use this when the wrong customer was put on a sale and the sale is already saved
 
 **You'll see:** "Customer changed to <name>" (or "Customer removed from the sale") at the bottom of the page, and the new name in the sale details. **Reprint receipt** now prints the new customer.
 
-**Save** stays off until you have chosen a different customer and a reason. **Change** only shows if you may see and manage customers. For a sale from an earlier day it shows only for a manager or an admin. A deactivated customer cannot be put on a sale, but one who is already on the sale can be taken off. A manager can reactivate a deactivated customer from the search, the same way as at the till. Reactivating happens at once, even if you then close the box without saving; only the sale waits for **Save**.
+**Save** stays off until you have chosen a different customer and a reason. **Change** only shows if you may see and manage customers. For a sale more than 24 hours old it shows only for a manager or an admin. A deactivated customer cannot be put on a sale, but one who is already on the sale can be taken off. A manager can reactivate a deactivated customer from the search, the same way as at the till. Reactivating happens at once, even if you then close the box without saving; only the sale waits for **Save**.
 
 ### See who changed a sale's customer
 
@@ -116,7 +116,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 - Each phone number belongs to one customer. This includes deactivated customers, so a number is never handed to someone else by mistake. A second person who shares a number can be added without a phone, with a note.
 - A Nigerian phone number has 10 digits after the first 0 (11 with the 0): `0803 123 4567`. A number from another country must start with `+` and the country code.
 - Customers are never deleted, only deactivated. A deactivated customer is shown at the till marked **Deactivated** and cannot be put on a sale until they are reactivated.
-- A cashier can change the customer only on a sale made today. A sale from an earlier day needs a manager or an admin. "Today" is the same day Sales History shows for the sale.
+- A cashier can change the customer only on a sale made in the last 24 hours, counted from the moment of the sale, not from midnight: a sale made at 11:59 pm can still be fixed after midnight. A sale more than 24 hours old needs a manager or an admin. If a change was saved but the reply was lost, trying again is answered as saved, even if the sale has passed 24 hours since.
 - Changing the customer does not change the sale's items, payments, stock or totals.
 - Someone who cannot see customers prints a reprint without the customer line. If they resume a held sale that has a customer, the till says it will be recorded as a walk-in; holding it again keeps the customer for someone who can see customers.
 - You can see the list with permission to see customers; adding and changing needs permission to manage customers. Someone who can only see customers sees the details but no **Add customer**, **Save changes** or **Deactivate** buttons.
@@ -137,7 +137,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 | You are not allowed to attach customers to a sale | Your role cannot see customers. | Sell as a walk-in, or ask an administrator. |
 | You are not allowed to change customers | Your role may see customers but not change them. | Ask a manager or an administrator. |
 | You are not allowed to change a sale's customer / You are not allowed to see or change a sale's customer | Your role cannot manage customers, or cannot see them. | Ask a manager or an administrator. |
-| Only a manager can change the customer on an earlier day's sale | The sale was made on an earlier day and you are a cashier. | Ask a manager to change it. |
+| Only a manager can change the customer on a sale more than 24 hours old | The sale was made more than 24 hours ago and you are a cashier. | Ask a manager to change it. |
 | Someone else changed this sale's customer; check who is on it now before changing it again | Another person changed the customer after you opened the sale. Nothing was saved. | Sales History reloads and shows the customer as it is now. Check it, and change it again only if it is still wrong. |
 | Choose a reason for the change / Say why the customer is changed | No reason was chosen, or **Other** has no words. | Choose a reason, and write a few words for **Other**. |
 | This customer has been deactivated; choose another, or ask a manager to reactivate them | You picked a customer who was deactivated. | Pick someone else, or ask a manager to reactivate them. |
@@ -152,7 +152,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 
 **Does the customer's name always print on the receipt?** Only when a customer is on the sale. Their phone number is never printed.
 
-**I picked the wrong customer and already completed the sale.** Open the sale in Sales History and choose **Change** beside the customer. See "Change or remove the customer on a saved sale". A cashier can do this on the same day; an earlier day's sale needs a manager.
+**I picked the wrong customer and already completed the sale.** Open the sale in Sales History and choose **Change** beside the customer. See "Change or remove the customer on a saved sale". A cashier can do this within 24 hours of the sale; an older sale needs a manager.
 
 **Can I see who changed a customer on a sale?** Not on a screen yet (T-127). It is recorded.
 
