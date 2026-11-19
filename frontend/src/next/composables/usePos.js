@@ -134,8 +134,15 @@ export function usePos() {
     }
   }
 
+  // The server refuses a fraction of a kobo, so amounts typed at the till (or kept in a held sale)
+  // are rounded to whole kobo; rounding each line's discount also keeps the line totals and the
+  // sale's discount adding up to the same figure. A negative amount is nothing.
+  function toWholeKobo(amount) {
+    return Math.max(0, Math.round((Number(amount) || 0) * 100) / 100);
+  }
+
   function updateDiscount(index, discount) {
-    cart[index].discount = Number(discount) || 0;
+    cart[index].discount = toWholeKobo(discount);
   }
 
   function updatePrice(index, priceId, price) {
@@ -144,7 +151,7 @@ export function usePos() {
   }
 
   function updatePayment(method, amount) {
-    payments[method] = Number(amount) || 0;
+    payments[method] = toWholeKobo(amount);
   }
 
   function clearCart() {
@@ -345,12 +352,13 @@ export function usePos() {
 
     if (payload.cart && Array.isArray(payload.cart)) {
       payload.cart.forEach((item) => {
-        cart.push({ ...item });
+        // A sale held before amounts were rounded may carry a fraction of a kobo.
+        cart.push({ ...item, discount: toWholeKobo(item.discount) });
       });
     }
     if (payload.payments) {
       Object.keys(payments).forEach((k) => {
-        payments[k] = payload.payments[k] || 0;
+        payments[k] = toWholeKobo(payload.payments[k]);
       });
     }
     // Older held sales kept a typed name; only a customer picked from the list is restored.
