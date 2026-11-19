@@ -190,6 +190,8 @@ async function refreshProducts() {
   }
 }
 
+defineExpose({ refreshProducts });
+
 onMounted(async () => {
   emit("search-ref", searchInput.value);
   searchInput.value?.focus();

@@ -67,8 +67,12 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 		if err != nil {
 			// A twin of this request may have saved the sale while this one was pricing it, and a
 			// price edit since would then read as a refusal. Say the sale was saved instead.
-			if keyUsed, _ = s.saleKeyUsed(ctx, tx, idempotencyKey); !keyUsed {
-				return "", err
+			priceErr := err
+			if keyUsed, err = s.saleKeyUsed(ctx, tx, idempotencyKey); !keyUsed {
+				if err != nil {
+					log.Println("re-checking the sale key after a pricing refusal:", err)
+				}
+				return "", priceErr
 			}
 		}
 	}

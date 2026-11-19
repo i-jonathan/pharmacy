@@ -70,7 +70,13 @@ func (s *saleService) priceSale(
 		}
 		price, err := s.repo.FetchPriceByID(ctx, v.PriceID)
 		if errors.Is(err, sql.ErrNoRows) {
-			return pricedSale{}, badRequest("a price in the sale was not found")
+			// Product edit can delete a price a cart still holds: same remedy as a changed price.
+			refusal := httperror.Conflict(
+				"A price in the cart is no longer on file. Remove the item and add it again.",
+				errors.New("price not found"),
+			)
+			refusal.Reason = "price_changed"
+			return pricedSale{}, refusal
 		}
 		if err != nil {
 			log.Println(err)
@@ -88,6 +94,11 @@ func (s *saleService) priceSale(
 			return pricedSale{}, s.priceChanged(ctx, tx, v.ProductID, sent, price.SellingPriceKobo)
 		}
 
+		if price.QuantityPerUnit <= 0 {
+			return pricedSale{}, badRequest(
+				"a price in the sale does not say how much stock it sells",
+			)
+		}
 		// The stock taken off must fit stock_movement.quantity, an INTEGER.
 		if v.Quantity*price.QuantityPerUnit > math.MaxInt32 {
 			return pricedSale{}, badRequest("the quantity of an item is too large")
@@ -98,7 +109,9 @@ func (s *saleService) priceSale(
 			return pricedSale{}, err
 		}
 		if discount < 0 || discount > gross {
-			return pricedSale{}, badRequest("a discount must be between nothing and the item's price")
+			return pricedSale{}, badRequest(
+				"a discount must be between nothing and the item's price",
+			)
 		}
 		lineTotal, err := toKobo(v.Total)
 		if err != nil {

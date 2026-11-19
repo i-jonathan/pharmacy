@@ -52,7 +52,14 @@ func TestTheServerPricesTheSaleAgainstTheDatabase(t *testing.T) {
 	honest := types.Sale{
 		CashierID: f.uid, IdempotencyKey: "honest", Subtotal: 300, Discount: 30, Total: 270,
 		Items: []types.SaleItem{
-			{ProductID: pid, Quantity: 2, PriceID: priceID, UnitPrice: 150, Discount: 30, Total: 270},
+			{
+				ProductID: pid,
+				Quantity:  2,
+				PriceID:   priceID,
+				UnitPrice: 150,
+				Discount:  30,
+				Total:     270,
+			},
 		},
 		Payments: []types.SalePayment{{Amount: 270, PaymentMethod: "Cash"}},
 	}

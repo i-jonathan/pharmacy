@@ -30,7 +30,11 @@ type pricingRepo struct {
 func newPricingRepo() *pricingRepo {
 	r := &pricingRepo{prices: map[int]model.ProductPrice{}}
 	add := func(id, product, perUnit, kobo int) {
-		p := model.ProductPrice{ProductID: product, QuantityPerUnit: perUnit, SellingPriceKobo: kobo}
+		p := model.ProductPrice{
+			ProductID:        product,
+			QuantityPerUnit:  perUnit,
+			SellingPriceKobo: kobo,
+		}
 		p.ID = id
 		r.prices[id] = p
 	}
@@ -175,12 +179,27 @@ func TestAPriceOfAnotherProductIsRefused(t *testing.T) {
 	wantNothingSaved(t, repo)
 }
 
-func TestAnUnknownPriceIsABadRequestNotAServerError(t *testing.T) {
+// Product edit can delete a price, so a cart may hold one that is gone: the till is told what it
+// is told for a changed price, which makes it read the product list again.
+func TestAPriceThatIsGoneIsRefusedAsPriceChangedNotAServerError(t *testing.T) {
 	repo := newPricingRepo()
 	sale := honestSale()
 	sale.Items[0].PriceID = 99
-	wantRefusal(t, createSale(t, repo, sale), http.StatusBadRequest, "")
+	wantRefusal(t, createSale(t, repo, sale), http.StatusConflict, "price_changed")
 	wantNothingSaved(t, repo)
+}
+
+func TestAPriceThatTakesNoStockOrAddsStockIsRefused(t *testing.T) {
+	for name, perUnit := range map[string]int{"zero": 0, "negative": -5} {
+		t.Run(name, func(t *testing.T) {
+			repo := newPricingRepo()
+			p := repo.prices[1]
+			p.QuantityPerUnit = perUnit
+			repo.prices[1] = p
+			wantRefusal(t, createSale(t, repo, honestSale()), http.StatusBadRequest, "")
+			wantNothingSaved(t, repo)
+		})
+	}
 }
 
 func TestASaleNeedsItemsWithAPositiveWholeQuantity(t *testing.T) {
