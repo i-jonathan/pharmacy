@@ -20,7 +20,7 @@ func InitSalesRouter(svc service.SaleService, tmpl *template.Template) http.Hand
 	))
 	saleMux.HandleFunc(http.MethodPost+" /{id}/reprint", saleController.ReprintReceipt)
 	// Changing the customer on a saved sale needs customer:manage and customer:view (the customer
-	// is never shown without the second); the service adds the rule for an earlier day's sale.
+	// is never shown without the second); the service adds the rule for a sale more than 24 hours old.
 	saleMux.Handle(http.MethodPut+" /{id}/customer", middleware.RequirePermissions(
 		constant.RequireAllPermissions,
 		constant.ManageCustomersPermissionKey, constant.ViewCustomersPermissionKey,

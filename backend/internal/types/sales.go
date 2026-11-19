@@ -68,11 +68,11 @@ type SavedSale struct {
 }
 
 // SaleCustomerState is a saved sale as a customer change needs to see it, read with the sale
-// locked. IsToday is decided by the database, on the same date basis Sales History filters by.
+// locked. IsRecent is decided by the database: the sale is less than 24 hours old.
 type SaleCustomerState struct {
 	ReceiptNumber string `db:"receipt_number"`
 	CustomerID    *int   `db:"customer_id"`
-	IsToday       bool   `db:"is_today"`
+	IsRecent      bool   `db:"is_recent"`
 }
 
 // ChangeSaleCustomerRequest changes or removes (CustomerID 0) the customer on a saved sale.
@@ -124,8 +124,9 @@ type SaleResponse struct {
 	Items         []SaleItemResponse    `json:"items"`
 	Payments      []SalePaymentResponse `json:"payments"`
 	Returns       []ReturnItemResponse  `json:"returns"`
-	// MadeToday says whether the database dates the sale today (the basis of the rule that only a
-	// manager changes an earlier day's sale), so the page need not guess from the browser's clock.
+	// MadeToday says whether the sale is less than 24 hours old, as the database counts it (the
+	// basis of the rule that only a manager changes the customer of an older sale), so the page need
+	// not guess from the browser's clock. The name is from when the rule was "made today".
 	MadeToday bool `json:"made_today"`
 	// Customer is set only for a sale with a customer, and only for users who may see customers.
 	Customer *SaleCustomer `json:"customer"`

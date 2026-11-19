@@ -235,10 +235,10 @@ func TestChangingTheCustomerOnASavedSaleAgainstTheDatabase(t *testing.T) {
 		history.Data[0].Customer.Name != "Bola Ade" {
 		t.Fatalf("History should show Bola: %+v, %v", history.Data, err)
 	}
-	// The server says which sales are from today, on the same date basis as the change rule, so the
-	// page never has to guess with the browser's clock.
+	// The server says which sales are less than 24 hours old, on the same test as the change rule,
+	// so the page never has to guess with the browser's clock.
 	if !history.Data[0].MadeToday {
-		t.Fatal("a sale just made is from today")
+		t.Fatal("a sale just made is within the 24 hours")
 	}
 
 	// The page that still thinks it is Ada is refused and nothing moves.
@@ -273,13 +273,33 @@ func TestChangingTheCustomerOnASavedSaleAgainstTheDatabase(t *testing.T) {
 		t.Fatalf("removal: %+v, %v, customer %d", got, err, customerOf(saleID))
 	}
 
-	// A sale from an earlier day: a cashier is refused, a manager is not.
+	// The rule is a rolling 24 hours, not the calendar day: a sale 23 hours old is still recent,
+	// even if that was yesterday, so a cashier can fix it.
 	f.db.MustExec(
-		`UPDATE sales SET created_at = created_at - INTERVAL '3 days' WHERE id = $1`, saleID,
+		`UPDATE sales SET created_at = now() - INTERVAL '23 hours' WHERE id = $1`, saleID,
+	)
+	recent, err := sales.FetchSalesHistory(cashier, types.SaleFilter{Page: 1, PerPage: 10})
+	if err != nil || len(recent.Data) != 1 || !recent.Data[0].MadeToday {
+		t.Fatalf("a sale 23 hours old is still recent: %+v, %v", recent.Data, err)
+	}
+	if _, err = sales.ChangeSaleCustomer(
+		cashier, req(saleID, ada, 0, "picked_by_mistake"), f.uid,
+	); err != nil || customerOf(saleID) != ada {
+		t.Fatalf("a cashier may change a 23 hour old sale: %v, now %d", err, customerOf(saleID))
+	}
+	if _, err = sales.ChangeSaleCustomer(
+		cashier, req(saleID, 0, ada, "picked_by_mistake"), f.uid,
+	); err != nil || customerOf(saleID) != 0 {
+		t.Fatalf("and take it off again: %v, customer %d", err, customerOf(saleID))
+	}
+
+	// A sale more than 24 hours old: a cashier is refused, a manager is not.
+	f.db.MustExec(
+		`UPDATE sales SET created_at = now() - INTERVAL '25 hours' WHERE id = $1`, saleID,
 	)
 	earlier, err := sales.FetchSalesHistory(cashier, types.SaleFilter{Page: 1, PerPage: 10})
 	if err != nil || len(earlier.Data) != 1 || earlier.Data[0].MadeToday {
-		t.Fatalf("an earlier day's sale is not from today: %+v, %v", earlier.Data, err)
+		t.Fatalf("a sale 25 hours old is not recent: %+v, %v", earlier.Data, err)
 	}
 	_, err = sales.ChangeSaleCustomer(cashier, req(saleID, ada, 0, "picked_by_mistake"), f.uid)
 	requireStatus(t, err, http.StatusForbidden)
@@ -290,6 +310,13 @@ func TestChangingTheCustomerOnASavedSaleAgainstTheDatabase(t *testing.T) {
 		manager, req(saleID, ada, 0, "picked_by_mistake"), f.uid,
 	); err != nil || customerOf(saleID) != ada {
 		t.Fatalf("a manager may change an earlier sale: %v, customer %d", err, customerOf(saleID))
+	}
+
+	// A retry of that change after the sale has aged out is answered as saved for a cashier too.
+	if got, err = sales.ChangeSaleCustomer(
+		cashier, req(saleID, ada, 0, "picked_by_mistake"), f.uid,
+	); err != nil || got == nil || got.ID != ada {
+		t.Fatalf("a retry on an old sale is answered as saved: %+v, %v", got, err)
 	}
 
 	// Missing sale.
