@@ -237,7 +237,7 @@ func TestChangingTheCustomerOnASavedSaleAgainstTheDatabase(t *testing.T) {
 	}
 	// The server says which sales are less than 24 hours old, on the same test as the change rule,
 	// so the page never has to guess with the browser's clock.
-	if !history.Data[0].MadeToday {
+	if !history.Data[0].IsRecent {
 		t.Fatal("a sale just made is within the 24 hours")
 	}
 
@@ -279,7 +279,7 @@ func TestChangingTheCustomerOnASavedSaleAgainstTheDatabase(t *testing.T) {
 		`UPDATE sales SET created_at = now() - INTERVAL '23 hours' WHERE id = $1`, saleID,
 	)
 	recent, err := sales.FetchSalesHistory(cashier, types.SaleFilter{Page: 1, PerPage: 10})
-	if err != nil || len(recent.Data) != 1 || !recent.Data[0].MadeToday {
+	if err != nil || len(recent.Data) != 1 || !recent.Data[0].IsRecent {
 		t.Fatalf("a sale 23 hours old is still recent: %+v, %v", recent.Data, err)
 	}
 	if _, err = sales.ChangeSaleCustomer(
@@ -298,7 +298,7 @@ func TestChangingTheCustomerOnASavedSaleAgainstTheDatabase(t *testing.T) {
 		`UPDATE sales SET created_at = now() - INTERVAL '25 hours' WHERE id = $1`, saleID,
 	)
 	earlier, err := sales.FetchSalesHistory(cashier, types.SaleFilter{Page: 1, PerPage: 10})
-	if err != nil || len(earlier.Data) != 1 || earlier.Data[0].MadeToday {
+	if err != nil || len(earlier.Data) != 1 || earlier.Data[0].IsRecent {
 		t.Fatalf("a sale 25 hours old is not recent: %+v, %v", earlier.Data, err)
 	}
 	_, err = sales.ChangeSaleCustomer(cashier, req(saleID, ada, 0, "picked_by_mistake"), f.uid)

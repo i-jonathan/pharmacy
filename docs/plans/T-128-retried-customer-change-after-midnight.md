@@ -24,15 +24,15 @@ Two changes to the rule for correcting the customer on a saved sale:
 | Unchanged check before the old-sale rule | `code` sales.go:470-482 | yes |
 | Old sale = more than 24 hours old, in both SQL queries | `code` query.go:167,192 | yes |
 | Refusal message, comments, docs say "earlier day" | `code` list above | yes |
-| Rename the JSON field `made_today` | `model` | no: keep the wire name, comment that it means "within 24 hours"; renaming touches the frontend for no gain |
+| Rename the JSON field `made_today` | `code` review | yes (decided after review): now `is_recent` on `SaleResponse`, read by `SalesHistory.vue` and the integration test |
 
 ## Decisions for you
-- Go field name: rename `IsToday` to `IsRecent` (recommended, since "today" would be false) and keep the JSON key `made_today`. Say if you want the JSON key renamed too.
+- Go field name: `IsToday` becomes `IsRecent`. The JSON key `made_today` was first kept, then renamed to `is_recent` after review, because it no longer meant "today".
 
 ## Design
 - **Repository:** both queries use `created_at >= now() - interval '24 hours' AS is_recent`; `db:"is_recent"` on `types.SaleCustomerState` and `model.Sale`. No migration.
 - **Service:** in `ChangeSaleCustomer`, compute `unchanged` first. Apply the old-sale rule only when `!unchanged` (permission `sale:changeoldcustomer` unchanged); then the stale check. Refusal text: "only a manager can change the customer on a sale more than 24 hours old". Code stays `sale_too_old`.
-- **Response:** `SaleResponse.made_today` is now true for a sale within the last 24 hours. Name kept; comment updated.
+- **Response:** `SaleResponse.is_recent` (was `made_today`) is true for a sale less than 24 hours old.
 - **UI:** comment in `SalesHistory.vue` reworded. Added after review: a `sale_too_old` refusal is handled like `customer_changed` (dialog closes, the page reloads, a toast gives the server's message, and the Change button goes for a cashier), because a sale can now pass 24 hours while the dialog is open. Needs `make build-frontend` before the binary shows it; no new Tailwind classes.
 - **Docs:** `CLAUDE.md` and the two customer feature docs reworded to the 24-hour rule and the retry behaviour.
 - Permissions, audit entries, idempotency: unchanged.

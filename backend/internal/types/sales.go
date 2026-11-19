@@ -124,10 +124,10 @@ type SaleResponse struct {
 	Items         []SaleItemResponse    `json:"items"`
 	Payments      []SalePaymentResponse `json:"payments"`
 	Returns       []ReturnItemResponse  `json:"returns"`
-	// MadeToday says whether the sale is less than 24 hours old, as the database counts it (the
+	// IsRecent says whether the sale is less than 24 hours old, as the database counts it (the
 	// basis of the rule that only a manager changes the customer of an older sale), so the page need
-	// not guess from the browser's clock. The name is from when the rule was "made today".
-	MadeToday bool `json:"made_today"`
+	// not guess from the browser's clock.
+	IsRecent bool `json:"is_recent"`
 	// Customer is set only for a sale with a customer, and only for users who may see customers.
 	Customer *SaleCustomer `json:"customer"`
 	// CustomerChanges lists each change of the sale's customer, newest first. It is always an

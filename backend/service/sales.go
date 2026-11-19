@@ -383,7 +383,7 @@ func (s *saleService) FetchSalesHistory(ctx context.Context, filter types.SaleFi
 				Items:         items,
 				Payments:      payments,
 				Returns:       returnsResp,
-				MadeToday:     s.IsRecent,
+				IsRecent:      s.IsRecent,
 			}
 			if s.CustomerID != nil {
 				if name, ok := customerNames[*s.CustomerID]; ok {

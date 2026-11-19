@@ -831,7 +831,7 @@ async function submitReturn() {
 
 // --- Change the customer on a saved sale ---
 // Anyone who manages customers may fix a sale less than 24 hours old; an older sale needs the
-// manager's permission (`made_today` is the server's name for that test). The server decides;
+// manager's permission (`is_recent` is the server's answer for that test). The server decides;
 // this only decides whether to offer the button.
 const { hasPermission } = usePermissions();
 const CUSTOMER_CHANGE_REASONS = [
@@ -854,7 +854,7 @@ const canChangeCustomer = computed(() => {
   const sale = detailSale.value;
   if (!sale || !hasPermission("customer:view") || !hasPermission("customer:manage")) return false;
   // The server says which sales are less than 24 hours old, by the same test as its own rule.
-  return sale.made_today === true || hasPermission("sale:changeoldcustomer");
+  return sale.is_recent === true || hasPermission("sale:changeoldcustomer");
 });
 
 const canSaveCustomerChange = computed(() => {
