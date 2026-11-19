@@ -189,6 +189,17 @@ func TestAPriceThatIsGoneIsRefusedAsPriceChangedNotAServerError(t *testing.T) {
 	wantNothingSaved(t, repo)
 }
 
+// A price id that cannot exist is a broken request, not a price that changed: no remedy to offer.
+func TestAPriceIdThatCannotExistIsABadRequest(t *testing.T) {
+	for _, id := range []int{0, -1} {
+		repo := newPricingRepo()
+		sale := honestSale()
+		sale.Items[0].PriceID = id
+		wantRefusal(t, createSale(t, repo, sale), http.StatusBadRequest, "")
+		wantNothingSaved(t, repo)
+	}
+}
+
 func TestAPriceThatTakesNoStockOrAddsStockIsRefused(t *testing.T) {
 	for name, perUnit := range map[string]int{"zero": 0, "negative": -5} {
 		t.Run(name, func(t *testing.T) {

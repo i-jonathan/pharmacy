@@ -68,6 +68,9 @@ func (s *saleService) priceSale(
 		if v.Quantity <= 0 || v.Quantity > maxSaleQuantity {
 			return pricedSale{}, badRequest("each item needs a quantity from 1 to 1,000,000")
 		}
+		if v.PriceID <= 0 {
+			return pricedSale{}, badRequest("each item needs a price")
+		}
 		price, err := s.repo.FetchPriceByID(ctx, v.PriceID)
 		if errors.Is(err, sql.ErrNoRows) {
 			// Product edit can delete a price a cart still holds: same remedy as a changed price.
