@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"pharmacy/internal/constant"
 	"pharmacy/internal/types"
@@ -204,7 +205,8 @@ func TestMergePurchaseOrder(t *testing.T) {
 	requireNothingWritten := func(t *testing.T, repo *fakePurchaseOrderRepo) {
 		t.Helper()
 		if repo.commits != 0 || len(repo.reverted) != 0 || len(repo.closedIDs) != 0 ||
-			len(repo.updatedLines) != 0 || len(repo.insertedLines) != 0 || len(repo.audit) != 0 {
+			len(repo.updatedLines) != 0 || len(repo.insertedLines) != 0 || len(repo.audit) != 0 ||
+			repo.supplierSaved != nil || repo.supplierSavedN != "" {
 			t.Fatalf("a refused merge must write nothing, got %+v", repo)
 		}
 	}
@@ -274,9 +276,60 @@ func TestMergePurchaseOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("a drafter can merge", func(t *testing.T) {
-		if err := merge(drafterContext(), mergeFixture(), mergeRequest()); err != nil {
+	t.Run("a drafter cannot merge, because it undoes an approval", func(t *testing.T) {
+		repo := mergeFixture()
+		requireHTTPStatus(t, merge(drafterContext(), repo, mergeRequest()), http.StatusForbidden)
+		requireNothingWritten(t, repo)
+	})
+
+	t.Run("the history records note changes and the draft's supplier", func(t *testing.T) {
+		repo := mergeFixture()
+		target, draft := repo.orders[1], repo.orders[2]
+		target.Items[0].Note = "box"
+		draft.Note = "urgent"
+		draft.Items[0].Note = "rush"
+		repo.orders[1], repo.orders[2] = target, draft
+		if err := merge(approverContext(), repo, mergeRequest()); err != nil {
 			t.Fatal(err)
+		}
+		var details struct {
+			Note  struct{ From, To string } `json:"note"`
+			Notes []struct {
+				Name string
+				Note struct{ From, To string }
+			} `json:"line_notes"`
+			DraftSupplier string `json:"draft_supplier"`
+		}
+		if err := json.Unmarshal(repo.audit[0].Details, &details); err != nil {
+			t.Fatal(err)
+		}
+		if details.Note.From != "weekly" || details.Note.To != "weekly\nurgent" {
+			t.Fatalf("expected the order note change recorded, got %+v", details.Note)
+		}
+		if len(details.Notes) != 1 || details.Notes[0].Name != "Alpha" ||
+			details.Notes[0].Note.From != "box" || details.Notes[0].Note.To != "box; rush" {
+			t.Fatalf("expected Alpha's note change recorded, got %+v", details.Notes)
+		}
+		if details.DraftSupplier != "Other" {
+			t.Fatalf("expected the draft's supplier recorded, got %q", details.DraftSupplier)
+		}
+	})
+
+	t.Run("nothing extra is recorded when notes and supplier match", func(t *testing.T) {
+		for _, supplier := range []string{"emzor", " Emzor ", ""} {
+			repo := mergeFixture()
+			draft := repo.orders[2]
+			draft.Supplier = supplier
+			repo.orders[2] = draft
+			if err := merge(approverContext(), repo, mergeRequest()); err != nil {
+				t.Fatal(err)
+			}
+			details := string(repo.audit[0].Details)
+			for _, key := range []string{`"note"`, `"line_notes"`, `"draft_supplier"`} {
+				if strings.Contains(details, key) {
+					t.Fatalf("supplier %q: did not expect %s in %s", supplier, key, details)
+				}
+			}
 		}
 	})
 

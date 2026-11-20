@@ -88,11 +88,11 @@ The UI shows a closed order that received something as "partially filled" (`show
 | Step | Where | Detail |
 |---|---|---|
 | Request | `POST /inventory/purchase-orders/:id/merge` | `{version, draft_id, draft_version}`: the open order in the URL and the draft, each with the version the user saw |
-| Gate | route `mayDraft` (draft or approve) | Service re-checks `canWorkOnPurchaseOrders`; the merge never approves anything, so drafters may do it |
+| Gate | route `mayApprove` | Service re-checks `canApprovePurchaseOrders` (403 otherwise): the merge undoes the approval of an order that may already be with the supplier, so a drafter cannot do it. The draft merged in can be anyone's |
 | Service | `MergePurchaseOrder` in `purchase_order_merge.go` | One transaction. Locks both orders, lower id first (no deadlock between two merges). Target must be `open` with every `received_quantity` 0 (409 otherwise, so `partial` is refused); source must be `draft` (409). Same order or no draft id: 400. Stale version on either: 409 `purchaseOrderChangedElsewhere` |
 | Rules | `planPurchaseOrderMerge` | Pure function. Same item = same product id, or for lines without a product the same name and manufacturer ignoring case; a typed line never matches a product line. A matched line keeps the higher quantity; notes join (`"; "` for lines, newline for the order). Draft-only lines are inserted. A joined note over 1000 (order) or 500 (line) characters is 400. The page's `mergePreview` mirrors this and must be kept in step |
 | Writes | repository | Target header (own supplier kept, joined note), line updates and inserts, `RevertPurchaseOrderToDraftTx` (status `draft`, `approved_by_id`/`approved_at` cleared, version bumped), `ClosePurchaseOrderTx` on the draft (closed, no PDF, like a rejected draft) |
-| Side effects | `audit_log` | `merged` on both orders: on the target `merged_purchase_order_id`, `status_before`, `added`, `raised` (name, from, to); on the draft `merged_into_purchase_order_id` |
+| Side effects | `audit_log` | `merged` on both orders: on the target `merged_purchase_order_id`, `status_before`, `added`, `raised` (name, from, to), and only when they apply `note` (from, to), `line_notes` (name, from, to) and `draft_supplier` (the draft's supplier name when it differs from the order's); on the draft `merged_into_purchase_order_id` |
 | Response | `{id}` of the open order | |
 
 No migration: the retired draft uses the existing `closed` status.

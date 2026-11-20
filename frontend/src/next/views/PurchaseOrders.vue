@@ -487,6 +487,9 @@
                 <p v-if="supplierDiffers(o, chosenDraft)" class="text-xs text-amber-700 dark:text-amber-300">
                   The draft names {{ chosenDraft.supplier }}. The merged order stays with {{ o.supplier || "no supplier" }}.
                 </p>
+                <p v-if="mergeJoinsNotes(o, chosenDraft)" class="text-xs text-muted-foreground">
+                  The notes of the two orders will be joined, and so will the notes on items that are on both.
+                </p>
                 <ul class="space-y-1">
                   <li v-for="row in mergePreview(o, chosenDraft)" :key="row.key">
                     <span class="font-medium">{{ row.name }}</span>
@@ -899,12 +902,12 @@ function canWithdraw(o) {
 }
 
 // A draft can be folded into an open order that has received nothing: that order goes back to a
-// draft, so it is approved again before it is sent.
+// draft, so it is approved again before it is sent. That undoes an approval, so managers only.
 function canMergeInto(o) {
   return (
     o.status === "open" &&
     o.items.every((i) => i.received_quantity === 0) &&
-    canUse.value &&
+    canApprove.value &&
     draftCount.value !== 0
   );
 }
@@ -975,7 +978,7 @@ async function loadOrders() {
     if (!r.ok) throw new Error(await apiError(r, "Could not load purchase orders."));
     orders.value = (await r.json()) || [];
     refreshPending();
-    if (tab.value === "active" && canUse.value) loadDraftCount();
+    if (tab.value === "active" && canApprove.value) loadDraftCount();
   } catch (e) {
     loadError.value = e.message || "Could not load purchase orders.";
   } finally {
@@ -1053,6 +1056,9 @@ function eventLines(e) {
       const added = (d.added || []).length;
       const raised = (d.raised || []).length;
       lines.push(`${orderNumber(d.merged_purchase_order_id)} merged in (${added} item${added === 1 ? "" : "s"} added, ${raised} quantit${raised === 1 ? "y" : "ies"} raised). Back to a draft`);
+      if (d.note) lines.push("Order note changed");
+      for (const n of d.line_notes || []) lines.push(`${n.name}: note changed`);
+      if (d.draft_supplier) lines.push(`The merged draft was for ${d.draft_supplier}`);
     }
   } else if (e.action === "moved") {
     lines.push(`Outstanding items moved to ${orderNumber(d.to_purchase_order_id)} (${d.supplier.from || "none"} → ${d.supplier.to})`);
@@ -1245,7 +1251,25 @@ function mergePreview(target, draft) {
   });
 }
 
+// True when the merge will change a note: the draft's order note or a note on an item that is on
+// both orders says something the open order does not. Same rule as joinMergedNotes on the server.
+function mergeJoinsNotes(target, draft) {
+  const adds = (first, second) => {
+    const a = (first || "").trim();
+    const b = (second || "").trim();
+    return b !== "" && b !== a;
+  };
+  if (adds(target.note, draft.note)) return true;
+  const existing = new Map(target.items.map((i) => [mergeKey(i), i]));
+  return draft.items.some((line) => {
+    const current = existing.get(mergeKey(line));
+    return current && adds(current.note, line.note);
+  });
+}
+
+let mergeRequest = 0;
 async function startMerge(o) {
+  const mine = ++mergeRequest;
   closeTarget.value = null;
   moveTarget.value = null;
   mergeDrafts.value = [];
@@ -1256,14 +1280,17 @@ async function startMerge(o) {
     const r = await fetch(`${API}/inventory/purchase-orders?view=drafts`);
     if (!r.ok) throw new Error(await apiError(r, "Could not load the drafts."));
     const all = (await r.json()) || [];
-    if (mergeTarget.value === o.id) {
+    if (mine === mergeRequest && mergeTarget.value === o.id) {
       mergeDrafts.value = all.filter((d) => d.status === "draft" && d.id !== o.id);
     }
   } catch (e) {
-    mergeTarget.value = null;
-    showNotice(e.message, true);
+    if (mine === mergeRequest) {
+      mergeTarget.value = null;
+      showNotice(e.message, true);
+    }
   } finally {
-    mergeLoading.value = false;
+    // An older request must not clear the loading state of a newer one.
+    if (mine === mergeRequest) mergeLoading.value = false;
   }
 }
 

@@ -36,7 +36,7 @@ Merging puts the two together so a cashier can finish one order and send it thro
 **Who and what can be merged**
 - The target is an order with status `open` and no received quantity on any line (a "partial" order is refused).
 - The source is an order with status `draft`.
-- The caller needs `purchaseorder:draft` or `purchaseorder:approve` (`canWorkOnPurchaseOrders`; route gated with `mayDraft`, like submit and withdraw). Everyone with either permission already sees all orders.
+- The caller needs `purchaseorder:approve` (a manager; route gated with `mayApprove`, service checks `canApprovePurchaseOrders`). Changed after review: the merge undoes the approval of an order that may already be with the supplier, which a drafter cannot do. The draft being merged can be anyone's. Everyone with either permission already sees all orders.
 - The caller sends both ids and the version of each that they saw. A stale version is 409 `purchaseOrderChangedElsewhere`, as for every other order action.
 
 **What happens (one transaction, `inPurchaseOrderTx`-style, both rows locked `FOR UPDATE`, in id order to avoid deadlocks)**
@@ -63,7 +63,7 @@ Merging puts the two together so a cashier can finish one order and send it thro
 - The retired draft becomes `closed` rather than being deleted or getting a new `merged` status, so no migration is needed.
 - Clearing the approval stamp on the target (rather than leaving it).
 - Joining differing notes instead of refusing the merge.
-- Cashiers may merge, because the result must be approved again.
+- Only managers may merge (first decided that cashiers could, since the result must be approved again; changed after review because the merge reverses an approval).
 - One draft per merge; merging several means repeating it.
 
 ## Left to the builder

@@ -14,7 +14,7 @@
 
 - Same item on both orders keeps the **higher** quantity, never the sum.
 - The target must be status `open` with every line's `received_quantity` 0; the source must be status `draft`. A `partial` order is refused.
-- Permission: `purchaseorder:draft` or `purchaseorder:approve` (`canWorkOnPurchaseOrders`); route gated with `mayDraft`.
+- Permission: `purchaseorder:approve` only (`canApprovePurchaseOrders`); route gated with `mayApprove`. Changed after review; the plan first allowed drafters.
 - Both versions are sent by the caller; a stale one is `purchaseOrderChangedElsewhere()` (409).
 - The target keeps its id, supplier and `source_purchase_order_id`; it becomes `draft`, approval stamp cleared. The draft is closed with `ClosePurchaseOrderTx`.
 - Audit action `merged` on both orders, written in the same transaction (`s.auditPurchaseOrder`).
@@ -111,7 +111,7 @@
 
 - [ ] **Step 1: Write the failing unit tests** in `purchase_order_merge_test.go` with `fakePurchaseOrderRepo`. Extend the fake: an `orders map[int]types.PurchaseOrder` that `GetPurchaseOrderForUpdateTx` consults before `order`, plus recorded `updatedLines`, `reverted []int`, `closedIDs []int`. Test `TestMergePurchaseOrder`:
   - "a manager merges a draft into an open order": `approverContext()`, target 1 open (version 3, supplier "Emzor", Alpha 10), draft 2 draft (version 2, Alpha 15, Beta 4) → no error; `reverted == [1]`, draft 2 closed, one line updated to 15, one line inserted (Beta), two `merged` audit entries (one per order id), one commit, no rollback.
-  - "a drafter can merge": `drafterContext()` succeeds.
+  - "a drafter cannot merge": `drafterContext()` gets 403 and nothing is written (first written as "a drafter can merge"; changed after review).
   - "no purchase order permission is refused": `bareContext()` → 403, nothing written.
   - "refused states": each → 409 and `commits == 0`: target `partial`; target `open` with a line `ReceivedQuantity: 1`; target `draft`, `pending_approval`, `closed`; source `open`, `pending_approval`, `closed`.
   - "stale versions": target version mismatch and draft version mismatch each → 409.

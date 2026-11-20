@@ -38,7 +38,7 @@ func InitInventoryRouter(svc service.InventoryService, tmpl *template.Template) 
 	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/withdraw",
 		mayDraft(http.HandlerFunc(inventoryController.WithdrawPurchaseOrder)))
 	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/merge",
-		mayDraft(http.HandlerFunc(inventoryController.MergePurchaseOrder)))
+		mayApprove(http.HandlerFunc(inventoryController.MergePurchaseOrder)))
 	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/approve",
 		mayApprove(http.HandlerFunc(inventoryController.ApprovePurchaseOrder)))
 	inventoryMux.Handle(http.MethodPost+" /purchase-orders/{id}/reject",

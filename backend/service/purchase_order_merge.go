@@ -18,6 +18,7 @@ import (
 type purchaseOrderMergedLine struct {
 	item           types.PurchaseOrderItem
 	quantityBefore int
+	noteBefore     string
 }
 
 // purchaseOrderMergePlan is what folding a draft into an open order changes: the combined order
@@ -87,7 +88,7 @@ func planPurchaseOrderMerge(target, draft types.PurchaseOrder) (purchaseOrderMer
 		}
 		if merged.Quantity != current.Quantity || merged.Note != current.Note {
 			plan.updates = append(plan.updates, purchaseOrderMergedLine{
-				item: merged, quantityBefore: current.Quantity,
+				item: merged, quantityBefore: current.Quantity, noteBefore: current.Note,
 			})
 		}
 	}
@@ -96,12 +97,13 @@ func planPurchaseOrderMerge(target, draft types.PurchaseOrder) (purchaseOrderMer
 
 // MergePurchaseOrder folds a draft into an open order that has received nothing. The open order
 // comes back as a draft, so it is approved again before it is sent, and the old draft is closed.
-// Anyone who can write drafts may do it: the result is never approved by the merge itself.
+// Only a manager may do it: it undoes the approval of an order that may already be with the
+// supplier, which a drafter cannot do. The draft being merged may be anyone's.
 func (s *inventoryService) MergePurchaseOrder(
 	ctx context.Context, id int, req types.MergePurchaseOrderRequest, userID int,
 ) error {
-	if !canWorkOnPurchaseOrders(ctx) {
-		return httperror.Forbidden("you cannot merge purchase orders", nil)
+	if !canApprovePurchaseOrders(ctx) {
+		return httperror.Forbidden("only a manager can merge purchase orders", nil)
 	}
 	if req.DraftID <= 0 || req.DraftID == id {
 		return badRequest("choose a different draft to merge")
@@ -160,11 +162,18 @@ func (s *inventoryService) MergePurchaseOrder(
 		}
 
 		raised := make([]map[string]any, 0, len(plan.updates))
+		lineNotes := make([]map[string]any, 0, len(plan.updates))
 		for _, line := range plan.updates {
 			if line.item.Quantity != line.quantityBefore {
 				raised = append(raised, map[string]any{
 					"name":     line.item.Name,
 					"quantity": change{From: line.quantityBefore, To: line.item.Quantity},
+				})
+			}
+			if line.item.Note != line.noteBefore {
+				lineNotes = append(lineNotes, map[string]any{
+					"name": line.item.Name,
+					"note": change{From: line.noteBefore, To: line.item.Note},
 				})
 			}
 		}
@@ -173,6 +182,19 @@ func (s *inventoryService) MergePurchaseOrder(
 			"status_before":            target.Status,
 			"added":                    auditItemSummaries(plan.inserts),
 			"raised":                   raised,
+		}
+		if plan.note != target.Note {
+			onTarget["note"] = change{From: target.Note, To: plan.note}
+		}
+		if len(lineNotes) > 0 {
+			onTarget["line_notes"] = lineNotes
+		}
+		// The draft's lines now sit on the open order's supplier; keep a trace of who they were
+		// written for.
+		draftSupplier := strings.TrimSpace(draft.Supplier)
+		targetSupplier := strings.TrimSpace(target.Supplier)
+		if draftSupplier != "" && !strings.EqualFold(draftSupplier, targetSupplier) {
+			onTarget["draft_supplier"] = draftSupplier
 		}
 		err = s.auditPurchaseOrder(ctx, tx, userID, target.ID, constant.AuditMerged, "", onTarget)
 		if err != nil {
