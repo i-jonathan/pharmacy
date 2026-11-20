@@ -30,11 +30,13 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 	if params.CategoryID <= 0 {
 		return types.AddItemResponse{}, httperror.BadRequest("category is required", fmt.Errorf("invalid category"))
 	}
-	if params.CostPrice <= 0 {
-		return types.AddItemResponse{}, httperror.BadRequest("cost price must be greater than 0", fmt.Errorf("invalid cost price"))
+	costKobo, err := positivePriceKobo("cost price", params.CostPrice)
+	if err != nil {
+		return types.AddItemResponse{}, err
 	}
-	if params.SellingPrice <= 0 {
-		return types.AddItemResponse{}, httperror.BadRequest("selling price must be greater than 0", fmt.Errorf("invalid selling price"))
+	sellingKobo, err := positivePriceKobo("selling price", params.SellingPrice)
+	if err != nil {
+		return types.AddItemResponse{}, err
 	}
 
 	tx, err := s.repo.BeginTx(ctx)
@@ -49,7 +51,7 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 		CategoryID:    params.CategoryID,
 		ReorderLevel:  params.ReorderLevel,
 		Manufacturer:  &params.Manufacturer,
-		CostPriceKobo: int(params.CostPrice * 100),
+		CostPriceKobo: costKobo,
 	}
 	productID, err := s.repo.CreateProductTx(ctx, tx, product)
 	if err != nil {
@@ -61,7 +63,7 @@ func (s *inventoryService) CreateProduct(ctx context.Context, params types.Creat
 		Name:             constant.DefaultPriceName,
 		ProductID:        productID,
 		QuantityPerUnit:  1,
-		SellingPriceKobo: int(params.SellingPrice * 100),
+		SellingPriceKobo: sellingKobo,
 	}
 	priceID, err := s.repo.CreateProductPriceTx(ctx, tx, productPrice)
 	if err != nil {
@@ -160,15 +162,15 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	if len(params.Products) == 0 {
 		return httperror.BadRequest("at least one product is required", fmt.Errorf("no products"))
 	}
+	priced := make([]pricedReceiveItem, len(params.Products))
 	for i, value := range params.Products {
+		line, err := priceReceiveItem(i+1, value)
+		if err != nil {
+			return err
+		}
+		priced[i] = line
 		if value.Quantity <= 0 {
 			return httperror.BadRequest(fmt.Sprintf("product %d: quantity must be > 0", i+1), fmt.Errorf("invalid quantity"))
-		}
-		if value.CostPrice <= 0 {
-			return httperror.BadRequest(fmt.Sprintf("product %d: cost price must be > 0", i+1), fmt.Errorf("invalid cost price"))
-		}
-		if value.SellingPrice <= 0 {
-			return httperror.BadRequest(fmt.Sprintf("product %d: selling price must be > 0", i+1), fmt.Errorf("invalid selling price"))
 		}
 		// Validate expiry date is not in the past
 		if !value.Expiry.IsZero() && value.Expiry.Before(time.Now()) {
@@ -227,13 +229,16 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 
 	// Product rows are updated in id order, as stock adjustments lock them, so the two can't
 	// each hold a product the other is waiting for.
-	sort.SliceStable(params.Products, func(i, j int) bool {
-		return params.Products[i].ID < params.Products[j].ID
+	sort.SliceStable(priced, func(i, j int) bool {
+		return priced[i].ID < priced[j].ID
 	})
+	for i := range priced {
+		params.Products[i] = priced[i].ReceiveItem
+	}
 	var updatePriceData []map[string]any
-	productBatch := make([]model.ProductBatch, len(params.Products))
+	productBatch := make([]model.ProductBatch, len(priced))
 
-	for i, value := range params.Products {
+	for i, value := range priced {
 		log.Printf("Processing product %d/%d: ID=%d", i+1, len(params.Products), value.ID)
 		priceID, err := s.repo.FetchDefaultPriceID(ctx, value.ID)
 		if err != nil {
@@ -247,7 +252,7 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 			PriceID:          priceID,
 			ReceivingBatchID: receivingBatchID,
 			Quantity:         value.Quantity,
-			CostPriceKobo:    int(value.CostPrice * 100),
+			CostPriceKobo:    value.costKobo,
 			ExpiryDate:       &value.Expiry,
 		}
 		if value.PurchaseOrderItemID > 0 {
@@ -256,25 +261,25 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 		}
 		updatePriceData = append(updatePriceData, map[string]any{
 			"product_id":    value.ID,
-			"cost_price":    int(value.CostPrice * 100),
-			"selling_price": int(value.SellingPrice * 100),
+			"cost_price":    value.costKobo,
+			"selling_price": value.sellingKobo,
 		})
 
 		// Handle price options changes
-		for _, priceChange := range value.PriceOptionsChanges {
+		for k, priceChange := range value.PriceOptionsChanges {
 			if priceChange.ID == nil {
 				// Create new price option
 				_, err = s.repo.CreateProductPriceTx(ctx, tx, model.ProductPrice{
 					ProductID:        value.ID,
 					Name:             priceChange.Name,
-					SellingPriceKobo: int(priceChange.SellingPrice * 100),
+					SellingPriceKobo: value.optionKobo[k],
 					QuantityPerUnit:  priceChange.QuantityPerUnit,
 				})
 			} else {
 				// Update existing price option
 				err = s.repo.UpdateProductPriceByIDTx(ctx, tx, *priceChange.ID, model.ProductPrice{
 					Name:             priceChange.Name,
-					SellingPriceKobo: int(priceChange.SellingPrice * 100),
+					SellingPriceKobo: value.optionKobo[k],
 					QuantityPerUnit:  priceChange.QuantityPerUnit,
 				})
 			}
@@ -350,6 +355,36 @@ func (s *inventoryService) ReceiveProductSupply(ctx context.Context, params type
 	return nil
 }
 
+// pricedReceiveItem is a received line with its prices in kobo, worked out before anything is
+// written so a bad price refuses the whole receipt.
+type pricedReceiveItem struct {
+	types.ReceiveItem
+	costKobo    int
+	sellingKobo int
+	optionKobo  []int // one per PriceOptionsChanges entry
+}
+
+func priceReceiveItem(n int, item types.ReceiveItem) (pricedReceiveItem, error) {
+	line := pricedReceiveItem{ReceiveItem: item}
+	var err error
+	what := fmt.Sprintf("product %d: cost price", n)
+	if line.costKobo, err = positivePriceKobo(what, item.CostPrice); err != nil {
+		return line, err
+	}
+	what = fmt.Sprintf("product %d: selling price", n)
+	if line.sellingKobo, err = positivePriceKobo(what, item.SellingPrice); err != nil {
+		return line, err
+	}
+	line.optionKobo = make([]int, len(item.PriceOptionsChanges))
+	for k, option := range item.PriceOptionsChanges {
+		what := fmt.Sprintf("product %d: %s", n, priceOptionLabel(k+1, option.Name))
+		if line.optionKobo[k], err = positivePriceKobo(what, option.SellingPrice); err != nil {
+			return line, err
+		}
+	}
+	return line, nil
+}
+
 func (s *inventoryService) HoldReceivingItems(ctx context.Context, holdRequest types.HoldTransactionRequest) error {
 	reference := holdRequest.Reference
 	if reference == "" {
@@ -423,6 +458,18 @@ func (s *inventoryService) FetchInventory(ctx context.Context) (*model.Inventory
 }
 
 func (s *inventoryService) UpdateProduct(ctx context.Context, id int, params types.UpdateProductRequest) error {
+	costKobo, err := positivePriceKobo("cost price", params.CostPrice)
+	if err != nil {
+		return err
+	}
+	priceKobos := make([]int, len(params.Prices))
+	for i, p := range params.Prices {
+		what := priceOptionLabel(i+1, p.Name)
+		if priceKobos[i], err = positivePriceKobo(what, p.SellingPrice); err != nil {
+			return err
+		}
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		log.Println(err)
@@ -435,7 +482,7 @@ func (s *inventoryService) UpdateProduct(ctx context.Context, id int, params typ
 		CategoryID:    params.CategoryID,
 		ReorderLevel:  params.ReorderLevel,
 		Manufacturer:  &params.Manufacturer,
-		CostPriceKobo: int(params.CostPrice * 100),
+		CostPriceKobo: costKobo,
 	}
 	product.ID = id
 
@@ -461,12 +508,12 @@ func (s *inventoryService) UpdateProduct(ctx context.Context, id int, params typ
 	var defaultPriceID int
 	updatedPriceIDs := make(map[int]bool)
 
-	for _, p := range params.Prices {
+	for i, p := range params.Prices {
 		price := model.ProductPrice{
 			ProductID:        id,
 			Name:             p.Name,
 			QuantityPerUnit:  p.QuantityPerUnit,
-			SellingPriceKobo: int(p.SellingPrice * 100),
+			SellingPriceKobo: priceKobos[i],
 		}
 
 		var priceID int

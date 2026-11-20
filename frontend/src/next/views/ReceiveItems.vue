@@ -221,7 +221,7 @@
         <div v-if="!items.length && !productSuggestions.length" class="flex items-center justify-center py-8 text-center text-sm text-muted-foreground mt-2"><span class="text-xs">Search above or use <span class="font-medium text-primary">New Product</span> to add items.</span></div>
 
         <!-- New Product Modal -->
-        <div v-if="showNewProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" @click.self="showNewProductModal = false">
+        <div v-if="showNewProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" @click.self="closeNewProductModal">
           <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 my-8">
             <h3 class="text-base font-semibold mb-4">New Product</h3>
             <div class="space-y-3">
@@ -255,7 +255,7 @@
               </div>
             </div>
             <div class="flex items-center gap-2 mt-5 justify-end">
-              <Button variant="outline" size="sm" @click="showNewProductModal = false">Cancel</Button>
+              <Button variant="outline" size="sm" :disabled="newProductSaving" @click="closeNewProductModal">Cancel</Button>
               <Button size="sm" :disabled="newProductSaving" @click="saveNewProduct"><RotateCw v-if="newProductSaving" :size="14" class="animate-spin mr-1.5" /><Plus v-else :size="14" class="mr-1.5" />Create & Add</Button>
             </div>
           </div>
@@ -300,7 +300,7 @@
                       <button v-if="item._suggestedPrice !== undefined" class="text-[10px] text-primary/70 hover:text-primary cursor-pointer" @click="item.selling_price = item._suggestedPrice; item._suggestedPrice = undefined">Suggested: &#8358;{{ item._suggestedPrice }}</button>
                   </td>
                   <td class="px-2 py-2 text-center">
-                    <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg" title="Price options" @click="openPriceOptions(item)"><Settings2 :size="15" /></Button>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 hover:text-primary rounded-lg" :class="hasBadOption(item) ? 'text-destructive' : 'text-muted-foreground'" :title="hasBadOption(item) ? 'A price option is under ₦0.01' : 'Price options'" @click="openPriceOptions(item)"><Settings2 :size="15" /></Button>
                   </td>
                   <td class="px-3 py-2.5"><div class="inline-flex items-center border border-border rounded-md overflow-hidden"><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = Math.max(0, (item.quantity || 0) - 1)">−</button><input :value="item.quantity" @input="item.quantity = Math.max(0, num($event.target.value))" class="no-spinners h-7 w-9 text-center text-sm bg-transparent border-x border-border outline-none" /><button class="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent text-sm transition-colors" @click="item.quantity = (item.quantity || 0) + 1">+</button></div></td>
                   <td class="px-3 py-2.5"><input :value="item.expiry" @input="item.expiry = $event.target.value" type="date" class="no-spinners w-full px-2 py-1.5 text-sm text-center border border-border rounded-md bg-background outline-none" :class="expiryClass(item)" :title="expiryTitle(item)" /></td>
@@ -330,7 +330,7 @@
             <div class="flex items-center gap-2"><Button variant="outline" size="sm" :disabled="submitting" @click="holdReceipt"><PauseCircle :size="14" class="mr-1.5" />Hold Draft</Button><Button size="lg" class="px-6 gap-2" :disabled="submitting || (hasNearExpiry() && !expiryConfirmed)" @click="receiveItems"><CircleCheck :size="16" />Receive Items</Button></div>
           </div>
         </div>
-        <div v-if="validationErrors.global" class="text-xs text-destructive mt-1.5 flex items-center gap-1"><AlertTriangle :size="12" />{{ validationErrors.global }}</div>
+        <div v-if="validationErrors.global" class="text-xs text-destructive mt-1.5 flex items-center gap-1"><AlertTriangle :size="12" class="shrink-0" />{{ validationErrors.global }}</div>
       </div>
 
       <!-- Price Options Modal -->
@@ -343,7 +343,7 @@
           <p class="text-xs text-muted-foreground mb-4">Set alternative pricing for different pack sizes or formulations.</p>
           <div v-for="(po, pi) in priceOptionsTarget._priceOptions" :key="pi" class="flex items-center gap-2 text-xs border border-border/50 rounded-md px-3 py-2 mb-2">
             <input :value="po.name" @input="po.name = $event.target.value" class="no-spinners w-24 px-2 py-1.5 border border-border rounded-md bg-background outline-none" placeholder="Name" />
-            <input :value="po.price" @input="po.price = num($event.target.value)" type="number" step="0.01" class="no-spinners w-22 px-2 py-1.5 text-right border border-border rounded-md bg-background outline-none" placeholder="Price" />
+            <input :value="po.price" @input="po.price = num($event.target.value)" type="number" step="0.01" class="no-spinners w-22 px-2 py-1.5 text-right border border-border rounded-md bg-background outline-none" :class="{ 'border-red-500': priceOptionsTarget._errors?.options && underAKobo(po.price) }" placeholder="Price" />
             <input :value="po.qty" @input="po.qty = num($event.target.value)" type="number" class="no-spinners w-16 px-2 py-1.5 text-right border border-border rounded-md bg-background outline-none" placeholder="Qty" />
             <Button variant="ghost" size="icon" class="h-6 w-6 text-muted-foreground hover:text-destructive" @click="priceOptionsTarget._priceOptions.splice(pi, 1)"><X :size="11" /></Button>
           </div>
@@ -369,6 +369,8 @@ import { useRoute, useRouter } from "vue-router";
 import { Search, X, Package, PillBottle, PauseCircle, CircleCheck, Plus, AlertTriangle, AlertCircle, ChevronLeft, CalendarCheck, ClipboardList, Truck, RotateCw, Settings2 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { csrfFetch } from "../lib/csrf.js";
+import { readError } from "../lib/api.js";
+import { underAKobo, priceOptionLabel } from "../lib/money.js";
 import SupplierInput from "../components/SupplierInput.vue";
 import { useConfirm } from "../composables/useConfirm.js";
 import { outstandingOf } from "../lib/purchaseOrders.js";
@@ -591,11 +593,14 @@ function debouncedProductSearch() {
 // === Add Product ===
 function addProduct(p) {
   productQuery.value = ""; productSuggestions.value = []; keyCounter++;
-  const cost = p.cost_price || (p.default_price?.selling_price ? p.default_price.selling_price * 0.7 : 0);
+  // A guessed cost (70% of the selling price) is rounded to the kobo so the screen shows what is saved.
+  const cost = p.cost_price || (p.default_price?.selling_price ? Math.round(p.default_price.selling_price * 70) / 100 : 0);
   const sell = p.default_price?.selling_price || 0;
   const costBasedSuggested = cost > 0 ? Math.ceil(cost * 1.3 / 50) * 50 : 0;
   const suggestedSell = sell > 0 ? sell : costBasedSuggested;
-  const priceOpts = (p.price_options || []).map((po) => ({ id: po.id, name: po.name, price: po.selling_price, qty: po.quantity_per_unit || 1 }));
+  // The default price is the row's Sell box (receiving writes it from there), so it is not
+  // listed again as an option.
+  const priceOpts = (p.price_options || []).filter((po) => po.id !== p.default_price?.id).map((po) => ({ id: po.id, name: po.name, price: po.selling_price, qty: po.quantity_per_unit || 1 }));
   items.value.push({
     _key: p.id + "-" + keyCounter, id: p.id, name: p.name, manufacturer: p.manufacturer || "",
     barcode: p.barcode || "", cost_price: cost, selling_price: suggestedSell, quantity: 1, expiry: "",
@@ -635,12 +640,19 @@ function closePriceOptions() { priceOptionsTarget.value = null; }
 
 // === New Product Modal ===
 function openNewProductModal() {
+  if (newProductSaving.value) return; // the reply of the save in progress needs this dialog
   purchaseOrderProductTarget.value = null;
   productSuggestions.value = []; showNewProductModal.value = true;
   newProduct.value = { name: "", manufacturer: "", barcode: "", selling_price: 0, cost_price: 0, category_id: 0, reorder_level: 1, duplicateMsg: "" };
   manufacturerSuggestions.value = [];
 }
+// The dialog stays open while it saves, and no other one opens (openNewProductModal), so the
+// reply lands in the dialog that sent it.
+function closeNewProductModal() {
+  if (!newProductSaving.value) showNewProductModal.value = false;
+}
 function openPurchaseOrderProduct(line) {
+  if (newProductSaving.value) return;
   openNewProductModal();
   purchaseOrderProductTarget.value = line;
   newProduct.value.name = line.name;
@@ -724,37 +736,41 @@ function checkDuplicateProduct() {
 }
 
 async function saveNewProduct() {
-  if (!newProduct.value.name.trim()) { showToast("Product name is required", "error"); return; }
-  if (!newProduct.value.manufacturer.trim()) { showToast("Manufacturer is required", "error"); return; }
-  if (num(newProduct.value.category_id) <= 0) { showToast("Category is required", "error"); return; }
-  if (num(newProduct.value.cost_price) <= 0) { showToast("Cost price is required", "error"); return; }
-  if (num(newProduct.value.selling_price) <= 0) { showToast("Selling price is required", "error"); return; }
-  if (newProduct.value.duplicateMsg) { showToast("A product with this name and manufacturer already exists", "error"); return; }
+  if (newProductSaving.value) return;
+  // A copy of the form and of the order line it is for, taken before the request: the reply is
+  // matched to what was sent, whatever the dialog holds by the time it arrives.
+  const form = { ...newProduct.value };
+  const poLine = purchaseOrderProductTarget.value;
+  if (!form.name.trim()) { showToast("Product name is required", "error"); return; }
+  if (!form.manufacturer.trim()) { showToast("Manufacturer is required", "error"); return; }
+  if (num(form.category_id) <= 0) { showToast("Category is required", "error"); return; }
+  if (underAKobo(form.cost_price)) { showToast("Cost price must be at least ₦0.01", "error"); return; }
+  if (underAKobo(form.selling_price)) { showToast("Selling price must be at least ₦0.01", "error"); return; }
+  if (form.duplicateMsg) { showToast("A product with this name and manufacturer already exists", "error"); return; }
   newProductSaving.value = true;
   try {
     const r = await csrfFetch(`${API}/inventory/add-item`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: newProduct.value.name.trim(), manufacturer: newProduct.value.manufacturer.trim(),
-        barcode: newProduct.value.barcode.trim(), category_id: num(newProduct.value.category_id),
-        reorder_level: num(newProduct.value.reorder_level) || 1, cost_price: num(newProduct.value.cost_price),
-        selling_price: num(newProduct.value.selling_price),
+        name: form.name.trim(), manufacturer: form.manufacturer.trim(),
+        barcode: form.barcode.trim(), category_id: num(form.category_id),
+        reorder_level: num(form.reorder_level) || 1, cost_price: num(form.cost_price),
+        selling_price: num(form.selling_price),
       }),
     });
-    if (!r.ok) throw new Error("Failed to create product");
+    if (!r.ok) throw new Error((await readError(r, "Failed to create product")).message);
     const created = await r.json();
     showNewProductModal.value = false;
-    const suggestedSell = num(newProduct.value.selling_price) || Math.ceil(num(newProduct.value.cost_price) * 1.3 / 50) * 50;
+    const suggestedSell = num(form.selling_price) || Math.ceil(num(form.cost_price) * 1.3 / 50) * 50;
     items.value.push({
-      _key: "new-" + keyCounter++, id: created.id, name: newProduct.value.name.trim(),
-      manufacturer: newProduct.value.manufacturer.trim(), barcode: newProduct.value.barcode.trim(),
-      cost_price: num(newProduct.value.cost_price), selling_price: suggestedSell, quantity: 1, expiry: "",
+      _key: "new-" + keyCounter++, id: created.id, name: form.name.trim(),
+      manufacturer: form.manufacturer.trim(), barcode: form.barcode.trim(),
+      cost_price: num(form.cost_price), selling_price: suggestedSell, quantity: 1, expiry: "",
       _errors: {}, _priceOptions: [], _suggestedPrice: undefined,
     });
-    const poLine = purchaseOrderProductTarget.value;
     if (poLine) {
       claimPurchaseOrderLine(items.value[items.value.length - 1], poLine);
-      purchaseOrderProductTarget.value = null;
+      if (purchaseOrderProductTarget.value === poLine) purchaseOrderProductTarget.value = null;
     }
     showToast("Product created and added"); refocusSearch();
   } catch (e) { showToast(e.message || "Failed to create product", "error"); }
@@ -774,22 +790,39 @@ async function holdReceipt() {
 }
 
 // === Validate + Receive ===
+// Marked after a failed Receive, and only while an option is still under ₦0.01.
+function hasBadOption(item) {
+  return !!item._errors?.options && (item._priceOptions || []).some((po) => underAKobo(po.price));
+}
+
 function validate() {
   let valid = true; validationErrors.value = { supplier: false, global: "" };
   if (!supplier.value.trim()) { validationErrors.value.supplier = true; valid = false; }
   if (!items.value.length) { validationErrors.value.global = "Add at least one product."; valid = false; }
+  let optionProblem = "", otherProblem = false;
   for (const item of items.value) {
     item._errors = {};
-    if (num(item.cost_price) <= 0) { item._errors.cost = true; valid = false; }
-    if (num(item.selling_price) <= 0) { item._errors.sell = true; valid = false; }
+    if (underAKobo(item.cost_price)) { item._errors.cost = true; valid = false; }
+    if (underAKobo(item.selling_price)) { item._errors.sell = true; valid = false; }
     if (num(item.quantity) <= 0) { item._errors.qty = true; valid = false; }
+    const badOption = (item._priceOptions || []).findIndex((po) => underAKobo(po.price));
+    if (badOption >= 0) {
+      item._errors.options = true; valid = false;
+      optionProblem ||= `${item.name}: ${priceOptionLabel(badOption + 1, item._priceOptions[badOption].name)} must be at least ₦0.01.`;
+    }
+    if (item._errors.cost || item._errors.sell || item._errors.qty || item._errors.expiry) otherProblem = true;
     if (!item.expiry) { item._errors.expiry = true; valid = false; }
     else {
       const days = expiryDays(item.expiry);
       if (days !== null && days < 0) { item._errors.expiry = true; valid = false; }
     }
   }
-  if (!valid && !validationErrors.value.global) validationErrors.value.global = "Fill in all required fields marked in red.";
+  // A price option is the only problem: say which. Otherwise point at the red fields (a bad
+  // option's button is red too).
+  if (!valid && !validationErrors.value.global) {
+    validationErrors.value.global = optionProblem && !otherProblem && !validationErrors.value.supplier
+      ? optionProblem : "Fill in all required fields marked in red.";
+  }
   return valid;
 }
 
