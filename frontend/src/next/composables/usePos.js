@@ -41,29 +41,33 @@ export function usePos() {
   const amountTendered = ref(0);
 
   // --- Computed ---
+  // Sums of prices like 19.99 carry float error (59.97000000000001); the till works in whole kobo
+  // so an exact payment is seen as exact and the figures sent agree with the server's.
+  const wholeKobo = (n) => Math.round(n * 100) / 100;
+
   const subtotal = computed(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    return wholeKobo(cart.reduce((sum, item) => sum + item.price * item.qty, 0));
   });
 
   const totalDiscount = computed(() => {
-    return cart.reduce((sum, item) => sum + (item.discount || 0), 0);
+    return wholeKobo(cart.reduce((sum, item) => sum + (item.discount || 0), 0));
   });
 
   const total = computed(() => {
-    const t = subtotal.value - totalDiscount.value;
+    const t = wholeKobo(subtotal.value - totalDiscount.value);
     return Math.max(0, t);
   });
 
   const amountPaid = computed(() => {
-    return Object.values(payments).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    return wholeKobo(Object.values(payments).reduce((sum, v) => sum + (Number(v) || 0), 0));
   });
 
   const change = computed(() => {
-    return Math.max(0, amountPaid.value - total.value);
+    return Math.max(0, wholeKobo(amountPaid.value - total.value));
   });
 
   const amountOwed = computed(() => {
-    return Math.max(0, total.value - amountPaid.value);
+    return Math.max(0, wholeKobo(total.value - amountPaid.value));
   });
 
   const cartCount = computed(() => {
@@ -134,8 +138,15 @@ export function usePos() {
     }
   }
 
+  // Amounts typed at the till (or kept in a held sale) are whole kobo, because the server refuses a
+  // fraction of a kobo; rounding each line's discount also keeps the line totals and the sale's
+  // discount adding up to the same figure. A negative amount is nothing.
+  function toWholeKobo(amount) {
+    return Math.max(0, wholeKobo(Number(amount) || 0));
+  }
+
   function updateDiscount(index, discount) {
-    cart[index].discount = Number(discount) || 0;
+    cart[index].discount = toWholeKobo(discount);
   }
 
   function updatePrice(index, priceId, price) {
@@ -144,7 +155,7 @@ export function usePos() {
   }
 
   function updatePayment(method, amount) {
-    payments[method] = Number(amount) || 0;
+    payments[method] = toWholeKobo(amount);
   }
 
   function clearCart() {
@@ -345,12 +356,13 @@ export function usePos() {
 
     if (payload.cart && Array.isArray(payload.cart)) {
       payload.cart.forEach((item) => {
-        cart.push({ ...item });
+        // A sale held before amounts were rounded may carry a fraction of a kobo.
+        cart.push({ ...item, discount: toWholeKobo(item.discount) });
       });
     }
     if (payload.payments) {
       Object.keys(payments).forEach((k) => {
-        payments[k] = payload.payments[k] || 0;
+        payments[k] = toWholeKobo(payload.payments[k]);
       });
     }
     // Older held sales kept a typed name; only a customer picked from the list is restored.

@@ -46,25 +46,43 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 
 	idempotencyKey := strings.TrimSpace(saleParams.IdempotencyKey)
 
+	// A retry of a saved sale is answered with that sale, whatever has happened since to the
+	// rights of the user, the customer or the prices, so the key is looked up first.
+	keyUsed, err := s.saleKeyUsed(ctx, tx, idempotencyKey)
+	if err != nil {
+		return "", err
+	}
+
 	// Seeing customers is what lets a cashier pick one; a user without it sells to walk-ins. Only a
-	// new sale is refused: a retry of a saved sale is answered with that sale even if the user's
-	// rights have changed since, so the key is looked up first.
-	if saleParams.CustomerID > 0 && !HasPermission(ctx, constant.ViewCustomersPermissionKey) {
-		saved, err := s.saleKeyUsed(ctx, tx, idempotencyKey)
+	// new sale is refused.
+	if saleParams.CustomerID > 0 && !keyUsed &&
+		!HasPermission(ctx, constant.ViewCustomersPermissionKey) {
+		return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
+	}
+
+	// The server prices a new sale; what the till sent is only a check against it.
+	var priced pricedSale
+	if !keyUsed {
+		priced, err = s.priceSale(ctx, tx, saleParams)
 		if err != nil {
-			return "", err
-		}
-		if !saved {
-			return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
+			// A twin of this request may have saved the sale while this one was pricing it, and a
+			// price edit since would then read as a refusal. Say the sale was saved instead.
+			priceErr := err
+			if keyUsed, err = s.saleKeyUsed(ctx, tx, idempotencyKey); !keyUsed {
+				if err != nil {
+					log.Println("re-checking the sale key after a pricing refusal:", err)
+				}
+				return "", priceErr
+			}
 		}
 	}
 
 	sale := model.Sale{
 		Status:         constant.CompleteSaleStatus,
 		CashierID:      saleParams.CashierID,
-		Discount:       int(saleParams.Discount * 100),
-		Subtotal:       int(saleParams.Subtotal * 100),
-		Total:          int(saleParams.Total * 100),
+		Discount:       priced.discount,
+		Subtotal:       priced.subtotal,
+		Total:          priced.total,
 		IdempotencyKey: nil,
 	}
 	if idempotencyKey != "" {
@@ -123,28 +141,13 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 		}
 	}
 
-	saleItems := make([]model.SaleItem, len(saleParams.Items))
-	stockMovement := make([]model.StockMovement, len(saleParams.Items))
-	for i, v := range saleParams.Items {
-		saleItems[i] = model.SaleItem{
-			SaleID:     saleID,
-			ProductID:  v.ProductID,
-			Quantity:   v.Quantity,
-			UnitPrice:  int(v.UnitPrice * 100),
-			Discount:   int(v.Discount * 100),
-			TotalPrice: int(v.Total * 100),
-		}
-
-		selectedPrice, err := s.repo.FetchPriceByID(ctx, v.PriceID)
-		if err != nil {
-			log.Println(err)
-			return "", httperror.ServerError("failed to fetch product price", err)
-		}
-		saleItems[i].StockQuantityPerUnit = selectedPrice.QuantityPerUnit
-
+	saleItems := priced.items
+	stockMovement := make([]model.StockMovement, len(saleItems))
+	for i := range saleItems {
+		saleItems[i].SaleID = saleID
 		stockMovement[i] = model.StockMovement{
-			ProductID:    v.ProductID,
-			Quantity:     v.Quantity * selectedPrice.QuantityPerUnit, // has to be quantity * selected price * quantity
+			ProductID:    saleItems[i].ProductID,
+			Quantity:     saleItems[i].Quantity * saleItems[i].StockQuantityPerUnit,
 			ReferenceID:  saleID,
 			MovementType: model.MovementTypeOutSale,
 		}
@@ -156,13 +159,9 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 		return "", httperror.ServerError("Failed to create sale items", err)
 	}
 
-	salePayments := make([]model.SalePayment, len(saleParams.Payments))
-	for i, v := range saleParams.Payments {
-		salePayments[i] = model.SalePayment{
-			SaleID:        saleID,
-			PaymentMethod: constant.NormalizePaymentMethod(v.PaymentMethod),
-			Amount:        int(v.Amount * 100),
-		}
+	salePayments := priced.payments
+	for i := range salePayments {
+		salePayments[i].SaleID = saleID
 	}
 
 	err = s.repo.BulkCreateSalePaymentsTX(ctx, tx, salePayments)

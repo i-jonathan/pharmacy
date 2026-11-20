@@ -6,6 +6,7 @@
       :class="mobilePane === 'products' ? 'block' : 'hidden xl:block'"
     >
       <ProductPanel
+        ref="productPanel"
         @add-item="handleAddItem"
         @search-ref="pos.setSearchRef"
       />
@@ -190,6 +191,8 @@ function clearActionMessage() {
   actionMessage.value = "";
 }
 
+const productPanel = ref(null);
+
 async function runAction(action, successMessage) {
   if (processing.value) return;
   processing.value = true;
@@ -209,6 +212,9 @@ async function runAction(action, successMessage) {
     // The sale was saved on an earlier try (its reply was lost): this cart is that sale, so end it
     // here, and Sales History shows what was saved.
     if (e.code === "already_saved") pos.clearCart();
+    // A price changed since the product list was loaded, so adding the line again from that list
+    // would bring the old price back: read the list again first.
+    if (e.code === "price_changed") productPanel.value?.refreshProducts();
     // The server knows the customer was deactivated since they were picked (or a resumed held sale
     // had not read them yet): show it on the customer, with Reactivate, and stop Complete.
     // The till's own wording replaces the server's ("ask a manager"), which no longer applies now

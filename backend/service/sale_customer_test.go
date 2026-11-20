@@ -78,8 +78,9 @@ func (r *customerSaleRepo) GetCustomerRefTx(
 	return types.CustomerRef{ID: c.ID, Name: c.Name, Active: c.Active}, nil
 }
 
+// FetchPriceByID answers price 1 of product 1 at ₦100.00, which is what saleFor sells.
 func (r *customerSaleRepo) FetchPriceByID(context.Context, int) (model.ProductPrice, error) {
-	return model.ProductPrice{QuantityPerUnit: 1}, nil
+	return model.ProductPrice{ProductID: 1, QuantityPerUnit: 1, SellingPriceKobo: 10000}, nil
 }
 
 func (r *customerSaleRepo) BulkCreateSaleItemsTx(
