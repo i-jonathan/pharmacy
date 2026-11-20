@@ -324,6 +324,7 @@ import { csrfFetch } from "../lib/csrf.js";
 import { useRouter } from "vue-router";
 import { useStockFlags } from "../composables/useStockFlags.js";
 import { readError } from "../lib/api.js";
+import { amountOf, underAKobo, priceOptionLabel } from "../lib/money.js";
 
 const API = "";
 
@@ -504,8 +505,19 @@ function cancelEdit() {
   editMode.value = false;
 }
 
+// The first price on the form the server would refuse (under ₦0.01), as a message, or "".
+function priceProblem(form) {
+  if (underAKobo(form.cost_price)) return "Cost price must be at least ₦0.01";
+  const idx = form.priceOptions.findIndex((opt) => underAKobo(opt.selling_price));
+  if (idx < 0) return "";
+  const label = priceOptionLabel(idx + 1, form.priceOptions[idx].name);
+  return `${label[0].toUpperCase()}${label.slice(1)} must be at least ₦0.01`;
+}
+
 async function saveProduct() {
   if (!detailProduct.value) return;
+  const problem = priceProblem(editForm.value);
+  if (problem) { showToast(problem); return; }
   saving.value = true;
   try {
     const payload = {
@@ -514,12 +526,12 @@ async function saveProduct() {
       manufacturer: editForm.value.manufacturer,
       barcode: editForm.value.barcode,
       category_id: editForm.value.category_id,
-      cost_price: editForm.value.cost_price,
-      reorder_level: editForm.value.reorder_level,
+      cost_price: amountOf(editForm.value.cost_price),
+      reorder_level: amountOf(editForm.value.reorder_level),
       prices: editForm.value.priceOptions.map((opt, idx) => ({
         id: opt._id || null,
         name: opt.name,
-        selling_price: opt.selling_price,
+        selling_price: amountOf(opt.selling_price),
         quantity_per_unit: opt.quantity_per_unit || 1,
         is_default: idx === editForm.value.defaultPriceIdx,
       })),
