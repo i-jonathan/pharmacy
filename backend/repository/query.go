@@ -686,6 +686,14 @@ const setPurchaseOrderStatusQuery = `
 	WHERE id = $1
 `
 
+// A merged order is no longer approved: it needs approving again, so the stamp goes.
+const revertPurchaseOrderToDraftQuery = `
+	UPDATE purchase_order
+	SET status = 'draft', approved_by_id = NULL, approved_at = NULL,
+		version = version + 1, updated_at = NOW()
+	WHERE id = $1
+`
+
 const approvePurchaseOrderQuery = `
 	UPDATE purchase_order
 	SET status = 'open', approved_by_id = $2, approved_at = NOW(),

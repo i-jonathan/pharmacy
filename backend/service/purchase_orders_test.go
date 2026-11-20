@@ -232,6 +232,14 @@ type fakePurchaseOrderRepo struct {
 	noteSaved      string
 	audit          []types.AuditEntry
 
+	// orders, when set, is what GetPurchaseOrderForUpdateTx finds by id (merge tests lock two
+	// orders); locked records the order of the lookups, and the rest what the merge wrote.
+	orders       map[int]types.PurchaseOrder
+	locked       []int
+	updatedLines []types.PurchaseOrderItem
+	reverted     []int
+	closedIDs    []int
+
 	statusSet    string
 	approvedBy   int
 	listStatuses []string
@@ -310,8 +318,16 @@ func (r *fakePurchaseOrderRepo) CommitTx(
 }
 
 func (r *fakePurchaseOrderRepo) GetPurchaseOrderForUpdateTx(
-	context.Context, *sqlx.Tx, int,
+	_ context.Context, _ *sqlx.Tx, id int,
 ) (types.PurchaseOrder, error) {
+	r.locked = append(r.locked, id)
+	if r.orders != nil {
+		order, ok := r.orders[id]
+		if !ok {
+			return types.PurchaseOrder{}, sql.ErrNoRows
+		}
+		return order, nil
+	}
 	return r.order, r.lookupErr
 }
 
@@ -331,8 +347,16 @@ func (r *fakePurchaseOrderRepo) RefreshPurchaseOrderStatusTx(context.Context, *s
 }
 
 func (r *fakePurchaseOrderRepo) UpdatePurchaseOrderItemTx(
-	context.Context, *sqlx.Tx, int, types.PurchaseOrderItem,
+	_ context.Context, _ *sqlx.Tx, _ int, item types.PurchaseOrderItem,
 ) error {
+	r.updatedLines = append(r.updatedLines, item)
+	return nil
+}
+
+func (r *fakePurchaseOrderRepo) RevertPurchaseOrderToDraftTx(
+	_ context.Context, _ *sqlx.Tx, id int,
+) error {
+	r.reverted = append(r.reverted, id)
 	return nil
 }
 
@@ -352,8 +376,11 @@ func (r *fakePurchaseOrderRepo) InsertAuditLogTx(
 	return nil
 }
 
-func (r *fakePurchaseOrderRepo) ClosePurchaseOrderTx(context.Context, *sqlx.Tx, int) error {
+func (r *fakePurchaseOrderRepo) ClosePurchaseOrderTx(
+	_ context.Context, _ *sqlx.Tx, id int,
+) error {
 	r.closed++
+	r.closedIDs = append(r.closedIDs, id)
 	return nil
 }
 

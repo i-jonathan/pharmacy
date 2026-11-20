@@ -870,3 +870,173 @@ func TestManagersCreateApprovedOrdersAndOthersNeedPermission(t *testing.T) {
 		t.Fatalf("a user with neither permission cannot create orders, got %v", err)
 	}
 }
+
+// draft is a draft written by a cashier, who has no approval permission.
+func (f *fixture) draft(
+	t *testing.T, supplier string, items ...types.PurchaseOrderItem,
+) types.PurchaseOrder {
+	t.Helper()
+	id, err := f.svc.SavePurchaseOrder(
+		asUser(constant.DraftPurchaseOrderPermissionKey),
+		types.PurchaseOrderRequest{Supplier: supplier, Items: items},
+		f.uid,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f.get(t, id)
+}
+
+func (f *fixture) merge(open, draft types.PurchaseOrder) error {
+	return f.svc.MergePurchaseOrder(f.ctx, open.ID, types.MergePurchaseOrderRequest{
+		Version: open.Version, DraftID: draft.ID, DraftVersion: draft.Version,
+	}, f.uid)
+}
+
+func quantities(order types.PurchaseOrder) map[string]int {
+	got := map[string]int{}
+	for _, item := range order.Items {
+		got[item.Name] = item.Quantity
+	}
+	return got
+}
+
+func TestMergeDraftIntoOpenOrder(t *testing.T) {
+	f := newFixture(t)
+	alpha, beta, gamma := f.product(t, "Alpha"), f.product(t, "Beta"), f.product(t, "Gamma")
+	open := f.order(t, "Emzor",
+		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
+		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 5},
+	)
+	draft := f.draft(t, "Fidson",
+		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 15},
+		types.PurchaseOrderItem{ProductID: &gamma, Name: "Gamma", Quantity: 3},
+	)
+
+	if err := f.merge(open, draft); err != nil {
+		t.Fatal(err)
+	}
+
+	merged := f.get(t, open.ID)
+	if merged.Status != constant.PurchaseOrderDraft {
+		t.Fatalf("the merged order should be a draft, got %s", merged.Status)
+	}
+	if merged.ApprovedAt != nil || merged.ApprovedBy != "" {
+		t.Fatalf("the approval stamp should be cleared, got %v %q", merged.ApprovedAt, merged.ApprovedBy)
+	}
+	if merged.Supplier != "Emzor" {
+		t.Fatalf("the open order keeps its supplier, got %q", merged.Supplier)
+	}
+	want := map[string]int{"Alpha": 15, "Beta": 5, "Gamma": 3}
+	got := quantities(merged)
+	if len(got) != len(want) || got["Alpha"] != 15 || got["Beta"] != 5 || got["Gamma"] != 3 {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	if merged.Version <= open.Version {
+		t.Fatalf("the version should have moved on from %d, got %d", open.Version, merged.Version)
+	}
+	if retired := f.get(t, draft.ID); retired.Status != constant.PurchaseOrderClosed {
+		t.Fatalf("the old draft should be closed, got %s", retired.Status)
+	}
+	for _, id := range []int{open.ID, draft.ID} {
+		n := f.count(t, `SELECT count(*) FROM audit_log
+			WHERE entity_type = 'purchase_order' AND entity_id = $1 AND action = 'merged'`, id)
+		if n != 1 {
+			t.Fatalf("order %d: expected one merged audit entry, got %d", id, n)
+		}
+	}
+}
+
+func TestMergeRefusesAnOrderWithReceivedStock(t *testing.T) {
+	f := newFixture(t)
+	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
+	open := f.order(t, "Emzor",
+		types.PurchaseOrderItem{ProductID: &alpha, Name: "Alpha", Quantity: 10},
+	)
+	draft := f.draft(t, "",
+		types.PurchaseOrderItem{ProductID: &beta, Name: "Beta", Quantity: 3},
+	)
+	line := types.ReceiveItem{ID: alpha, PurchaseOrderItemID: open.Items[0].ID, Quantity: 4}
+	if err := f.receive("k1", "Emzor", open.ID, line); err != nil {
+		t.Fatal(err)
+	}
+	open = f.get(t, open.ID)
+
+	if err := f.merge(open, draft); status(err) != http.StatusConflict {
+		t.Fatalf("expected 409, got %v", err)
+	}
+	if got := f.get(t, open.ID); got.Status != constant.PurchaseOrderPartial || len(got.Items) != 1 {
+		t.Fatalf("the partial order must be untouched, got %s with %d lines", got.Status, len(got.Items))
+	}
+	if got := f.get(t, draft.ID); got.Status != constant.PurchaseOrderDraft {
+		t.Fatalf("the draft must be untouched, got %s", got.Status)
+	}
+}
+
+func TestConcurrentMergesOfOneDraftCommitOnce(t *testing.T) {
+	f := newFixture(t)
+	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
+	line := func(product *int, name string, quantity int) types.PurchaseOrderItem {
+		return types.PurchaseOrderItem{ProductID: product, Name: name, Quantity: quantity}
+	}
+	first := f.order(t, "Emzor", line(&alpha, "Alpha", 1))
+	second := f.order(t, "Fidson", line(&alpha, "Alpha", 2))
+	draft := f.draft(t, "", line(&beta, "Beta", 3))
+
+	results := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, open := range []types.PurchaseOrder{first, second} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- f.merge(open, draft)
+		}()
+	}
+	wg.Wait()
+	close(results)
+	var ok, refused int
+	for err := range results {
+		switch {
+		case err == nil:
+			ok++
+		case status(err) == http.StatusConflict:
+			refused++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if ok != 1 || refused != 1 {
+		t.Fatalf("one merge should win and one conflict, got %d and %d", ok, refused)
+	}
+	withBeta := f.count(t, `SELECT count(*) FROM purchase_order_item i
+		JOIN purchase_order o ON o.id = i.purchase_order_id
+		WHERE o.status <> 'closed' AND i.product_id = $1`, beta)
+	if withBeta != 1 {
+		t.Fatalf("the draft's line should land on exactly one order, got %d", withBeta)
+	}
+}
+
+func TestMergedOrderGoesThroughApprovalAgain(t *testing.T) {
+	f := newFixture(t)
+	alpha, beta := f.product(t, "Alpha"), f.product(t, "Beta")
+	line := func(product *int, name string, quantity int) types.PurchaseOrderItem {
+		return types.PurchaseOrderItem{ProductID: product, Name: name, Quantity: quantity}
+	}
+	open := f.order(t, "Emzor", line(&alpha, "Alpha", 10))
+	draft := f.draft(t, "", line(&beta, "Beta", 3))
+	if err := f.merge(open, draft); err != nil {
+		t.Fatal(err)
+	}
+
+	merged := f.get(t, open.ID)
+	if err := f.svc.SubmitPurchaseOrder(f.ctx, merged.ID, merged.Version, f.uid); err != nil {
+		t.Fatal(err)
+	}
+	merged = f.get(t, open.ID)
+	if err := f.svc.ApprovePurchaseOrder(f.ctx, merged.ID, merged.Version, f.uid); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.get(t, open.ID); got.Status != constant.PurchaseOrderOpen || got.ApprovedAt == nil {
+		t.Fatalf("expected an approved open order, got %s", got.Status)
+	}
+}

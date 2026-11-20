@@ -398,6 +398,10 @@
                 <Undo2 :size="14" class="mr-1.5" />
                 Pull back to draft
               </Button>
+              <Button v-if="canMergeInto(o)" variant="outline" size="sm" :disabled="acting === o.id" @click="startMerge(o)">
+                <GitMerge :size="14" class="mr-1.5" />
+                Merge a draft in
+              </Button>
               <Button
                 v-if="canManageActive(o) && totals(o).outstanding"
                 variant="outline"
@@ -458,6 +462,44 @@
                 {{ moving ? "Moving..." : "Move outstanding" }}
               </Button>
               <Button variant="outline" size="sm" :disabled="moving" @click="moveTarget = null">Cancel</Button>
+            </div>
+          </div>
+
+          <div v-if="mergeTarget === o.id" class="mt-3 space-y-2 rounded-md border border-dashed border-border p-3 text-sm">
+            <p class="text-muted-foreground">
+              Fold a draft into this order. This order goes back to a draft and needs approval again, and the draft you pick is
+              closed. If both list the same item, the higher quantity is kept.
+            </p>
+            <p v-if="mergeLoading" class="text-muted-foreground">Loading drafts...</p>
+            <p v-else-if="!mergeDrafts.length">There are no drafts to merge.</p>
+            <template v-else>
+              <select
+                v-model.number="mergeDraftId"
+                class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm md:max-w-sm"
+                aria-label="Draft to merge"
+              >
+                <option :value="0" disabled>Choose a draft</option>
+                <option v-for="d in mergeDrafts" :key="d.id" :value="d.id">
+                  {{ orderNumber(d.id) }}{{ d.supplier ? ` · ${d.supplier}` : "" }} · {{ d.items.length }} item{{ d.items.length === 1 ? "" : "s" }}
+                </option>
+              </select>
+              <template v-if="chosenDraft">
+                <p v-if="supplierDiffers(o, chosenDraft)" class="text-xs text-amber-700 dark:text-amber-300">
+                  The draft names {{ chosenDraft.supplier }}. The merged order stays with {{ o.supplier || "no supplier" }}.
+                </p>
+                <ul class="space-y-1">
+                  <li v-for="row in mergePreview(o, chosenDraft)" :key="row.key">
+                    <span class="font-medium">{{ row.name }}</span>
+                    <span v-if="row.kind === 'new'" class="text-muted-foreground"> · added, {{ row.to }}</span>
+                    <span v-else-if="row.kind === 'raised'" class="text-muted-foreground"> · raised from {{ row.from }} to {{ row.to }}</span>
+                    <span v-else class="text-muted-foreground"> · kept at {{ row.to }}</span>
+                  </li>
+                </ul>
+              </template>
+            </template>
+            <div class="flex gap-2">
+              <Button size="sm" :disabled="merging || !chosenDraft" @click="mergeDraftIn(o)">Merge</Button>
+              <Button variant="outline" size="sm" :disabled="merging" @click="mergeTarget = null">Cancel</Button>
             </div>
           </div>
         </article>
@@ -595,7 +637,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
-import { AlertTriangle, ArrowRightLeft, Ban, Check, Download, Eye, PackageCheck, Pencil, Plus, Send, Undo2, X } from "lucide-vue-next";
+import { AlertTriangle, ArrowRightLeft, Ban, Check, Download, Eye, GitMerge, PackageCheck, Pencil, Plus, Send, Undo2, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import QuantityStepper from "../components/QuantityStepper.vue";
 import PagerBar from "../components/PagerBar.vue";
@@ -704,6 +746,15 @@ const acting = ref(null);
 const moveTarget = ref(null);
 const moveSupplier = ref("");
 const moving = ref(false);
+const mergeTarget = ref(null);
+const mergeDrafts = ref([]);
+const mergeDraftId = ref(0);
+const mergeLoading = ref(false);
+// How many drafts exist, so "Merge a draft in" is offered only when there is one to merge. null
+// means not known (not loaded yet, or the list failed): the button shows and the panel says.
+const draftCount = ref(null);
+const merging = ref(false);
+const chosenDraft = computed(() => mergeDrafts.value.find((d) => d.id === mergeDraftId.value) || null);
 const closeReason = reactive({ preset: "", detail: "" });
 const moveReason = reactive({ preset: "", detail: "" });
 const notice = ref(null);
@@ -847,6 +898,27 @@ function canWithdraw(o) {
   return o.status === "pending_approval" && (canDraft.value || canApprove.value);
 }
 
+// A draft can be folded into an open order that has received nothing: that order goes back to a
+// draft, so it is approved again before it is sent.
+function canMergeInto(o) {
+  return (
+    o.status === "open" &&
+    o.items.every((i) => i.received_quantity === 0) &&
+    canUse.value &&
+    draftCount.value !== 0
+  );
+}
+
+async function loadDraftCount() {
+  try {
+    const r = await fetch(`${API}/inventory/purchase-orders?view=drafts`);
+    if (!r.ok) throw new Error("not loaded");
+    draftCount.value = ((await r.json()) || []).filter((d) => d.status === "draft").length;
+  } catch {
+    draftCount.value = null;
+  }
+}
+
 function canApproveOrder(o) {
   return canApprove.value && isAwaitingApproval(o);
 }
@@ -903,6 +975,7 @@ async function loadOrders() {
     if (!r.ok) throw new Error(await apiError(r, "Could not load purchase orders."));
     orders.value = (await r.json()) || [];
     refreshPending();
+    if (tab.value === "active" && canUse.value) loadDraftCount();
   } catch (e) {
     loadError.value = e.message || "Could not load purchase orders.";
   } finally {
@@ -915,6 +988,7 @@ function switchTab(key) {
   ordersPage.value = 1;
   closeTarget.value = null;
   moveTarget.value = null;
+  mergeTarget.value = null;
   loadOrders();
 }
 
@@ -972,6 +1046,14 @@ function eventLines(e) {
   } else if (e.action === "closed") {
     const units = (d.abandoned || []).reduce((sum, i) => sum + i.quantity, 0);
     lines.push(`Closed with ${units} unit${units === 1 ? "" : "s"} outstanding`);
+  } else if (e.action === "merged") {
+    if (d.merged_into_purchase_order_id) {
+      lines.push(`Merged into ${orderNumber(d.merged_into_purchase_order_id)} and closed`);
+    } else {
+      const added = (d.added || []).length;
+      const raised = (d.raised || []).length;
+      lines.push(`${orderNumber(d.merged_purchase_order_id)} merged in (${added} item${added === 1 ? "" : "s"} added, ${raised} quantit${raised === 1 ? "y" : "ies"} raised). Back to a draft`);
+    }
   } else if (e.action === "moved") {
     lines.push(`Outstanding items moved to ${orderNumber(d.to_purchase_order_id)} (${d.supplier.from || "none"} → ${d.supplier.to})`);
   }
@@ -1099,12 +1181,14 @@ function composeReason({ preset, detail }) {
 
 function startClose(o) {
   moveTarget.value = null;
+  mergeTarget.value = null;
   Object.assign(closeReason, { preset: "", detail: "" });
   closeTarget.value = o.id;
 }
 
 function startMove(o) {
   closeTarget.value = null;
+  mergeTarget.value = null;
   moveSupplier.value = "";
   Object.assign(moveReason, { preset: "", detail: "" });
   moveTarget.value = o.id;
@@ -1136,6 +1220,94 @@ async function moveOutstanding(o) {
   }
 }
 
+function supplierDiffers(o, draft) {
+  return Boolean(draft.supplier) && draft.supplier_id !== o.supplier_id;
+}
+
+// What the merge will do to each line, for the preview. The server decides the real result; keep
+// this in step with planPurchaseOrderMerge in the backend (same item = same product, or for typed
+// lines the same name and manufacturer ignoring case; the higher quantity wins).
+function mergeKey(item) {
+  if (item.product_id !== null && item.product_id !== undefined) return `p${item.product_id}`;
+  return `n${(item.name + "\u0000" + item.manufacturer).toLowerCase()}`;
+}
+
+function mergePreview(target, draft) {
+  const existing = new Map(target.items.map((i) => [mergeKey(i), i]));
+  return draft.items.map((line) => {
+    const key = mergeKey(line);
+    const current = existing.get(key);
+    if (!current) return { key, name: line.name, kind: "new", to: line.quantity };
+    if (line.quantity > current.quantity) {
+      return { key, name: line.name, kind: "raised", from: current.quantity, to: line.quantity };
+    }
+    return { key, name: line.name, kind: "same", to: current.quantity };
+  });
+}
+
+async function startMerge(o) {
+  closeTarget.value = null;
+  moveTarget.value = null;
+  mergeDrafts.value = [];
+  mergeDraftId.value = 0;
+  mergeTarget.value = o.id;
+  mergeLoading.value = true;
+  try {
+    const r = await fetch(`${API}/inventory/purchase-orders?view=drafts`);
+    if (!r.ok) throw new Error(await apiError(r, "Could not load the drafts."));
+    const all = (await r.json()) || [];
+    if (mergeTarget.value === o.id) {
+      mergeDrafts.value = all.filter((d) => d.status === "draft" && d.id !== o.id);
+    }
+  } catch (e) {
+    mergeTarget.value = null;
+    showNotice(e.message, true);
+  } finally {
+    mergeLoading.value = false;
+  }
+}
+
+async function mergeDraftIn(o) {
+  const draft = chosenDraft.value;
+  if (!draft) return;
+  let staleMessage = "";
+  const answer = await confirm({
+    title: `Merge ${orderNumber(draft.id)} into ${orderNumber(o.id)}?`,
+    message: `${orderNumber(o.id)} goes back to a draft and needs approval again. ${orderNumber(draft.id)} is closed.`,
+    confirmLabel: "Merge",
+    busyLabel: "Merging...",
+    cancelLabel: "Cancel",
+    run: async () => {
+      merging.value = true;
+      try {
+        const r = await csrfFetch(`${API}/inventory/purchase-orders/${o.id}/merge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ version: o.version, draft_id: draft.id, draft_version: draft.version }),
+        });
+        if (!r.ok) {
+          const message = await apiError(r, "Could not merge the orders.");
+          if (r.status !== 409) throw new Error(message);
+          // Someone changed one of the orders. The versions sent can never match again, so close
+          // the dialog, show why, and load the orders afresh instead of offering a retry.
+          staleMessage = message;
+        }
+      } finally {
+        merging.value = false;
+      }
+    },
+  });
+  if (answer !== true) return;
+  mergeTarget.value = null;
+  if (staleMessage) {
+    showNotice(staleMessage, true);
+    await loadOrders();
+    return;
+  }
+  showNotice(`${orderNumber(draft.id)} merged into ${orderNumber(o.id)}. It is a draft again: edit it, then submit it for approval.`);
+  await loadOrders();
+}
+
 function receive(o) {
   router.push({ path: "/receive-items", query: { purchase_order: String(o.id) } });
 }
@@ -1164,6 +1336,7 @@ function openEditor() {
   resetPicker();
   closeTarget.value = null;
   moveTarget.value = null;
+  mergeTarget.value = null;
   detailId.value = null;
   editing.value = true;
   savedSnapshot.value = snapshot();

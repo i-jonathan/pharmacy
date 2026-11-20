@@ -63,6 +63,7 @@ const (
 	AuditReceived  = "received"
 	AuditClosed    = "closed"
 	AuditMoved     = "moved"
+	AuditMerged    = "merged"
 	AuditSubmitted = "submitted"
 	AuditWithdrawn = "withdrawn"
 	AuditApproved  = "approved"

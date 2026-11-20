@@ -8,7 +8,7 @@ Purchase orders are how the shop plans what to reorder. An order is built from c
 
 | Role | Can do |
 |---|---|
-| Cashier | Start an order, edit any draft (their own or a colleague's), submit any draft for approval, and pull a submitted order back to a draft. Sees everyone's orders, so nobody writes the same order twice. |
+| Cashier | Start an order, edit any draft (their own or a colleague's), submit any draft for approval, pull a submitted order back to a draft, and merge a draft into an open order. Sees everyone's orders, so nobody writes the same order twice. |
 | Manager, Admin | Everything a cashier can, plus: edit any draft or open order, approve or reject, export the PDF to send, receive deliveries against an order, close an order, and move what's still outstanding to another supplier. Sees everyone's orders. |
 
 Anyone without either permission sees "You do not have permission to use purchase orders. Ask an administrator for access."
@@ -71,6 +71,18 @@ The PDF shows the order number (for example PO-00012), the supplier, the date, a
 
 - **Move outstanding** sends the undelivered quantities to a different supplier. Choose the new supplier and a reason, then click **Move outstanding**. The original order is closed with what it received, and a new order is created for the rest.
 - **Close order** stops waiting for the remaining units ("Stop waiting for the remaining *N* units?"). An order with nothing received shows **Cancel order** instead. Both need a reason.
+
+### Merge a draft into an open order (cashier or manager)
+
+Use this when you started a new draft while another order was still waiting, for example after **Move outstanding** has created an order that hasn't been sent yet. It puts the two together so you send one order.
+
+1. On the open order, click **Merge a draft in**. The button shows only on an order that is open and has nothing received yet, and only while at least one draft exists.
+2. Choose the draft. A preview lists each item: added from the draft, raised to the draft's quantity, or kept as it is.
+3. Click **Merge**, then confirm.
+
+What happens: if both orders list the same item, the **higher** quantity is kept (the two are not added together). Items only on the draft are added. The notes of both orders are kept. The order keeps its own supplier; if the draft names a different one, the screen warns you first.
+
+The open order then **goes back to a draft** and has to be submitted and approved again before it is sent. The draft you merged is closed. Activity on both orders records the merge. If either order was changed by someone else while you were choosing, you'll be told and nothing is merged.
 
 ### Look at an order
 

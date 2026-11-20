@@ -109,6 +109,24 @@ func (c *inventoryController) WithdrawPurchaseOrder(w http.ResponseWriter, r *ht
 	})
 }
 
+func (c *inventoryController) MergePurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		httperror.BadRequest("invalid purchase order id", err).JSONRespond(w)
+		return
+	}
+	var req types.MergePurchaseOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperror.BadRequest("invalid json", err).JSONRespond(w)
+		return
+	}
+	if err := c.service.MergePurchaseOrder(r.Context(), id, req, requestUserID(r)); err != nil {
+		respondServiceError(w, err, "could not merge purchase orders")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, map[string]int{"id": id})
+}
+
 func (c *inventoryController) ApprovePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	c.versionedAction(w, r, "could not approve purchase order", func(id, version int) error {
 		return c.service.ApprovePurchaseOrder(r.Context(), id, version, requestUserID(r))

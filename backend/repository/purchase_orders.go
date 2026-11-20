@@ -149,6 +149,11 @@ func (r *repo) SetPurchaseOrderStatusTx(
 	return err
 }
 
+func (r *repo) RevertPurchaseOrderToDraftTx(ctx context.Context, tx *sqlx.Tx, id int) error {
+	_, err := tx.ExecContext(ctx, revertPurchaseOrderToDraftQuery, id)
+	return err
+}
+
 func (r *repo) ApprovePurchaseOrderTx(ctx context.Context, tx *sqlx.Tx, id, approverID int) error {
 	_, err := tx.ExecContext(ctx, approvePurchaseOrderQuery, id, approverID)
 	return err
