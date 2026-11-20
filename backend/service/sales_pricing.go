@@ -44,7 +44,7 @@ const (
 func toKobo(naira float64) (int, error) {
 	scaled := naira * 100
 	kobo := math.Round(scaled)
-	if math.IsNaN(kobo) || math.IsInf(kobo, 0) || math.Abs(kobo) > math.MaxInt32 {
+	if !koboFits(kobo) {
 		return 0, badRequest("an amount in the sale is not valid")
 	}
 	if math.Abs(scaled-kobo) > math.Max(minFloatDrift, relFloatDrift*math.Abs(scaled)) {
