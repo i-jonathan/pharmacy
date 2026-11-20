@@ -150,6 +150,14 @@ type MoveOutstandingRequest struct {
 	Reason   string `json:"reason"`
 }
 
+// MergePurchaseOrderRequest folds a draft into the open order named in the URL. Both versions are
+// the ones the user saw.
+type MergePurchaseOrderRequest struct {
+	Version      int `json:"version"`
+	DraftID      int `json:"draft_id"`
+	DraftVersion int `json:"draft_version"`
+}
+
 // PurchaseOrderActionRequest is the body of submit and approve: just the version the user saw.
 type PurchaseOrderActionRequest struct {
 	Version int `json:"version"`

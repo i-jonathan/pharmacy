@@ -30,8 +30,8 @@ flowchart LR
 | Entry points | `components/Sidebar.vue` (link and pending badge), `components/DashboardView.vue` (approval banner), `components/LowStockPage.vue` (`/purchase-orders?lowStock=1`) |
 | Badge polling | `composables/usePendingPurchaseOrders.js`, built on the shared `usePolledCounts.js` (one timer per count, also used by the stock flag badge) |
 | Routes | `backend/adapter/http/router/inventory.go` (mounted at `/inventory/` in `main.go`) |
-| Controller | `backend/adapter/http/controller/inventory.go` (`SavePurchaseOrder`, `ListPurchaseOrders`, `SubmitPurchaseOrder`, `ApprovePurchaseOrder`, `RejectPurchaseOrder`, `ClosePurchaseOrder`, `MovePurchaseOrderOutstanding`, `CountPendingPurchaseOrders`, `GetPurchaseOrderHistory`) |
-| Services | `backend/service/purchase_orders.go` (save, edit, list, get, close, move, receipt), `purchase_order_approval.go` (submit, approve, reject, pending counts, `inPurchaseOrderTx`), `purchase_order_audit.go` (audit entries, history, reason rules); the shared `inTx`, `audit` and `badRequest` helpers are in `helpers.go` |
+| Controller | `backend/adapter/http/controller/inventory.go` (`SavePurchaseOrder`, `ListPurchaseOrders`, `SubmitPurchaseOrder`, `ApprovePurchaseOrder`, `RejectPurchaseOrder`, `ClosePurchaseOrder`, `MovePurchaseOrderOutstanding`, `MergePurchaseOrder`, `CountPendingPurchaseOrders`, `GetPurchaseOrderHistory`) |
+| Services | `backend/service/purchase_orders.go` (save, edit, list, get, close, move, receipt), `purchase_order_approval.go` (submit, approve, reject, pending counts, `inPurchaseOrderTx`), `purchase_order_merge.go` (merge a draft into an open order), `purchase_order_audit.go` (audit entries, history, reason rules); the shared `inTx`, `audit` and `badRequest` helpers are in `helpers.go` |
 | Repository | `backend/repository/purchase_orders.go`; SQL in `repository/query.go` |
 | Migrations | `000040_purchase_orders_and_suppliers`, `000041_audit_log`, `000042_purchase_order_approval`, `000043_purchase_order_permissions` |
 | Constants | `internal/constant/constant.go` (statuses, audit actions), `internal/constant/permissions.go` |
@@ -82,6 +82,20 @@ The UI shows a closed order that received something as "partially filled" (`show
 | Service | `ClosePurchaseOrder`, `MovePurchaseOrderOutstanding` | Own transaction, row lock and version check (not `inPurchaseOrderTx`). Only `open`/`partial`. Move: outstanding lines (`outstandingPurchaseOrderItems`) go onto a new `open` order with `source_purchase_order_id`; the supplier must differ; the original is closed |
 | Side effects | `audit_log` | `closed` (with `abandoned` lines) or `moved` on the original plus `created` on the new order |
 | Response | close: empty; move: `{id}` of the new order | |
+
+### Merge a draft into an open order
+
+| Step | Where | Detail |
+|---|---|---|
+| Request | `POST /inventory/purchase-orders/:id/merge` | `{version, draft_id, draft_version}`: the open order in the URL and the draft, each with the version the user saw |
+| Gate | route `mayApprove` | Service re-checks `canApprovePurchaseOrders` (403 otherwise): the merge undoes the approval of an order that may already be with the supplier, so a drafter cannot do it. The draft merged in can be anyone's |
+| Service | `MergePurchaseOrder` in `purchase_order_merge.go` | One transaction. Locks both orders, lower id first (no deadlock between two merges). Target must be `open` with every `received_quantity` 0 (409 otherwise, so `partial` is refused); source must be `draft` (409). Same order or no draft id: 400. Stale version on either: 409 `purchaseOrderChangedElsewhere` |
+| Rules | `planPurchaseOrderMerge` | Pure function. Same item = same product id, or for lines without a product the same name and manufacturer ignoring case; a typed line never matches a product line. A matched line keeps the higher quantity; notes join (`"; "` for lines, newline for the order). Draft-only lines are inserted. A joined note over 1000 (order) or 500 (line) characters is 400. The page's `mergePreview` mirrors this and must be kept in step |
+| Writes | repository | Target header (own supplier kept, joined note), line updates and inserts, `RevertPurchaseOrderToDraftTx` (status `draft`, `approved_by_id`/`approved_at` cleared, version bumped), `ClosePurchaseOrderTx` on the draft (closed, no PDF, like a rejected draft) |
+| Side effects | `audit_log` | `merged` on both orders: on the target `merged_purchase_order_id`, `status_before`, `added`, `raised` (name, from, to), and only when they apply `note` (from, to), `line_notes` (name, from, to) and `draft_supplier` (the draft's supplier name when it differs from the order's); on the draft `merged_into_purchase_order_id` |
+| Response | `{id}` of the open order | |
+
+No migration: the retired draft uses the existing `closed` status.
 
 ### Receive against an order
 
@@ -158,8 +172,8 @@ These are candidates for the settings screen (T-093).
 
 ## Tests
 
-- Unit tests with mock repositories: `backend/service/purchase_orders_test.go`.
-- Database integration tests: `backend/service/purchase_orders_integration_test.go` (lifecycle, partial supply, retries, concurrent receipts and moves, stale edits, audit atomicity, approval workflow) and `backend/db/migrations_test.go`; they run when `PHARMACY_TEST_DSN` is set.
+- Unit tests with mock repositories: `backend/service/purchase_orders_test.go` and `purchase_order_merge_test.go` (merge rules and refusals).
+- Database integration tests: `backend/service/purchase_orders_integration_test.go` (lifecycle, partial supply, retries, concurrent receipts and moves, merges, stale edits, audit atomicity, approval workflow) and `backend/db/migrations_test.go`; they run when `PHARMACY_TEST_DSN` is set.
 - No committed browser or end-to-end tests for these screens (T-076).
 
 ## Known gaps
