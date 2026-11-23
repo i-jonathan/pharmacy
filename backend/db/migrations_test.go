@@ -24,6 +24,7 @@ const (
 	overReceiptMigration     = 48
 	salesCustomerMigration   = 49
 	saleOldCustomerMigration = 50
+	healthCheckMigration     = 51
 )
 
 func count(t *testing.T, db *sqlx.DB, query string, args ...any) int {
@@ -565,6 +566,99 @@ func TestSaleOldCustomerMigration(t *testing.T) {
 		t.Fatalf("rolling back must remove the permission, found %d", n)
 	}
 	testdb.Migrate(t, db, saleOldCustomerMigration-1, saleOldCustomerMigration)
+	if got := grants(); got != want {
+		t.Fatalf("expected %s again after re-applying, got %s", want, got)
+	}
+}
+
+func TestHealthCheckMigration(t *testing.T) {
+	db := testdb.New(t, healthCheckMigration-1)
+	db.MustExec(`INSERT INTO users (username, password) VALUES ('nurse', 'x')`)
+	db.MustExec(`INSERT INTO customer (name, created_by_id) VALUES ('Ada', (SELECT id FROM users))`)
+	testdb.Migrate(t, db, healthCheckMigration-1, healthCheckMigration)
+
+	grants := func() string {
+		var rows []string
+		err := db.Select(&rows, `
+			SELECT r.name || ':' || lower(p.resource || ':' || p.action)
+			FROM role_permissions rp
+			JOIN roles r ON r.id = rp.role_id
+			JOIN permissions p ON p.id = rp.permission_id
+			WHERE p.resource = 'HealthCheck'
+			ORDER BY 1`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.Join(rows, ",")
+	}
+	want := "Admin:healthcheck:correct,Admin:healthcheck:record,Admin:healthcheck:view," +
+		"Cashier:healthcheck:record," +
+		"Manager:healthcheck:correct,Manager:healthcheck:record,Manager:healthcheck:view"
+	if got := grants(); got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+
+	// An existing customer starts without health consent.
+	if n := count(t, db, `SELECT count(*) FROM customer WHERE health_consent`); n != 0 {
+		t.Fatalf("no customer should have health consent yet, %d do", n)
+	}
+
+	add := `INSERT INTO health_check (customer_id, taken_by_id, systolic, diastolic, pulse,
+			glucose, glucose_unit, glucose_context, note)
+		VALUES ((SELECT id FROM customer), (SELECT id FROM users), $1, $2, $3, $4, $5, $6, $7)`
+	db.MustExec(add, 120, 80, 72, nil, nil, nil, "")
+	db.MustExec(add, nil, nil, nil, 5.6, "mmol/L", "fasting", "")
+	db.MustExec(add, 140, 90, nil, 110, "mg/dL", "random", "after a walk")
+	db.MustExec(add, 300, 200, 250, 50.0, "mmol/L", "after_meal", "")
+	db.MustExec(add, 50, 30, 20, 20, "mg/dL", "fasting", "")
+
+	refused := []struct {
+		name string
+		args []any
+	}{
+		{"nothing measured", []any{nil, nil, nil, nil, nil, nil, ""}},
+		{"systolic alone", []any{120, nil, nil, nil, nil, nil, ""}},
+		{"diastolic alone", []any{nil, 80, nil, nil, nil, nil, ""}},
+		{"pulse alone", []any{nil, nil, 72, nil, nil, nil, ""}},
+		{"systolic not above diastolic", []any{80, 80, nil, nil, nil, nil, ""}},
+		{"systolic too high", []any{301, 80, nil, nil, nil, nil, ""}},
+		{"systolic too low", []any{49, 30, nil, nil, nil, nil, ""}},
+		{"diastolic too high", []any{290, 201, nil, nil, nil, nil, ""}},
+		{"diastolic too low", []any{100, 29, nil, nil, nil, nil, ""}},
+		{"pulse too high", []any{120, 80, 251, nil, nil, nil, ""}},
+		{"pulse too low", []any{120, 80, 19, nil, nil, nil, ""}},
+		{"glucose without unit", []any{nil, nil, nil, 5.6, nil, "fasting", ""}},
+		{"glucose without context", []any{nil, nil, nil, 5.6, "mmol/L", nil, ""}},
+		{"unit without glucose", []any{120, 80, nil, nil, "mmol/L", nil, ""}},
+		{"unknown unit", []any{nil, nil, nil, 5.6, "mg", "fasting", ""}},
+		{"unknown context", []any{nil, nil, nil, 5.6, "mmol/L", "lunch", ""}},
+		{"mmol/L too high", []any{nil, nil, nil, 50.1, "mmol/L", "fasting", ""}},
+		{"mmol/L too low", []any{nil, nil, nil, 0.9, "mmol/L", "fasting", ""}},
+		{"mg/dL too high", []any{nil, nil, nil, 900.1, "mg/dL", "fasting", ""}},
+		{"mg/dL too low", []any{nil, nil, nil, 19.9, "mg/dL", "fasting", ""}},
+		{"note too long", []any{120, 80, nil, nil, nil, nil, strings.Repeat("x", 501)}},
+	}
+	for _, r := range refused {
+		_, err := db.Exec(add, r.args...)
+		if err == nil {
+			t.Errorf("%s: expected the database to refuse it", r.name)
+		}
+	}
+
+	// A retry key is used once.
+	keyed := `INSERT INTO health_check (customer_id, taken_by_id, systolic, diastolic, idempotency_key)
+		VALUES ((SELECT id FROM customer), (SELECT id FROM users), 120, 80, 'k1')`
+	db.MustExec(keyed)
+	mustFail(t, db, "health_check_idempotency_key_unique", keyed)
+
+	testdb.Rollback(t, db, healthCheckMigration)
+	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'HealthCheck'`); n != 0 {
+		t.Fatalf("rolling back must remove the permissions, found %d", n)
+	}
+	mustFail(t, db, "health_check", `SELECT 1 FROM health_check`)
+	mustFail(t, db, "health_consent", `SELECT health_consent FROM customer`)
+
+	testdb.Migrate(t, db, healthCheckMigration-1, healthCheckMigration)
 	if got := grants(); got != want {
 		t.Fatalf("expected %s again after re-applying, got %s", want, got)
 	}

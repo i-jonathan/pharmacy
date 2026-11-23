@@ -12,6 +12,9 @@ type Customer struct {
 	Notes            string     `json:"notes"              db:"notes"`
 	ContactConsent   bool       `json:"contact_consent"    db:"contact_consent"`
 	ConsentUpdatedAt *time.Time `json:"consent_updated_at" db:"consent_updated_at"`
+	// HealthConsent: the customer agreed to the pharmacy keeping their health readings.
+	HealthConsent          bool       `json:"health_consent"            db:"health_consent"`
+	HealthConsentUpdatedAt *time.Time `json:"health_consent_updated_at" db:"health_consent_updated_at"`
 	Active           bool       `json:"active"             db:"active"`
 	Version          int        `json:"version"            db:"version"`
 	CreatedAt        time.Time  `json:"created_at"         db:"created_at"`
@@ -24,6 +27,8 @@ type CustomerRef struct {
 	ID     int    `db:"id"`
 	Name   string `db:"name"`
 	Active bool   `db:"active"`
+	// HealthConsent is read only by LockCustomerForHealthCheckTx.
+	HealthConsent bool `db:"health_consent"`
 }
 
 // CustomerRequest adds a customer (ID 0) or edits one; an edit sends the version it loaded.
@@ -35,6 +40,8 @@ type CustomerRequest struct {
 	Email          string `json:"email"`
 	Notes          string `json:"notes"`
 	ContactConsent bool   `json:"contact_consent"`
+	// HealthConsent is left as it is when absent, so a form that does not show it can't clear it.
+	HealthConsent *bool `json:"health_consent"`
 }
 
 // CustomerActionRequest deactivates or reactivates a customer.
