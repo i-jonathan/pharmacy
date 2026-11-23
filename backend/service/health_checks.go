@@ -138,7 +138,7 @@ func checkGlucose(h types.HealthReadings) (types.HealthReadings, error) {
 	}
 	v := *h.Glucose
 	// The column keeps one decimal place; more is refused rather than rounded away.
-	if tenths := v * 10; math.Abs(tenths-math.Round(tenths)) > 1e-6 {
+	if tenths := v * 10; math.Abs(tenths-math.Round(tenths)) > 1e-9 {
 		return h, badRequest("the glucose value can have at most one decimal place")
 	}
 	if r := glucoseRanges[unit]; !r.holds(v) {
@@ -225,10 +225,7 @@ func (s *healthCheckService) recordHealthCheckTx(
 		if err := s.repo.SetCustomerHealthConsentTx(ctx, tx, customer.ID, true); err != nil {
 			return 0, httperror.ServerError("failed to save the customer's consent", err)
 		}
-		err := appendAudit(ctx, s.repo, tx, userID, "customer", customer.ID,
-			"health_consent_changed", "", map[string]any{
-				"from": false, "to": true, "via": "health_check",
-			})
+		err := auditHealthConsent(ctx, s.repo, tx, userID, customer.ID, true, "health_check")
 		if err != nil {
 			return 0, err
 		}
@@ -333,6 +330,8 @@ func (s *healthCheckService) CorrectHealthCheck(
 	}
 	req.Reason = strings.TrimSpace(req.Reason)
 	switch {
+	case req.Version < 1:
+		return types.HealthCheck{}, badRequest("reload the reading before correcting it")
 	case req.Reason == "":
 		return types.HealthCheck{}, badRequest("say why the reading is being corrected")
 	case strings.ContainsRune(req.Reason, 0):

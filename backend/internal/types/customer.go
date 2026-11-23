@@ -57,6 +57,7 @@ type NewCustomer struct {
 	Email          string
 	Notes          string
 	ContactConsent bool
+	HealthConsent  bool
 	CreatedByID    int
 }
 

@@ -29,10 +29,12 @@ func (r *repo) CreateCustomerTx(
 	var id int
 	err := tx.GetContext(ctx, &id, `
 		INSERT INTO customer
-			(name, phone, email, notes, contact_consent, consent_updated_at, created_by_id)
-		VALUES ($1, NULLIF($2, ''), $3, $4, $5, CASE WHEN $5 THEN NOW() END, $6)
+			(name, phone, email, notes, contact_consent, consent_updated_at, health_consent,
+			health_consent_updated_at, created_by_id)
+		VALUES ($1, NULLIF($2, ''), $3, $4, $5, CASE WHEN $5 THEN NOW() END, $6,
+			CASE WHEN $6 THEN NOW() END, $7)
 		RETURNING id`,
-		c.Name, c.Phone, c.Email, c.Notes, c.ContactConsent, c.CreatedByID)
+		c.Name, c.Phone, c.Email, c.Notes, c.ContactConsent, c.HealthConsent, c.CreatedByID)
 	if isUniqueViolation(err) {
 		return 0, ErrCustomerPhoneTaken
 	}

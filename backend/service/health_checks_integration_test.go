@@ -357,3 +357,57 @@ func TestRecordHealthCheckTwiceAtOnceSavesOnce(t *testing.T) {
 		t.Fatalf("consent must be recorded once, got %d", n)
 	}
 }
+
+func TestHealthConsentGivenAtCreateAndChangedByEditIsSavedAndAudited(t *testing.T) {
+	f := newHealthFixture(t)
+	yes, no := true, false
+	id, err := f.customers.CreateCustomer(customerCtx, types.CustomerRequest{
+		Name: "Chika", HealthConsent: &yes,
+	}, f.uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := f.customers.GetCustomer(customerCtx, id)
+	if !got.HealthConsent || got.HealthConsentUpdatedAt == nil {
+		t.Fatalf("consent given at create was not saved: %+v", got)
+	}
+	if _, err = f.svc.RecordHealthCheck(
+		recorderCtx,
+		bpReading(id, 120, 80, "k1"),
+		f.uid,
+	); err != nil {
+		t.Fatalf("consent from create must let a reading be saved: %v", err)
+	}
+
+	err = f.customers.UpdateCustomer(customerCtx, types.CustomerRequest{
+		ID: id, Version: got.Version, Name: "Chika", HealthConsent: &no,
+	}, f.uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Every grant and withdrawal is findable under one action.
+	var changes []string
+	err = f.db.Select(&changes, `
+		SELECT details->>'to' FROM audit_log
+		WHERE entity_type = 'customer' AND entity_id = $1 AND action = 'health_consent_changed'
+		ORDER BY id`, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 2 || changes[0] != "true" || changes[1] != "false" {
+		t.Fatalf("consent trail %v", changes)
+	}
+}
+
+func TestCorrectHealthCheckWithoutAVersionIsABadRequest(t *testing.T) {
+	f := newHealthFixture(t)
+	saved, err := f.svc.RecordHealthCheck(recorderCtx, bpReading(f.ada, 120, 80, "k1"), f.uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.svc.CorrectHealthCheck(managerCtx, types.HealthCheckCorrection{
+		ID: saved.ID, Reason: "typo",
+		HealthReadings: types.HealthReadings{Systolic: ip(130), Diastolic: ip(80)},
+	}, f.uid)
+	requireStatus(t, err, http.StatusBadRequest)
+}

@@ -77,6 +77,7 @@ func TestNormalizeHealthReadingsRefusesWhatCanNeverBeRight(t *testing.T) {
 		"unit no glucose":    {GlucoseUnit: "mmol/L", GlucoseContext: "fasting"},
 		"unknown unit":       glucose(5.6, "mg", "fasting"),
 		"unknown context":    glucose(5.6, "mmol/L", "lunch"),
+		"float noise":        glucose(5.6000001, "mmol/L", "fasting"),
 		"two decimals":       glucose(5.65, "mmol/L", "fasting"),
 		"mmol high":          glucose(50.1, "mmol/L", "fasting"),
 		"mmol low":           glucose(0.9, "mmol/L", "fasting"),
