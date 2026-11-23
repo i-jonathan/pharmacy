@@ -106,14 +106,22 @@ type StockAdjustmentRepository interface {
 type HealthCheckRepository interface {
 	// CreateHealthCheckTx inserts a reading and returns its id and true, or 0 and false when
 	// another save already used the key (the caller looks that one up).
-	CreateHealthCheckTx(ctx context.Context, tx *sqlx.Tx, check types.NewHealthCheck) (int, bool, error)
+	CreateHealthCheckTx(
+		ctx context.Context, tx *sqlx.Tx, check types.NewHealthCheck,
+	) (int, bool, error)
 	// HealthCheckByKeyTx returns the reading saved under a retry key, or nil.
-	HealthCheckByKeyTx(ctx context.Context, tx *sqlx.Tx, key string) (*types.SavedHealthCheck, error)
+	HealthCheckByKeyTx(
+		ctx context.Context, tx *sqlx.Tx, key string,
+	) (*types.SavedHealthCheck, error)
 	GetHealthCheckTx(ctx context.Context, tx *sqlx.Tx, id int) (types.HealthCheck, error)
 	// GetHealthCheckForUpdateTx is GetHealthCheckTx with the reading's row locked.
-	GetHealthCheckForUpdateTx(ctx context.Context, tx *sqlx.Tx, id int) (types.HealthCheck, error)
+	GetHealthCheckForUpdateTx(
+		ctx context.Context, tx *sqlx.Tx, id int,
+	) (types.HealthCheck, error)
 	// UpdateHealthCheckTx saves corrected readings and moves the version on by one.
-	UpdateHealthCheckTx(ctx context.Context, tx *sqlx.Tx, id int, readings types.HealthReadings) error
+	UpdateHealthCheckTx(
+		ctx context.Context, tx *sqlx.Tx, id int, readings types.HealthReadings,
+	) error
 	// ListCustomerHealthChecksTx returns one page of a customer's readings, newest first, and how
 	// many they have in all.
 	ListCustomerHealthChecksTx(

@@ -25,3 +25,11 @@ const ManageCustomersPermissionKey = "customer:manage"
 // ChangeOldSaleCustomerPermissionKey lets a user change or remove the customer on a sale more
 // than 24 hours old (managers and admins). Anyone with customer:manage may do it for newer sales.
 const ChangeOldSaleCustomerPermissionKey = "sale:changeoldcustomer"
+
+// RecordHealthCheckPermissionKey lets a user record a blood pressure or glucose reading and print
+// its slip (cashiers, managers, admins). ViewHealthChecksPermissionKey lets a user see a
+// customer's saved readings and reprint one, and CorrectHealthCheckPermissionKey lets them
+// correct a saved reading (managers and admins).
+const RecordHealthCheckPermissionKey = "healthcheck:record"
+const ViewHealthChecksPermissionKey = "healthcheck:view"
+const CorrectHealthCheckPermissionKey = "healthcheck:correct"

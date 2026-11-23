@@ -646,13 +646,15 @@ func TestHealthCheckMigration(t *testing.T) {
 	}
 
 	// A retry key is used once.
-	keyed := `INSERT INTO health_check (customer_id, taken_by_id, systolic, diastolic, idempotency_key)
+	keyed := `INSERT INTO health_check
+			(customer_id, taken_by_id, systolic, diastolic, idempotency_key)
 		VALUES ((SELECT id FROM customer), (SELECT id FROM users), 120, 80, 'k1')`
 	db.MustExec(keyed)
 	mustFail(t, db, "health_check_idempotency_key_unique", keyed)
 
 	testdb.Rollback(t, db, healthCheckMigration)
-	if n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'HealthCheck'`); n != 0 {
+	n := count(t, db, `SELECT count(*) FROM permissions WHERE resource = 'HealthCheck'`)
+	if n != 0 {
 		t.Fatalf("rolling back must remove the permissions, found %d", n)
 	}
 	mustFail(t, db, "health_check", `SELECT 1 FROM health_check`)

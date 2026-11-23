@@ -13,12 +13,13 @@ type Customer struct {
 	ContactConsent   bool       `json:"contact_consent"    db:"contact_consent"`
 	ConsentUpdatedAt *time.Time `json:"consent_updated_at" db:"consent_updated_at"`
 	// HealthConsent: the customer agreed to the pharmacy keeping their health readings.
-	HealthConsent          bool       `json:"health_consent"            db:"health_consent"`
+	HealthConsent bool `json:"health_consent" db:"health_consent"`
+	// HealthConsentUpdatedAt is when HealthConsent last changed.
 	HealthConsentUpdatedAt *time.Time `json:"health_consent_updated_at" db:"health_consent_updated_at"`
-	Active           bool       `json:"active"             db:"active"`
-	Version          int        `json:"version"            db:"version"`
-	CreatedAt        time.Time  `json:"created_at"         db:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"         db:"updated_at"`
+	Active                 bool       `json:"active"             db:"active"`
+	Version                int        `json:"version"            db:"version"`
+	CreatedAt              time.Time  `json:"created_at"         db:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"         db:"updated_at"`
 }
 
 // CustomerRef is the part of a customer a sale needs: who they are and whether they may be put

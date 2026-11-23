@@ -188,9 +188,17 @@ func (s *customerService) UpdateCustomer(
 				"from": stored.ContactConsent, "to": req.ContactConsent,
 			}
 		}
+		if req.HealthConsent != nil && stored.HealthConsent != *req.HealthConsent {
+			details["health_consent"] = map[string]bool{
+				"from": stored.HealthConsent, "to": *req.HealthConsent,
+			}
+		}
 		edited := stored
 		edited.Name, edited.Phone, edited.Email = req.Name, req.Phone, req.Email
 		edited.Notes, edited.ContactConsent = req.Notes, req.ContactConsent
+		if req.HealthConsent != nil {
+			edited.HealthConsent = *req.HealthConsent
+		}
 		if stored.Phone != edited.Phone {
 			if err = s.requirePhoneFree(ctx, tx, edited.Phone, stored.ID); err != nil {
 				return err
@@ -219,6 +227,11 @@ func changedCustomerFields(stored types.Customer, req types.CustomerRequest) []s
 		{"email", stored.Email != req.Email},
 		{"notes", stored.Notes != req.Notes},
 		{"contact_consent", stored.ContactConsent != req.ContactConsent},
+		// Absent means "leave as it is".
+		{
+			"health_consent",
+			req.HealthConsent != nil && stored.HealthConsent != *req.HealthConsent,
+		},
 	} {
 		if f.different {
 			changed = append(changed, f.name)
