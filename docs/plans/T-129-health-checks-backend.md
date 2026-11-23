@@ -192,3 +192,17 @@ Style: **logical groups** (owner's choice). Planned points, each shown to the ow
 - [FPF: Nigeria's New Data Protection Act, Explained](https://fpf.org/blog/nigerias-new-data-protection-act-explained/) — sensitive data and the narrower role of consent
 - [Mondaq: Data dignity, digital health](https://www.mondaq.com/nigeria/data-protection/1781892/data-dignity-digital-health-balancing-technological-innovation-and-patient-privacy) — health status is sensitive personal data; National Health Act 2014 also applies
 - [NDPC GAID 2025](https://ndpc.gov.ng/wp-content/uploads/2025/07/NDP-ACT-GAID-2025-MARCH-20TH.pdf) — the implementing directive, authoritative for the details I could not confirm
+
+## Changes during build and review
+
+- `frontend/vite.config.js`: the dev proxy gains `/health-checks` (every API prefix is listed there).
+- Review: creating a customer with `health_consent: true` now saves it (it was dropped); every
+  consent grant or withdrawal, from the counter or the customer form, is also audited as
+  `customer` / `health_consent_changed` (`via`: `health_check` or `customer_form`); a correction
+  without a version is 400, not 409; the one-decimal check no longer lets float noise through.
+- Left as is (review nits): a reused key naming a customer that does not exist gets 400, not
+  `already_saved` (customers are never deleted, nothing is saved either way); only NUL is refused
+  as a control character in notes and reasons, as on the customer form.
+- Checked by hand on a demo database: cashier records (409 `health_consent_needed`, then 201 with
+  `consent_given`), 400 for 1200/80, 403 on history, correct and reprint; manager history, correct
+  and reprint 200; the five audit entries as designed.
