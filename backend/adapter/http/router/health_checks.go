@@ -1,7 +1,6 @@
 package router
 
 import (
-	"html/template"
 	"net/http"
 	"pharmacy/adapter/http/controller"
 	"pharmacy/adapter/http/middleware"
@@ -13,8 +12,8 @@ import (
 // InitHealthCheckRouter serves blood pressure and glucose readings. Recording one needs
 // healthcheck:record and customer:view (to find the customer); seeing a customer's readings and
 // reprinting one need healthcheck:view; correcting one needs healthcheck:correct as well. The
-// service checks again.
-func InitHealthCheckRouter(svc service.HealthCheckService, tmpl *template.Template) http.Handler {
+// service checks again. Every answer is JSON, a wrong address included, so the screens can read it.
+func InitHealthCheckRouter(svc service.HealthCheckService) http.Handler {
 	checks := controller.NewHealthCheckController(svc)
 	mux := http.NewServeMux()
 
@@ -34,7 +33,7 @@ func InitHealthCheckRouter(svc service.HealthCheckService, tmpl *template.Templa
 	mux.Handle(http.MethodPost+" /{id}/reprint", mayView(http.HandlerFunc(checks.Reprint)))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		httperror.NotFound("Health Check Page Not Found", nil).Render(w, tmpl)
+		httperror.NotFound("there is no such health check address", nil).JSONRespond(w)
 	})
 	return http.StripPrefix("/health-checks", mux)
 }

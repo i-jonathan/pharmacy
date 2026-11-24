@@ -91,7 +91,7 @@ func main() {
 	customerRouter := router.InitCustomerRouter(customerService, tmpl)
 	r.Handle("/customers/", middleware.AuthMiddleware(middleware.AddPermissionsToContext(customerRouter)))
 
-	healthCheckRouter := router.InitHealthCheckRouter(service.NewHealthCheckService(store), tmpl)
+	healthCheckRouter := router.InitHealthCheckRouter(service.NewHealthCheckService(store))
 	r.Handle(
 		"/health-checks/",
 		middleware.AuthMiddleware(middleware.AddPermissionsToContext(healthCheckRouter)),

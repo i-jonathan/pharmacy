@@ -203,6 +203,13 @@ Style: **logical groups** (owner's choice). Planned points, each shown to the ow
 - Left as is (review nits): a reused key naming a customer that does not exist gets 400, not
   `already_saved` (customers are never deleted, nothing is saved either way); only NUL is refused
   as a control character in notes and reasons, as on the customer form.
+- Second review (`/code-review high`, whole branch): a correction that adds a blood pressure or
+  glucose the reading lacked now needs an active customer with health consent (409
+  `customer_inactive` / `health_consent_needed`); typo fixes to stored numbers stay allowed after
+  withdrawal (owner's decision). History reads the customer without a lock. Unknown addresses
+  under `/health-checks/` answer JSON. Customer struct tags re-aligned for `make check-go-lines`.
+  A correction replacing the whole reading (absent fields cleared) is by design and documented in
+  `CLAUDE.md` and on T-131.
 - Checked by hand on a demo database: cashier records (409 `health_consent_needed`, then 201 with
   `consent_given`), 400 for 1200/80, 403 on history, correct and reprint; manager history, correct
   and reprint 200; the five audit entries as designed.

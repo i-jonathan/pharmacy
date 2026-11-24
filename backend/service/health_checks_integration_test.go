@@ -411,3 +411,40 @@ func TestCorrectHealthCheckWithoutAVersionIsABadRequest(t *testing.T) {
 	}, f.uid)
 	requireStatus(t, err, http.StatusBadRequest)
 }
+
+func TestCorrectionThatAddsAMeasurementNeedsConsentAndAnActiveCustomer(t *testing.T) {
+	f := newHealthFixture(t)
+	saved, err := f.svc.RecordHealthCheck(recorderCtx, bpReading(f.ada, 120, 80, "k1"), f.uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addGlucose := types.HealthCheckCorrection{
+		ID: saved.ID, Version: 1, Reason: "forgot the glucose",
+		HealthReadings: types.HealthReadings{
+			Systolic: ip(120), Diastolic: ip(80), Pulse: ip(72),
+			Glucose: fp(6.1), GlucoseUnit: "mmol/L", GlucoseContext: "random",
+		},
+	}
+	fixTypo := types.HealthCheckCorrection{
+		ID: saved.ID, Version: 1, Reason: "typo",
+		HealthReadings: types.HealthReadings{Systolic: ip(125), Diastolic: ip(80), Pulse: ip(72)},
+	}
+
+	f.db.MustExec(`UPDATE customer SET health_consent = FALSE WHERE id = $1`, f.ada)
+	_, err = f.svc.CorrectHealthCheck(managerCtx, addGlucose, f.other)
+	requireCodeAndReason(t, err, http.StatusConflict, "health_consent_needed")
+	// Fixing numbers already stored keeps the record accurate, consent or not.
+	if _, err = f.svc.CorrectHealthCheck(managerCtx, fixTypo, f.other); err != nil {
+		t.Fatalf("a typo fix after withdrawal: %v", err)
+	}
+
+	f.db.MustExec(`UPDATE customer SET health_consent = TRUE, active = FALSE WHERE id = $1`, f.ada)
+	addGlucose.Version = 2
+	_, err = f.svc.CorrectHealthCheck(managerCtx, addGlucose, f.other)
+	requireCodeAndReason(t, err, http.StatusConflict, "customer_inactive")
+
+	f.db.MustExec(`UPDATE customer SET active = TRUE WHERE id = $1`, f.ada)
+	if _, err = f.svc.CorrectHealthCheck(managerCtx, addGlucose, f.other); err != nil {
+		t.Fatalf("adding glucose with consent: %v", err)
+	}
+}

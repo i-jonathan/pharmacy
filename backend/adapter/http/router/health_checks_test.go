@@ -48,7 +48,7 @@ func (f *fakeHealthCheckService) ReprintHealthCheck(
 }
 
 func TestHealthCheckRoutesNeedTheirPermissions(t *testing.T) {
-	h := InitHealthCheckRouter(&fakeHealthCheckService{}, errorPage)
+	h := InitHealthCheckRouter(&fakeHealthCheckService{})
 	cashier := []string{
 		constant.RecordHealthCheckPermissionKey, constant.ViewCustomersPermissionKey,
 	}
@@ -108,7 +108,7 @@ func TestRecordHealthCheckRoute(t *testing.T) {
 		httptest.NewRequest(http.MethodPost, "/health-checks/", strings.NewReader(body)),
 		constant.RecordHealthCheckPermissionKey, constant.ViewCustomersPermissionKey)
 
-	rec := serve(InitHealthCheckRouter(svc, errorPage), req)
+	rec := serve(InitHealthCheckRouter(svc), req)
 
 	got := svc.record
 	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"id":31`) ||
@@ -126,7 +126,7 @@ func TestCorrectHealthCheckRouteTakesTheIDFromThePath(t *testing.T) {
 			strings.NewReader(`{"version":2,"reason":"typo","systolic":130,"diastolic":80}`)),
 		constant.CorrectHealthCheckPermissionKey, constant.ViewHealthChecksPermissionKey)
 
-	rec := serve(InitHealthCheckRouter(svc, errorPage), req)
+	rec := serve(InitHealthCheckRouter(svc), req)
 
 	c := svc.correction
 	if rec.Code != http.StatusOK || c.ID != 9 || c.Version != 2 || c.Reason != "typo" ||
@@ -141,7 +141,7 @@ func TestHealthHistoryRoutePassesTheCustomerAndPage(t *testing.T) {
 		httptest.NewRequest(http.MethodGet, "/health-checks/customer/4?page=3", nil),
 		constant.ViewHealthChecksPermissionKey)
 
-	rec := serve(InitHealthCheckRouter(svc, errorPage), req)
+	rec := serve(InitHealthCheckRouter(svc), req)
 
 	if rec.Code != http.StatusOK || svc.id != 4 || svc.page != 3 || svc.userID != 7 {
 		t.Fatalf("got %d, customer %d, page %d", rec.Code, svc.id, svc.page)
@@ -149,7 +149,25 @@ func TestHealthHistoryRoutePassesTheCustomerAndPage(t *testing.T) {
 	req = withSession(t,
 		httptest.NewRequest(http.MethodGet, "/health-checks/customer/abc", nil),
 		constant.ViewHealthChecksPermissionKey)
-	if rec = serve(InitHealthCheckRouter(svc, errorPage), req); rec.Code != http.StatusBadRequest {
+	if rec = serve(InitHealthCheckRouter(svc), req); rec.Code != http.StatusBadRequest {
 		t.Fatalf("a bad id: want 400, got %d", rec.Code)
+	}
+}
+
+func TestUnknownHealthCheckRoutesAnswerJSON(t *testing.T) {
+	h := InitHealthCheckRouter(&fakeHealthCheckService{})
+	for _, r := range []struct{ method, path string }{
+		{http.MethodGet, "/health-checks/9"},
+		{http.MethodDelete, "/health-checks/9"},
+		{http.MethodGet, "/health-checks/nothing/here"},
+	} {
+		req := withSession(t, httptest.NewRequest(r.method, r.path, nil),
+			constant.ViewHealthChecksPermissionKey)
+		rec := serve(h, req)
+		if rec.Code != http.StatusNotFound ||
+			!strings.HasPrefix(rec.Header().Get("Content-Type"), "application/json") {
+			t.Errorf("%s %s: want a JSON 404, got %d %q", r.method, r.path, rec.Code,
+				rec.Header().Get("Content-Type"))
+		}
 	}
 }

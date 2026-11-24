@@ -214,13 +214,11 @@ func (s *healthCheckService) recordHealthCheckTx(
 	fingerprint string, userID int,
 ) (int, error) {
 	if !customer.Active {
-		return 0, conflictWithCode("customer_inactive",
-			"this customer is deactivated; reactivate them before recording a health check")
+		return 0, customerInactiveForHealthCheck()
 	}
 	if !customer.HealthConsent {
 		if !req.ConsentGiven {
-			return 0, conflictWithCode("health_consent_needed",
-				"ask the customer whether the pharmacy may keep their health readings")
+			return 0, healthConsentNeeded()
 		}
 		if err := s.repo.SetCustomerHealthConsentTx(ctx, tx, customer.ID, true); err != nil {
 			return 0, httperror.ServerError("failed to save the customer's consent", err)
@@ -293,15 +291,17 @@ func (s *healthCheckService) CustomerHealthChecks(
 	if page < 1 || page > maxHealthCheckPage {
 		page = 1
 	}
+	// A plain read: looking at a history must not wait behind, or hold up, a save or an edit.
+	_, err = s.repo.GetCustomer(ctx, customerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return types.HealthCheckPage{}, customerNotFound(err)
+	}
+	if err != nil {
+		return types.HealthCheckPage{}, httperror.ServerError("failed to fetch customer", err)
+	}
 	result := types.HealthCheckPage{Page: page, PerPage: healthChecksPerPage}
 	err = runInTx(ctx, s.repo, "failed to fetch health readings", func(tx *sqlx.Tx) error {
-		_, err := s.repo.GetCustomerRefTx(ctx, tx, customerID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return customerNotFound(err)
-		}
-		if err != nil {
-			return httperror.ServerError("failed to fetch customer", err)
-		}
+		var err error
 		result.Data, result.TotalCount, err = s.repo.ListCustomerHealthChecksTx(
 			ctx, tx, customerID, healthChecksPerPage, (page-1)*healthChecksPerPage,
 		)
@@ -363,6 +363,11 @@ func (s *healthCheckService) CorrectHealthCheck(
 			result = stored
 			return nil
 		}
+		if addsMeasurement(stored, req.HealthReadings) {
+			if err = s.requireMayStoreNewReadings(ctx, tx, stored.CustomerID); err != nil {
+				return err
+			}
+		}
 		if err = s.repo.UpdateHealthCheckTx(ctx, tx, req.ID, req.HealthReadings); err != nil {
 			return httperror.ServerError("failed to correct the health check", err)
 		}
@@ -375,6 +380,42 @@ func (s *healthCheckService) CorrectHealthCheck(
 		return err
 	})
 	return result, err
+}
+
+// addsMeasurement reports whether a correction stores a blood pressure or a glucose the reading
+// did not have: new health data, held to the same rules as a new reading. Changing numbers that
+// were already stored is not, so a typo can be fixed even after consent is withdrawn.
+func addsMeasurement(stored types.HealthCheck, next types.HealthReadings) bool {
+	return (stored.Systolic == nil && next.Systolic != nil) ||
+		(stored.Glucose == nil && next.Glucose != nil)
+}
+
+// requireMayStoreNewReadings refuses new health data for a customer who is deactivated or has no
+// health consent on file, with the codes a new reading gets.
+func (s *healthCheckService) requireMayStoreNewReadings(
+	ctx context.Context, tx *sqlx.Tx, customerID int,
+) error {
+	customer, err := s.repo.LockCustomerForHealthCheckTx(ctx, tx, customerID)
+	if err != nil {
+		return httperror.ServerError("failed to fetch customer", err)
+	}
+	if !customer.Active {
+		return customerInactiveForHealthCheck()
+	}
+	if !customer.HealthConsent {
+		return healthConsentNeeded()
+	}
+	return nil
+}
+
+func customerInactiveForHealthCheck() error {
+	return conflictWithCode("customer_inactive",
+		"this customer is deactivated; reactivate them before recording a health check")
+}
+
+func healthConsentNeeded() error {
+	return conflictWithCode("health_consent_needed",
+		"ask the customer whether the pharmacy may keep their health readings")
 }
 
 // healthChange is one corrected field's value before and after; nil is "not measured".
