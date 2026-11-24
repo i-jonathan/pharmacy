@@ -46,7 +46,7 @@ flowchart LR
 | Request | `POST /customers/` | Body as above, size-limited (`decodeLimitedJSON`); no retry key |
 | Gate | `AuthMiddleware` → `AddPermissionsToContext` → `RequirePermissions(all, customer:manage)` | Service re-checks `customer:manage` |
 | Service | `CreateCustomer` | `tidyCustomerRequest` trims, validates (including refusing NUL characters, which Postgres rejects), normalizes the phone; in one transaction (`runInTx`): `requirePhoneFree`, `CreateCustomerTx`, audit `created` |
-| Data | `customer`, `audit_log` | `created_by_id` is the signed-in user (session context, never the body); `consent_updated_at` is stamped by SQL (`NOW()`) when consent is given at creation |
+| Data | `customer`, `audit_log` | `created_by_id` is the signed-in user (session context, never the body); `consent_updated_at` is stamped by SQL (`NOW()`) when consent is given at creation; an optional `health_consent` is saved the same way (`health_consent_updated_at`) and also audited `health_consent_changed` |
 | Response | `201 {id}` | The page closes the panel, shows a notice and reloads the list |
 
 ### Edit a customer
@@ -56,7 +56,7 @@ flowchart LR
 | Starts | `Customers.vue` `open()`, `save()` | A click anywhere on the row opens it; if the panel holds unsaved typing a "Discard your changes?" confirm comes first (also for Add customer and Close); the form is filled from the list row; the phone is shown as `0803 123 4567` and normalized again on save |
 | Request | `PUT /customers/:id` | The path id wins over any `id` in the body; `version` is the one the page loaded |
 | Gate | as above | `customer:manage` |
-| Service | `UpdateCustomer` | `lockCustomer` reads the row `FOR UPDATE` and refuses a stale version (409); compares name, phone, email, notes, consent; nothing changed means no write, no version bump and no audit entry; a changed phone goes through `requirePhoneFree`; `UpdateCustomerTx` stamps `consent_updated_at` with the database's `NOW()` only when consent changes (the app never sets it); audit `updated` with `{changed: [...]}` and `contact_consent: {from, to}` when consent changed |
+| Service | `UpdateCustomer` | `lockCustomer` reads the row `FOR UPDATE` and refuses a stale version (409); compares name, phone, email, notes, consent; nothing changed means no write, no version bump and no audit entry; a changed phone goes through `requirePhoneFree`; `UpdateCustomerTx` stamps `consent_updated_at` with the database's `NOW()` only when consent changes (the app never sets it); audit `updated` with `{changed: [...]}` and `contact_consent: {from, to}` when consent changed. An optional `health_consent` (consent to keep health readings, T-129) is compared and saved only when sent (absent leaves it alone); a change stamps `health_consent_updated_at` and adds `health_consent: {from, to}` to the audit entry, plus a separate `health_consent_changed` entry (`via: "customer_form"`) so every grant and withdrawal is under one action. Recording a health check with `consent_given` also sets it (audit `health_consent_changed`) |
 | Data | `customer` (`version = version + 1`, `updated_at`), `audit_log` | The audit entry holds field names, not the old or new phone, email or notes |
 | Response | `204` | On a stale-version 409 the page fetches `GET /customers/:id`, takes its `version`, and keeps what the person typed, with a message saying that saving again replaces the other person's change |
 

@@ -129,9 +129,10 @@ func (s *customerService) CreateCustomer(
 			return err
 		}
 		var err error
+		healthConsent := req.HealthConsent != nil && *req.HealthConsent
 		id, err = s.repo.CreateCustomerTx(ctx, tx, types.NewCustomer{
 			Name: req.Name, Phone: req.Phone, Email: req.Email, Notes: req.Notes,
-			ContactConsent: req.ContactConsent, CreatedByID: userID,
+			ContactConsent: req.ContactConsent, HealthConsent: healthConsent, CreatedByID: userID,
 		})
 		if errors.Is(err, repository.ErrCustomerPhoneTaken) {
 			return phoneTakenRace()
@@ -139,8 +140,12 @@ func (s *customerService) CreateCustomer(
 		if err != nil {
 			return httperror.ServerError("failed to save customer", err)
 		}
-		return appendAudit(ctx, s.repo, tx, userID, "customer", id, "created", "",
-			map[string]any{"contact_consent": req.ContactConsent})
+		err = appendAudit(ctx, s.repo, tx, userID, "customer", id, "created", "",
+			map[string]any{"contact_consent": req.ContactConsent, "health_consent": healthConsent})
+		if err != nil || !healthConsent {
+			return err
+		}
+		return auditHealthConsent(ctx, s.repo, tx, userID, id, true, "customer_form")
 	})
 	return id, err
 }
@@ -188,9 +193,17 @@ func (s *customerService) UpdateCustomer(
 				"from": stored.ContactConsent, "to": req.ContactConsent,
 			}
 		}
+		if req.HealthConsent != nil && stored.HealthConsent != *req.HealthConsent {
+			details["health_consent"] = map[string]bool{
+				"from": stored.HealthConsent, "to": *req.HealthConsent,
+			}
+		}
 		edited := stored
 		edited.Name, edited.Phone, edited.Email = req.Name, req.Phone, req.Email
 		edited.Notes, edited.ContactConsent = req.Notes, req.ContactConsent
+		if req.HealthConsent != nil {
+			edited.HealthConsent = *req.HealthConsent
+		}
 		if stored.Phone != edited.Phone {
 			if err = s.requirePhoneFree(ctx, tx, edited.Phone, stored.ID); err != nil {
 				return err
@@ -203,8 +216,24 @@ func (s *customerService) UpdateCustomer(
 		if err != nil {
 			return httperror.ServerError("failed to save customer", err)
 		}
-		return appendAudit(ctx, s.repo, tx, userID, "customer", stored.ID, "updated", "", details)
+		err = appendAudit(ctx, s.repo, tx, userID, "customer", stored.ID, "updated", "", details)
+		if err != nil || stored.HealthConsent == edited.HealthConsent {
+			return err
+		}
+		return auditHealthConsent(
+			ctx, s.repo, tx, userID, stored.ID, edited.HealthConsent, "customer_form",
+		)
 	})
+}
+
+// auditHealthConsent records a grant or withdrawal of health consent under one action, whichever
+// screen it came from, so the whole consent trail is one query. via names where it was given.
+func auditHealthConsent(
+	ctx context.Context, repo repository.PharmacyRepository, tx *sqlx.Tx, userID, customerID int,
+	consent bool, via string,
+) error {
+	return appendAudit(ctx, repo, tx, userID, "customer", customerID, "health_consent_changed", "",
+		map[string]any{"from": !consent, "to": consent, "via": via})
 }
 
 // changedCustomerFields names the fields an edit changes; a new field is added here once.
@@ -219,6 +248,11 @@ func changedCustomerFields(stored types.Customer, req types.CustomerRequest) []s
 		{"email", stored.Email != req.Email},
 		{"notes", stored.Notes != req.Notes},
 		{"contact_consent", stored.ContactConsent != req.ContactConsent},
+		// Absent means "leave as it is".
+		{
+			"health_consent",
+			req.HealthConsent != nil && stored.HealthConsent != *req.HealthConsent,
+		},
 	} {
 		if f.different {
 			changed = append(changed, f.name)

@@ -117,3 +117,21 @@ type AdminService interface {
 	UpdateCategory(ctx context.Context, id int, name string) error
 	DeleteCategory(ctx context.Context, id int) error
 }
+
+// HealthCheckService records customers' blood pressure and glucose readings and serves their
+// history. Every method checks its own permissions.
+type HealthCheckService interface {
+	// RecordHealthCheck saves a reading for a customer and returns it for the slip.
+	RecordHealthCheck(
+		ctx context.Context, req types.HealthCheckRequest, userID int,
+	) (types.HealthCheck, error)
+	// CustomerHealthChecks returns one page of a customer's readings, newest first, and audits
+	// that they were looked at.
+	CustomerHealthChecks(
+		ctx context.Context, customerID, page, userID int,
+	) (types.HealthCheckPage, error)
+	CorrectHealthCheck(
+		ctx context.Context, req types.HealthCheckCorrection, userID int,
+	) (types.HealthCheck, error)
+	ReprintHealthCheck(ctx context.Context, id, userID int) (types.HealthCheck, error)
+}

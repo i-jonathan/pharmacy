@@ -103,6 +103,32 @@ type StockAdjustmentRepository interface {
 	DismissStockFlagTx(ctx context.Context, tx *sqlx.Tx, id, userID int, note string) error
 }
 
+type HealthCheckRepository interface {
+	// CreateHealthCheckTx inserts a reading and returns its id and true, or 0 and false when
+	// another save already used the key (the caller looks that one up).
+	CreateHealthCheckTx(
+		ctx context.Context, tx *sqlx.Tx, check types.NewHealthCheck,
+	) (int, bool, error)
+	// HealthCheckByKeyTx returns the reading saved under a retry key, or nil.
+	HealthCheckByKeyTx(
+		ctx context.Context, tx *sqlx.Tx, key string,
+	) (*types.SavedHealthCheck, error)
+	GetHealthCheckTx(ctx context.Context, tx *sqlx.Tx, id int) (types.HealthCheck, error)
+	// GetHealthCheckForUpdateTx is GetHealthCheckTx with the reading's row locked.
+	GetHealthCheckForUpdateTx(
+		ctx context.Context, tx *sqlx.Tx, id int,
+	) (types.HealthCheck, error)
+	// UpdateHealthCheckTx saves corrected readings and moves the version on by one.
+	UpdateHealthCheckTx(
+		ctx context.Context, tx *sqlx.Tx, id int, readings types.HealthReadings,
+	) error
+	// ListCustomerHealthChecksTx returns one page of a customer's readings, newest first, and how
+	// many they have in all.
+	ListCustomerHealthChecksTx(
+		ctx context.Context, tx *sqlx.Tx, customerID, limit, offset int,
+	) ([]types.HealthCheck, int, error)
+}
+
 type CustomerRepository interface {
 	CreateCustomerTx(ctx context.Context, tx *sqlx.Tx, customer types.NewCustomer) (int, error)
 	GetCustomerForUpdateTx(ctx context.Context, tx *sqlx.Tx, id int) (types.Customer, error)
@@ -114,9 +140,18 @@ type CustomerRepository interface {
 	// CustomerByPhoneTx returns the customer with this normalized phone, or nil.
 	CustomerByPhoneTx(ctx context.Context, tx *sqlx.Tx, phone string) (*types.Customer, error)
 	GetCustomer(ctx context.Context, id int) (types.Customer, error)
-	// GetCustomerRefTx reads a customer's name and whether they are active, and holds a share lock
+	// GetCustomerRefTx reads a customer's name, whether they are active and whether they gave
+	// health consent, and holds a share lock
 	// on the row until the transaction ends.
 	GetCustomerRefTx(ctx context.Context, tx *sqlx.Tx, id int) (types.CustomerRef, error)
+	// LockCustomerForHealthCheckTx reads a customer's name, whether they are active and whether
+	// they gave health consent, and locks the row for an update until the transaction ends.
+	LockCustomerForHealthCheckTx(
+		ctx context.Context, tx *sqlx.Tx, id int,
+	) (types.CustomerRef, error)
+	// SetCustomerHealthConsentTx records the customer's health consent, stamps when it changed and
+	// moves the version on.
+	SetCustomerHealthConsentTx(ctx context.Context, tx *sqlx.Tx, id int, consent bool) error
 	// FetchCustomerNames returns the names of the given customers, deactivated ones included, on
 	// the caller's transaction.
 	FetchCustomerNames(ctx context.Context, tx *sqlx.Tx, ids []int) (map[int]string, error)
@@ -218,4 +253,5 @@ type PharmacyRepository interface {
 	AdminRepository
 	StockAdjustmentRepository
 	CustomerRepository
+	HealthCheckRepository
 }

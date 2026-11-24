@@ -21,7 +21,7 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 // customerColumns reads a customer, with no phone shown as an empty string.
 const customerColumns = `
 	id, name, COALESCE(phone, '') AS phone, email, notes, contact_consent, consent_updated_at,
-	active, version, created_at, updated_at`
+	health_consent, health_consent_updated_at, active, version, created_at, updated_at`
 
 func (r *repo) CreateCustomerTx(
 	ctx context.Context, tx *sqlx.Tx, c types.NewCustomer,
@@ -29,10 +29,12 @@ func (r *repo) CreateCustomerTx(
 	var id int
 	err := tx.GetContext(ctx, &id, `
 		INSERT INTO customer
-			(name, phone, email, notes, contact_consent, consent_updated_at, created_by_id)
-		VALUES ($1, NULLIF($2, ''), $3, $4, $5, CASE WHEN $5 THEN NOW() END, $6)
+			(name, phone, email, notes, contact_consent, consent_updated_at, health_consent,
+			health_consent_updated_at, created_by_id)
+		VALUES ($1, NULLIF($2, ''), $3, $4, $5, CASE WHEN $5 THEN NOW() END, $6,
+			CASE WHEN $6 THEN NOW() END, $7)
 		RETURNING id`,
-		c.Name, c.Phone, c.Email, c.Notes, c.ContactConsent, c.CreatedByID)
+		c.Name, c.Phone, c.Email, c.Notes, c.ContactConsent, c.HealthConsent, c.CreatedByID)
 	if isUniqueViolation(err) {
 		return 0, ErrCustomerPhoneTaken
 	}
@@ -54,9 +56,13 @@ func (r *repo) UpdateCustomerTx(ctx context.Context, tx *sqlx.Tx, c types.Custom
 		SET name = $2, phone = NULLIF($3, ''), email = $4, notes = $5,
 			consent_updated_at = CASE
 				WHEN contact_consent IS DISTINCT FROM $6 THEN NOW() ELSE consent_updated_at END,
-			contact_consent = $6, version = version + 1, updated_at = NOW()
+			contact_consent = $6,
+			health_consent_updated_at = CASE
+				WHEN health_consent IS DISTINCT FROM $7 THEN NOW()
+				ELSE health_consent_updated_at END,
+			health_consent = $7, version = version + 1, updated_at = NOW()
 		WHERE id = $1`,
-		c.ID, c.Name, c.Phone, c.Email, c.Notes, c.ContactConsent)
+		c.ID, c.Name, c.Phone, c.Email, c.Notes, c.ContactConsent, c.HealthConsent)
 	if isUniqueViolation(err) {
 		return ErrCustomerPhoneTaken
 	}
@@ -92,8 +98,31 @@ func (r *repo) GetCustomerRefTx(
 	// FOR SHARE: a deactivation (an UPDATE) waits for the sale that is checking the customer, or
 	// is seen by it, so a customer can't be deactivated between the check and the commit.
 	err := tx.GetContext(ctx, &c,
-		`SELECT id, name, active FROM customer WHERE id = $1 FOR SHARE`, id)
+		`SELECT id, name, active, health_consent FROM customer WHERE id = $1 FOR SHARE`, id)
 	return c, err
+}
+
+func (r *repo) LockCustomerForHealthCheckTx(
+	ctx context.Context, tx *sqlx.Tx, id int,
+) (types.CustomerRef, error) {
+	var c types.CustomerRef
+	// FOR NO KEY UPDATE: recording may also set the customer's consent, so take the write lock
+	// up front; two share locks both upgrading would deadlock. It still lets the health_check
+	// foreign key take its key-share lock.
+	err := tx.GetContext(ctx, &c, `
+		SELECT id, name, active, health_consent FROM customer WHERE id = $1 FOR NO KEY UPDATE`, id)
+	return c, err
+}
+
+func (r *repo) SetCustomerHealthConsentTx(
+	ctx context.Context, tx *sqlx.Tx, id int, consent bool,
+) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE customer
+		SET health_consent = $2, health_consent_updated_at = NOW(), version = version + 1,
+			updated_at = NOW()
+		WHERE id = $1`, id, consent)
+	return err
 }
 
 func (r *repo) FetchCustomerNames(
