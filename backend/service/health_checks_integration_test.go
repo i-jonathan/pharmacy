@@ -438,6 +438,29 @@ func TestCorrectionThatAddsAMeasurementNeedsConsentAndAnActiveCustomer(t *testin
 		t.Fatalf("a typo fix after withdrawal: %v", err)
 	}
 
+	// A pulse the reading never had is new health data too.
+	noPulse, err := f.svc.RecordHealthCheck(recorderCtx, types.HealthCheckRequest{
+		CustomerID: f.ada, IdempotencyKey: "k2",
+		HealthReadings: types.HealthReadings{Systolic: ip(120), Diastolic: ip(80)},
+	}, f.uid)
+	if err == nil {
+		t.Fatal("recording without consent must be refused")
+	}
+	f.db.MustExec(`UPDATE customer SET health_consent = TRUE WHERE id = $1`, f.ada)
+	noPulse, err = f.svc.RecordHealthCheck(recorderCtx, types.HealthCheckRequest{
+		CustomerID: f.ada, IdempotencyKey: "k3",
+		HealthReadings: types.HealthReadings{Systolic: ip(120), Diastolic: ip(80)},
+	}, f.uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.db.MustExec(`UPDATE customer SET health_consent = FALSE WHERE id = $1`, f.ada)
+	_, err = f.svc.CorrectHealthCheck(managerCtx, types.HealthCheckCorrection{
+		ID: noPulse.ID, Version: 1, Reason: "forgot the pulse",
+		HealthReadings: types.HealthReadings{Systolic: ip(120), Diastolic: ip(80), Pulse: ip(72)},
+	}, f.other)
+	requireCodeAndReason(t, err, http.StatusConflict, "health_consent_needed")
+
 	f.db.MustExec(`UPDATE customer SET health_consent = TRUE, active = FALSE WHERE id = $1`, f.ada)
 	addGlucose.Version = 2
 	_, err = f.svc.CorrectHealthCheck(managerCtx, addGlucose, f.other)

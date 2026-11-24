@@ -382,11 +382,12 @@ func (s *healthCheckService) CorrectHealthCheck(
 	return result, err
 }
 
-// addsMeasurement reports whether a correction stores a blood pressure or a glucose the reading
-// did not have: new health data, held to the same rules as a new reading. Changing numbers that
-// were already stored is not, so a typo can be fixed even after consent is withdrawn.
+// addsMeasurement reports whether a correction stores a blood pressure, pulse or glucose the
+// reading did not have: new health data, held to the same rules as a new reading. Changing numbers
+// that were already stored is not, so a typo can be fixed even after consent is withdrawn.
 func addsMeasurement(stored types.HealthCheck, next types.HealthReadings) bool {
 	return (stored.Systolic == nil && next.Systolic != nil) ||
+		(stored.Pulse == nil && next.Pulse != nil) ||
 		(stored.Glucose == nil && next.Glucose != nil)
 }
 

@@ -210,6 +210,9 @@ Style: **logical groups** (owner's choice). Planned points, each shown to the ow
   under `/health-checks/` answer JSON. Customer struct tags re-aligned for `make check-go-lines`.
   A correction replacing the whole reading (absent fields cleared) is by design and documented in
   `CLAUDE.md` and on T-131.
+- Third review: a correction that adds a pulse the reading lacked is held to the same rule.
+  `GetCustomerRefTx` also reads `health_consent`, so the field is never silently false. Control
+  characters other than NUL stay allowed (left, as in both earlier reviews).
 - Checked by hand on a demo database: cashier records (409 `health_consent_needed`, then 201 with
   `consent_given`), 400 for 1200/80, 403 on history, correct and reprint; manager history, correct
   and reprint 200; the five audit entries as designed.

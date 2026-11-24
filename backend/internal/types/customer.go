@@ -25,11 +25,10 @@ type Customer struct {
 // CustomerRef is the part of a customer a sale needs: who they are and whether they may be put
 // on a sale. It is read instead of the whole row, which holds phone, email and notes.
 type CustomerRef struct {
-	ID     int    `db:"id"`
-	Name   string `db:"name"`
-	Active bool   `db:"active"`
-	// HealthConsent is read only by LockCustomerForHealthCheckTx.
-	HealthConsent bool `db:"health_consent"`
+	ID            int    `db:"id"`
+	Name          string `db:"name"`
+	Active        bool   `db:"active"`
+	HealthConsent bool   `db:"health_consent"`
 }
 
 // CustomerRequest adds a customer (ID 0) or edits one; an edit sends the version it loaded.

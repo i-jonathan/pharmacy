@@ -98,7 +98,7 @@ func (r *repo) GetCustomerRefTx(
 	// FOR SHARE: a deactivation (an UPDATE) waits for the sale that is checking the customer, or
 	// is seen by it, so a customer can't be deactivated between the check and the commit.
 	err := tx.GetContext(ctx, &c,
-		`SELECT id, name, active FROM customer WHERE id = $1 FOR SHARE`, id)
+		`SELECT id, name, active, health_consent FROM customer WHERE id = $1 FOR SHARE`, id)
 	return c, err
 }
 

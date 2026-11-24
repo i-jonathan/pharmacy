@@ -140,7 +140,8 @@ type CustomerRepository interface {
 	// CustomerByPhoneTx returns the customer with this normalized phone, or nil.
 	CustomerByPhoneTx(ctx context.Context, tx *sqlx.Tx, phone string) (*types.Customer, error)
 	GetCustomer(ctx context.Context, id int) (types.Customer, error)
-	// GetCustomerRefTx reads a customer's name and whether they are active, and holds a share lock
+	// GetCustomerRefTx reads a customer's name, whether they are active and whether they gave
+	// health consent, and holds a share lock
 	// on the row until the transaction ends.
 	GetCustomerRefTx(ctx context.Context, tx *sqlx.Tx, id int) (types.CustomerRef, error)
 	// LockCustomerForHealthCheckTx reads a customer's name, whether they are active and whether
