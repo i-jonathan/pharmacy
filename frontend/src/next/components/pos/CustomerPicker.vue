@@ -85,7 +85,7 @@
       <p v-if="error" role="alert" class="rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{{ error }}</p>
       <div class="flex gap-2">
         <Button type="submit" size="sm" class="h-7 flex-1 text-xs" :disabled="saving">
-          {{ saving ? "Saving…" : "Save and add to sale" }}
+          {{ saving ? "Saving…" : `Save and add to ${forWhat}` }}
         </Button>
         <Button type="button" variant="outline" size="sm" class="h-7 text-xs" :disabled="saving" @click="startSearch">Back</Button>
       </div>
@@ -106,7 +106,7 @@
       <button
         type="button"
         class="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-        aria-label="Remove customer from this sale"
+        :aria-label="`Remove customer from this ${forWhat}`"
         :disabled="disabled"
         @click="remove"
       >
@@ -143,6 +143,8 @@ const props = defineProps({
   // True when picking for a sale that is already saved: the pick is only a choice until the
   // person saves it, but a reactivation happens at once.
   savedSale: { type: Boolean, default: false },
+  // What the customer is being chosen for, as the screen's wording says it ("sale", "reading").
+  forWhat: { type: String, default: "sale" },
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -278,7 +280,7 @@ async function reactivate(c) {
     title: "Reactivate customer?",
     message: props.savedSale
       ? "They will be reactivated now and chosen for this sale. The sale itself changes only when you save."
-      : "They will be reactivated and added to this sale.",
+      : `They will be reactivated and added to this ${props.forWhat}.`,
     detail: c.name,
     tone: "warning",
     confirmLabel: props.savedSale ? "Reactivate and choose" : "Reactivate and add",

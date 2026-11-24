@@ -41,6 +41,7 @@
           <router-link to="/sales-history" :class="linkClasses('/sales-history')" @click="$emit('close-mobile')"><History :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Sales History</span></router-link>
           <router-link to="/held-sales" :class="linkClasses('/held-sales')" @click="$emit('close-mobile')"><PauseCircle :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Held Sales</span></router-link>
           <router-link v-if="canViewCustomers" to="/customers" :class="linkClasses('/customers')" @click="$emit('close-mobile')"><Users :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Customers</span></router-link>
+          <router-link v-if="canRecordHealthChecks" to="/health-checks" :class="linkClasses('/health-checks')" :title="collapsed ? 'Health checks' : ''" @click="$emit('close-mobile')"><HeartPulse :stroke-width="1.5" :size="18" class="shrink-0" /><span v-if="!collapsed || mobileOpen">Health checks</span></router-link>
         </div>
       </div>
 
@@ -134,7 +135,7 @@ import {
   LayoutDashboard, ShoppingCart, History, PauseCircle,
   Package, Truck, ClipboardCheck, ClipboardList, Shield, SlidersHorizontal,
   PillBottle, PanelLeftClose, PanelRightOpen, Moon, Sun,
-  ChevronDown, Sparkles, Users,
+  ChevronDown, Sparkles, Users, HeartPulse,
 } from "lucide-vue-next";
 import PermissionGate from "./PermissionGate.vue";
 import { usePermissions } from "../composables/usePermissions.js";
@@ -160,6 +161,7 @@ onMounted(watchPending);
 onUnmounted(stopWatchingPending);
 const canAdjustStock = computed(() => hasPermission("stock:adjust"));
 const canViewCustomers = computed(() => hasPermission("customer:view"));
+const canRecordHealthChecks = computed(() => hasPermission("healthcheck:record"));
 const { available: whatsNewAvailable, unseen: whatsNewUnseen, show: showWhatsNew } = useWhatsNew();
 // The collapsed sidebar shows only an icon, so the button needs a name (and says when it is new).
 const whatsNewLabel = computed(() => (whatsNewUnseen.value ? "What's new (new)" : "What's new"));
@@ -169,7 +171,7 @@ onUnmounted(stopWatchingFlags);
 // Shown on the folded Inventory header, so the counts aren't hidden behind it.
 const inventoryAttention = computed(() => (pendingCounts.pending || 0) + (stockFlags.open || 0));
 
-const salesPaths = ["/pos", "/sales-history", "/held-sales", "/customers"];
+const salesPaths = ["/pos", "/sales-history", "/held-sales", "/customers", "/health-checks"];
 const inventoryPaths = ["/products", "/purchase-orders", "/stock-adjustments", "/receive-items", "/received-items-history", "/held-receive-items", "/stock-taking"];
 
 function activeSectionKeys() {
