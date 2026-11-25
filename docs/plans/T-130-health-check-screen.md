@@ -194,6 +194,13 @@ connection; a reply clears the stale message; the retry carries the customer it 
 for; mmol/L glucose prints with one decimal place (5.0, not 5). Five more browser checks; all
 pass, with the earlier ones.
 
+Third review (`/code-review high`, seven, all fixed): a customer search left open with nobody
+picked no longer prints as a walk-in (the picker exposes `isOpen`; Save refuses until a pick or
+close); Clear during "Try saving again" asks first; the app's own JSON 500 (a rollback) is shown
+as a refusal, while 502/503/504 or a non-JSON 5xx stay "may have landed"; a 401/403 keeps the lock;
+"120.5" says whole numbers; the deactivated message tells a cashier without `customer:manage` to
+ask a manager; prints say "Printing…". Six more browser checks; all pass, with the earlier ones.
+
 ## Sources
 
 - Design: `docs/superpowers/specs/2026-11-19-health-checks-design.md` (screens and slip).

@@ -25,7 +25,7 @@ flowchart LR
 
 | Layer | Location |
 |---|---|
-| Screens | `frontend/src/next/views/Customers.vue` (list, search, side panel form); `components/PagerBar.vue`; `composables/useConfirm.js`; at the till `components/pos/CustomerPicker.vue` (used by `CartPanel.vue`, and by `views/HealthChecks.vue` with `for-what="reading"` so its wording says "reading" instead of "sale"; it must stay outside a `<form>`, since its buttons have no `type` and it has a form of its own), `composables/usePos.js`; `views/SalesHistory.vue` (customer line, the change-customer dialog and reprint); `lib/receipt.js`; `lib/phone.js` (`showPhone`) |
+| Screens | `frontend/src/next/views/Customers.vue` (list, search, side panel form); `components/PagerBar.vue`; `composables/useConfirm.js`; at the till `components/pos/CustomerPicker.vue` (used by `CartPanel.vue`, and by `views/HealthChecks.vue` with `for-what="reading"` so its wording says "reading" instead of "sale"; it must stay outside a `<form>`, since its buttons have no `type` and it has a form of its own; it exposes `isOpen`, which that screen checks so a search left open with nobody picked is not saved as a walk-in), `composables/usePos.js`; `views/SalesHistory.vue` (customer line, the change-customer dialog and reprint); `lib/receipt.js`; `lib/phone.js` (`showPhone`) |
 | Entry points | `components/Sidebar.vue` (Sales section, shown with `customer:view`); `router.js` route `/customers` |
 | Routes | `backend/adapter/http/router/customers.go` `InitCustomerRouter`, mounted at `/customers/` in `main.go`; the Vite dev proxy lists `/customers` in `frontend/vite.config.js` |
 | Controller | `backend/adapter/http/controller/customers.go` |

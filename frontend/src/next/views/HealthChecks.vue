@@ -27,7 +27,7 @@
        which must not submit, or nest inside, the reading's form. -->
     <section class="rounded-lg border border-border bg-card py-2">
       <h2 class="px-4 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Who</h2>
-      <CustomerPicker v-model="customer" :disabled="locked" for-what="reading" />
+      <CustomerPicker ref="picker" v-model="customer" :disabled="locked" for-what="reading" />
       <p v-if="!canLookup" class="px-4 py-1.5 text-sm text-muted-foreground">Walk-in customer</p>
       <div v-if="!customer" class="px-4 pb-2 pt-1">
         <label class="block text-sm">
@@ -122,16 +122,18 @@
       </label>
 
       <p v-if="customerDeactivated" role="alert" class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-        This customer is deactivated. Reactivate them or choose someone else.
+        {{ canManage
+          ? "This customer is deactivated. Reactivate them or choose someone else."
+          : "This customer is deactivated. Ask a manager to reactivate them, or choose someone else." }}
       </p>
       <p v-if="error" role="alert" class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ error }}</p>
 
       <div class="flex flex-wrap gap-2">
         <Button type="submit" :disabled="busy || customerDeactivated">
           <Printer :size="16" class="mr-2" />
-          {{ busy ? "Saving…" : unsure ? "Try saving again" : customer ? "Save and print" : "Print" }}
+          {{ printing ? "Printing…" : busy ? "Saving…" : unsure ? "Try saving again" : customer ? "Save and print" : "Print" }}
         </Button>
-        <Button type="button" variant="outline" :disabled="busy" @click="clearForm()">Clear</Button>
+        <Button type="button" variant="outline" :disabled="busy" @click="clearPressed">Clear</Button>
       </div>
     </form>
   </div>
@@ -151,6 +153,9 @@ import { useConfirm } from "../composables/useConfirm.js";
 const { hasPermission } = usePermissions();
 const canRecord = hasPermission("healthcheck:record");
 const canLookup = hasPermission("customer:view");
+const canManage = hasPermission("customer:manage");
+const picker = ref(null);
+const printing = ref(false);
 const user = useUser();
 const { confirm } = useConfirm();
 
@@ -231,6 +236,8 @@ const RANGES = {
   "mg/dL": [20, 900],
 };
 
+// whole reads a whole number; anything else (120.5, 12O) is "not a whole number", which is
+// said as such rather than as a range.
 function whole(text) {
   const t = String(text).trim();
   return /^\d+$/.test(t) ? Number(t) : null;
@@ -253,6 +260,7 @@ function readings() {
     if (!String(systolic.value).trim() || !String(diastolic.value).trim()) {
       throw new Error("Enter both blood pressure numbers.");
     }
+    if (sys === null || dia === null) throw new Error("Enter the blood pressure as whole numbers.");
     if (!inRange(sys, RANGES.systolic)) throw new Error("The top number must be between 50 and 300. Check it.");
     if (!inRange(dia, RANGES.diastolic)) throw new Error("The bottom number must be between 30 and 200. Check it.");
     if (sys <= dia) throw new Error("The top number must be higher than the bottom one.");
@@ -260,6 +268,7 @@ function readings() {
     out.diastolic = dia;
     if (String(pulse.value).trim()) {
       const p = whole(pulse.value);
+      if (p === null) throw new Error("Enter the pulse as a whole number.");
       if (!inRange(p, RANGES.pulse)) throw new Error("The pulse must be between 20 and 250. Check it.");
       out.pulse = p;
     }
@@ -313,13 +322,36 @@ async function submit() {
     error.value = e.message;
     return;
   }
+  if (picker.value?.isOpen) {
+    error.value = customer.value
+      ? "Finish changing the customer first: pick someone, or close the search."
+      : "Pick the customer from the list, or close the search to print for a walk-in.";
+    return;
+  }
   if (customer.value) await saveForCustomer(values);
   else await printWalkIn(values);
 }
 
+// Clearing while a save may have landed would make a new key, and saving the same reading again
+// would keep it twice: say so first.
+async function clearPressed() {
+  if (unsure.value) {
+    const ok = await confirm({
+      title: "Start over?",
+      message:
+        "This reading may already be saved (the reply was lost). Press Try saving again instead to find out without saving it twice.",
+      tone: "warning",
+      confirmLabel: "Start over",
+      cancelLabel: "Keep it",
+    });
+    if (!ok) return;
+  }
+  clearForm();
+}
+
 // A walk-in's reading never leaves this page.
 async function printWalkIn(values) {
-  busy.value = true;
+  busy.value = printing.value = true;
   try {
     await printHealthSlip(slipFromForm(values, walkInName.value, true));
     clearForm();
@@ -327,7 +359,7 @@ async function printWalkIn(values) {
   } catch {
     error.value = "The slip could not be printed. Check the printer and try again.";
   } finally {
-    busy.value = false;
+    busy.value = printing.value = false;
   }
 }
 
@@ -347,15 +379,20 @@ async function post(values, consentGiven) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...values, consent_given: consentGiven, idempotency_key: retryKey }),
     });
-    // A 5xx (the server, or a proxy that gave up waiting) does not say the save failed: it may
-    // have committed. Only a 4xx is a definite refusal.
-    if (r.status >= 500) return lost();
+    // A gateway error, or a 5xx that is not this app's own JSON answer, does not say the save
+    // failed: a proxy may have given up while it committed. The app's own 500 is a rollback.
+    if ([502, 503, 504].includes(r.status)) return lost();
+    if (r.status >= 500 && !(r.headers.get("Content-Type") || "").includes("application/json")) {
+      return lost();
+    }
     // The body of a save can be lost too, after the save itself landed.
     if (r.ok) reading = await r.json();
   } catch {
     return lost();
   }
-  unsure.value = null;
+  // Signed out (401) or a stale form token (403) says nothing about an earlier lost save, so the
+  // form stays locked for the same request; any other answer settles it.
+  if (r.status !== 401 && r.status !== 403) unsure.value = null;
   error.value = "";
   if (r.ok) return { reading };
   return { refusal: await readError(r, "Could not save the health check.") };
@@ -449,7 +486,7 @@ async function finish(result, values, who) {
 }
 
 async function printSaved(reading) {
-  busy.value = true;
+  busy.value = printing.value = true;
   try {
     await printHealthSlip(slipFromSaved(reading));
     notice.value = { text: `Saved for ${reading.customer_name} and sent to print.` };
@@ -460,7 +497,7 @@ async function printSaved(reading) {
       text: `Saved for ${reading.customer_name}, but the slip could not be printed. Check the printer.`,
     };
   } finally {
-    busy.value = false;
+    busy.value = printing.value = false;
   }
 }
 

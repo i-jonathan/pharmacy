@@ -155,6 +155,9 @@ const canCreate = computed(() => props.allowCreate && canManage);
 const { confirm } = useConfirm();
 
 const mode = ref("idle"); // idle | search | new
+// A screen with its own Save (Health checks) asks this before saving, so a search left open with
+// nobody picked is not taken for "no customer".
+defineExpose({ isOpen: computed(() => mode.value !== "idle") });
 const query = ref("");
 const results = ref([]);
 const searching = ref(false);
