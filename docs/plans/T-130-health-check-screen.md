@@ -188,6 +188,12 @@ None new. T-131's description gains the "What's new" announcement (Decision 2).
 - The "When taken" radios share a `name`.
 Browser check for these (12 more checks) plus the first 21 again: all pass.
 
+Second review (`/code-review high`, five, all fixed): a 201 whose body is lost, and any 5xx (a
+proxy may time out after the save committed), now count as "may have landed" like a dropped
+connection; a reply clears the stale message; the retry carries the customer it was first sent
+for; mmol/L glucose prints with one decimal place (5.0, not 5). Five more browser checks; all
+pass, with the earlier ones.
+
 ## Sources
 
 - Design: `docs/superpowers/specs/2026-11-19-health-checks-design.md` (screens and slip).

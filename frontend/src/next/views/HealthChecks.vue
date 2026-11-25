@@ -333,33 +333,39 @@ async function printWalkIn(values) {
 
 // post sends the reading and answers {reading} or {refusal: {message, code}}. When the server
 // could not be reached it answers {unsure: true} and remembers the request in `unsure`.
+// values carries customer_id, so a retry is for the customer it was first sent for.
 async function post(values, consentGiven) {
+  const lost = () => {
+    unsure.value = { values, consentGiven };
+    return { unsure: true };
+  };
   let r;
+  let reading;
   try {
     r = await csrfFetch("/health-checks/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customer_id: customer.value.id,
-        ...values,
-        note: values.note,
-        consent_given: consentGiven,
-        idempotency_key: retryKey,
-      }),
+      body: JSON.stringify({ ...values, consent_given: consentGiven, idempotency_key: retryKey }),
     });
+    // A 5xx (the server, or a proxy that gave up waiting) does not say the save failed: it may
+    // have committed. Only a 4xx is a definite refusal.
+    if (r.status >= 500) return lost();
+    // The body of a save can be lost too, after the save itself landed.
+    if (r.ok) reading = await r.json();
   } catch {
-    unsure.value = { values, consentGiven };
-    return { unsure: true };
+    return lost();
   }
   unsure.value = null;
-  if (r.ok) return { reading: await r.json() };
+  error.value = "";
+  if (r.ok) return { reading };
   return { refusal: await readError(r, "Could not save the health check.") };
 }
 
 async function saveForCustomer(values, consentGiven = false) {
   busy.value = true;
   const who = customer.value;
-  values = { ...values, note: note.value };
+  // A retry passes the request it is repeating, whose customer and note win over the screen.
+  values = { note: note.value, customer_id: who.id, ...values };
   let result;
   try {
     result = await post(values, consentGiven);

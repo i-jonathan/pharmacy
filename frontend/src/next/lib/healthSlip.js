@@ -50,9 +50,12 @@ export function buildHealthSlipHtml(s) {
        ${present(s.pulse) ? `<div class="indent">Pulse ${escapeHtml(s.pulse)} bpm</div>` : ""}`
     : "";
   const context = glucoseContextLabel(s.glucoseContext);
+  // mmol/L is read to one decimal place, so 5.0 prints as 5.0, not 5.
+  const glucoseText =
+    present(s.glucose) && s.glucoseUnit === "mmol/L" ? Number(s.glucose).toFixed(1) : s.glucose;
   const glucose = present(s.glucose)
     ? `<div class="bold">Blood glucose</div>
-       <div class="indent">${escapeHtml(s.glucose)} ${escapeHtml(s.glucoseUnit)}${
+       <div class="indent">${escapeHtml(glucoseText)} ${escapeHtml(s.glucoseUnit)}${
          context ? ` (${escapeHtml(context)})` : ""
        }</div>`
     : "";
