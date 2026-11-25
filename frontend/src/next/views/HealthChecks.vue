@@ -20,7 +20,7 @@
       role="status"
     >
       {{ notice.text }}
-      <Button v-if="notice.reprint" variant="outline" size="sm" class="ml-2 h-7" :disabled="busy" @click="printAgain">Print again</Button>
+      <Button v-if="notice.reprint" variant="outline" size="sm" class="ml-2 h-7" :disabled="printing" @click="printAgain">Print again</Button>
     </p>
 
     <!-- Who. Outside the form: the picker has buttons and a form of its own (adding a customer),
@@ -129,7 +129,7 @@
       <p v-if="error" role="alert" class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ error }}</p>
 
       <div class="flex flex-wrap gap-2">
-        <Button type="submit" :disabled="busy || customerDeactivated">
+        <Button type="submit" :disabled="busy || printing || customerDeactivated">
           <Printer :size="16" class="mr-2" />
           {{ printing ? "Printing…" : busy ? "Saving…" : unsure ? "Try saving again" : customer ? "Save and print" : "Print" }}
         </Button>
@@ -140,7 +140,8 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import { Printer } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import CustomerPicker from "../components/pos/CustomerPicker.vue";
@@ -192,8 +193,9 @@ let retryKey = newRetryKey();
 const unsure = ref(null);
 const locked = computed(() => busy.value || !!unsure.value);
 const customerDeactivated = computed(() => customer.value?.active === false);
-// The last saved reading, kept so a slip that failed to print can be printed again.
-let lastSaved = null;
+// The last slip printed (or tried), so it can be printed again: after a printer error, or a print
+// dialog cancelled to change printers. A walk-in's slip is kept only in this page.
+let lastSlip = null;
 
 // What was shown about the last try no longer holds once the form changes.
 watch([customer, walkInName, bpOn, systolic, diastolic, pulse, glucoseOn, glucose, glucoseUnit, glucoseContext, note], () => {
@@ -352,10 +354,12 @@ async function clearPressed() {
 // A walk-in's reading never leaves this page.
 async function printWalkIn(values) {
   busy.value = printing.value = true;
+  const slip = slipFromForm(values, walkInName.value, true);
   try {
-    await printHealthSlip(slipFromForm(values, walkInName.value, true));
+    await printHealthSlip(slip);
+    lastSlip = slip;
     clearForm();
-    notice.value = { text: "Slip sent to print. Nothing was kept." };
+    notice.value = { reprint: true, text: "Slip sent to print. Nothing was kept." };
   } catch {
     error.value = "The slip could not be printed. Check the printer and try again.";
   } finally {
@@ -450,15 +454,17 @@ async function finish(result, values, who) {
     return;
   }
   if (result.printOnly) {
-    busy.value = true;
+    busy.value = printing.value = true;
+    const slip = slipFromForm(values, who.name, false);
     try {
-      await printHealthSlip(slipFromForm(values, who.name, false));
+      await printHealthSlip(slip);
+      lastSlip = slip;
       clearForm();
-      notice.value = { text: `Slip sent to print for ${who.name}. The reading was not kept.` };
+      notice.value = { reprint: true, text: `Slip sent to print for ${who.name}. The reading was not kept.` };
     } catch {
       error.value = "The slip could not be printed. Check the printer and try again.";
     } finally {
-      busy.value = false;
+      busy.value = printing.value = false;
     }
     return;
   }
@@ -476,32 +482,64 @@ async function finish(result, values, who) {
     return;
   }
   if (refusal) {
-    error.value = sentence(refusal.message);
+    // A 401/403 leaves the lock on: say why the form is still locked, not only the refusal.
+    error.value = unsure.value ? `${sentence(refusal.message)} ${UNSURE_MESSAGE}` : sentence(refusal.message);
     return;
   }
   // Saved: the form is done whatever the printer does, so it can't be saved twice.
   clearForm();
-  lastSaved = reading;
-  await printSaved(reading);
+  lastSlip = slipFromSaved(reading);
+  await printSlip(`Saved for ${reading.customer_name}`);
 }
 
-async function printSaved(reading) {
-  busy.value = printing.value = true;
+// printSlip prints lastSlip. It uses only `printing`, not `busy`: the form is already clear and
+// may be in use for the next person, whose customer picker must not be closed by a reprint.
+// `done` is what happened before printing ("Saved for Ada"), or empty for a reprint.
+async function printSlip(done = "") {
+  printing.value = true;
   try {
-    await printHealthSlip(slipFromSaved(reading));
-    notice.value = { text: `Saved for ${reading.customer_name} and sent to print.` };
+    await printHealthSlip(lastSlip);
+    notice.value = { reprint: true, text: done ? `${done} and sent to print.` : "Slip sent to print again." };
   } catch {
     notice.value = {
       error: true,
       reprint: true,
-      text: `Saved for ${reading.customer_name}, but the slip could not be printed. Check the printer.`,
+      text: done
+        ? `${done}, but the slip could not be printed. Check the printer.`
+        : "The slip could not be printed. Check the printer.",
     };
   } finally {
-    busy.value = printing.value = false;
+    printing.value = false;
   }
 }
 
 function printAgain() {
-  if (lastSaved) printSaved(lastSaved);
+  if (lastSlip) printSlip();
 }
+
+// While a save may have landed the page holds the only way to learn its outcome without saving it
+// twice (the same request under the same key): leaving or reloading would lose it.
+onBeforeRouteLeave(async () => {
+  if (busy.value) {
+    notice.value = { error: true, text: "Wait for the save to finish." };
+    return false;
+  }
+  if (!unsure.value) return true;
+  return await confirm({
+    title: "Leave this page?",
+    message:
+      "This reading may already be saved (the reply was lost). Press Try saving again first to find out without saving it twice.",
+    tone: "warning",
+    confirmLabel: "Leave",
+    cancelLabel: "Stay",
+  });
+});
+function warnBeforeUnload(e) {
+  if (unsure.value || busy.value) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+}
+onMounted(() => window.addEventListener("beforeunload", warnBeforeUnload));
+onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnload));
 </script>

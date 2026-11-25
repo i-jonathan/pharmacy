@@ -201,6 +201,15 @@ as a refusal, while 502/503/504 or a non-JSON 5xx stay "may have landed"; a 401/
 "120.5" says whole numbers; the deactivated message tells a cashier without `customer:manage` to
 ask a manager; prints say "Printing…". Six more browser checks; all pass, with the earlier ones.
 
+Fourth review (`/code-review high`, six; five fixed): leaving or reloading the page while a save
+may have landed now asks first (route guard and beforeunload, as other forms do); a reprint uses
+only `printing`, so it no longer closes the customer picker in use for the next person; every
+printed slip, walk-ins included, can be printed again (a cancelled print dialog); a 401/403 on a
+retry also says why the form is still locked; "Print only" says Printing. Left: a retry resends
+its stored consent answer, since a retry must repeat the exact request (the case needs a lost
+reply, nothing saved, and consent withdrawn in between; the consent is audited either way). Four
+more browser checks; all pass, with the earlier ones.
+
 ## Sources
 
 - Design: `docs/superpowers/specs/2026-11-19-health-checks-design.md` (screens and slip).
