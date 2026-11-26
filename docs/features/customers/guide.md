@@ -46,7 +46,11 @@ Type in **Search by name or phone**. Letters search names. Numbers search phone 
 
 When you change **Agreed to be contacted by the pharmacy**, the panel shows the date it last changed. Untick it if a customer asks not to be contacted.
 
-If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click.
+If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click. Moving to another screen asks the same; reloading the page or closing the tab makes the browser ask whether to leave.
+
+### See a customer's health readings
+
+Managers and admins see a **Health readings** tab beside **Details** in the panel, with the customer's saved blood pressure and glucose readings, and can reprint or correct them there. See the [Health checks guide](../health-checks/guide.md).
 
 ### Put a customer on a sale
 
@@ -108,7 +112,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 - Every add, change, deactivation and reactivation is recorded with who did it and when. Whether a customer agreed to be contacted is recorded each time it changes.
 - A sale with a customer shows that customer in Sales History, and the receipt (and every reprint) prints **Customer: <name>**. A walk-in sale prints no customer line.
 - Only people who may see customers see the customer on Sales History and reprints.
-- Every change of the customer on a saved sale is recorded with who did it, when, the reason, the receipt number, and which customer it was and became. Nobody can see that record on a screen yet (T-127).
+- Every change of the customer on a saved sale is recorded with who did it, when, the reason, the receipt number, and which customer it was and became. It shows under the sale in Sales History (see "See who changed a sale's customer").
 
 ## Rules and limits
 
@@ -154,8 +158,9 @@ Use this for someone who should no longer be on the list, for example a duplicat
 
 **I picked the wrong customer and already completed the sale.** Open the sale in Sales History and choose **Change** beside the customer. See "Change or remove the customer on a saved sale". A cashier can do this within 24 hours of the sale; an older sale needs a manager.
 
-**Can I see who changed a customer on a sale?** Not on a screen yet (T-127). It is recorded.
+**Can I see who changed a customer on a sale?** Yes, if you can see customers: open the sale in Sales History. See "See who changed a sale's customer".
 
 ## Related
 
-- Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121), see who changed a sale's customer (T-127).
+- [Health checks](../health-checks/guide.md): blood pressure and glucose readings kept for customers who agree.
+- Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121).

@@ -1,6 +1,7 @@
 // Package demoseed fills an empty database with made-up data (users, products, a day of sales,
-// a purchase order waiting for approval, a stock flag and an adjustment) so the app can be run
-// and photographed without real data. It goes through the same services the app uses.
+// a purchase order waiting for approval, a stock flag, an adjustment, customers and their health
+// readings) so the app can be run and photographed without real data. It goes through the same
+// services the app uses.
 //
 // It refuses to run against anything but a database on this machine that has no users yet, so
 // it cannot touch a real shop's data by mistake.
@@ -59,15 +60,48 @@ type Summary struct {
 	Products, Sales int
 }
 
+var agreed = true
+
 var customers = []types.CustomerRequest{
 	{Name: "Adaeze Obi", Phone: "0803 555 0101", Email: "adaeze@example.com", ContactConsent: true,
-		Notes: "Prefers liquid syrups for her children"},
-	{Name: "Tunde Bakare", Phone: "0802 555 0102", ContactConsent: true},
+		Notes: "Prefers liquid syrups for her children", HealthConsent: &agreed},
+	{Name: "Tunde Bakare", Phone: "0802 555 0102", ContactConsent: true, HealthConsent: &agreed},
 	{Name: "Mrs Funke Adeyemi", Phone: "0805 555 0103",
 		Notes: "Collects her mother's monthly refills"},
 	{Name: "Chinedu Okafor", Phone: "0806 555 0104", Email: "chinedu@example.com",
 		ContactConsent: true},
 	{Name: "Hauwa Musa", Phone: "0809 555 0105"},
+}
+
+// demoReading is a health check for customers[who], taken daysAgo days before the seed runs.
+type demoReading struct {
+	who, daysAgo int
+	readings     types.HealthReadings
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func bp(sys, dia, pulse int) types.HealthReadings {
+	return types.HealthReadings{Systolic: ptr(sys), Diastolic: ptr(dia), Pulse: ptr(pulse)}
+}
+
+func glucose(v float64, unit, context string) types.HealthReadings {
+	return types.HealthReadings{Glucose: ptr(v), GlucoseUnit: unit, GlucoseContext: context}
+}
+
+// healthReadings are the made-up readings of the two customers who agreed to have them kept. The
+// third one is corrected afterwards (see seedHealthChecks).
+var healthReadings = []demoReading{
+	{0, 63, bp(142, 91, 78)},
+	{0, 49, bp(138, 88, 74)},
+	{0, 35, bp(148, 88, 80)},
+	{0, 21, glucose(6.1, "mmol/L", "fasting")},
+	{0, 9, bp(132, 85, 72)},
+	{0, 2, types.HealthReadings{
+		Systolic: ptr(128), Diastolic: ptr(84), Pulse: ptr(70), Glucose: ptr(5.8),
+		GlucoseUnit: "mmol/L", GlucoseContext: "fasting", Note: "Has been walking every morning",
+	}},
+	{1, 1, glucose(110, "mg/dL", "after_meal")},
 }
 
 // saleCustomers says which customer (an index into customers) bought in which sale; the rest are
@@ -321,5 +355,50 @@ func Run(db *sqlx.DB) (Summary, error) {
 		return Summary{}, fmt.Errorf("adjustment: %w", err)
 	}
 
+	if err := seedHealthChecks(db, store, customerIDs, cashier, manager); err != nil {
+		return Summary{}, err
+	}
+
 	return Summary{Products: len(products), Sales: len(sales)}, nil
+}
+
+// seedHealthChecks records the demo readings at the till, has the manager correct one typed
+// wrong, then moves each back to the day it was taken (the service always stamps now). Their
+// audit entries keep the time the seed ran: audit_log is append-only.
+func seedHealthChecks(
+	db *sqlx.DB, store repository.PharmacyRepository, customerIDs []int, cashier, manager int,
+) error {
+	svc := service.NewHealthCheckService(store)
+	record := as(constant.RecordHealthCheckPermissionKey, constant.ViewCustomersPermissionKey)
+	correct := as(constant.CorrectHealthCheckPermissionKey, constant.ViewHealthChecksPermissionKey)
+	for n, r := range healthReadings {
+		saved, err := svc.RecordHealthCheck(record, types.HealthCheckRequest{
+			CustomerID: customerIDs[r.who], HealthReadings: r.readings,
+			IdempotencyKey: fmt.Sprintf("demo-health-%d", n+1),
+		}, cashier)
+		if err != nil {
+			return fmt.Errorf("health check %d: %w", n+1, err)
+		}
+		if n == 2 {
+			fixed := r.readings
+			fixed.Systolic = ptr(128)
+			if _, err := svc.CorrectHealthCheck(correct, types.HealthCheckCorrection{
+				ID: saved.ID, Version: saved.Version, Reason: "Typed wrong: 128 on the monitor",
+				HealthReadings: fixed,
+			}, manager); err != nil {
+				return fmt.Errorf("correct health check: %w", err)
+			}
+		}
+		if _, err := db.Exec(`
+			UPDATE health_check SET
+				taken_at = now() - make_interval(days => $2, hours => $3),
+				created_at = now() - make_interval(days => $2, hours => $3),
+				updated_at = CASE WHEN version > 1
+					THEN now() - make_interval(days => $2 - 1)
+					ELSE now() - make_interval(days => $2, hours => $3) END
+			WHERE id = $1`, saved.ID, r.daysAgo, n%5+1); err != nil {
+			return err
+		}
+	}
+	return nil
 }

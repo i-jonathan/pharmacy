@@ -128,7 +128,46 @@
         </Button>
       </div>
 
-      <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="save">
+      <!-- Health readings are opened on purpose: every load of them is recorded. -->
+      <div v-if="form.id && canViewHealth" role="tablist" aria-label="Customer" class="flex gap-1 border-b border-border px-3">
+        <button
+          v-for="t in TABS"
+          :id="`customer-tab-${t.id}`"
+          :key="t.id"
+          type="button"
+          role="tab"
+          :aria-selected="tab === t.id"
+          :tabindex="tab === t.id ? 0 : -1"
+          :aria-controls="t.id === 'details' || healthOpened ? `customer-tabpanel-${t.id}` : undefined"
+          class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
+          :class="tab === t.id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'"
+          @click="openTab(t.id)"
+          @keydown.left.prevent="moveTab"
+          @keydown.right.prevent="moveTab"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+
+      <HealthReadings
+        v-if="healthOpened"
+        v-show="tab === 'health'"
+        id="customer-tabpanel-health"
+        ref="healthReadings"
+        :key="form.id"
+        role="tabpanel"
+        aria-labelledby="customer-tab-health"
+        :customer="healthCustomer"
+      />
+
+      <form
+        v-show="tab === 'details'"
+        id="customer-tabpanel-details"
+        class="flex min-h-0 flex-1 flex-col"
+        :role="form.id && canViewHealth ? 'tabpanel' : undefined"
+        :aria-labelledby="form.id && canViewHealth ? 'customer-tab-details' : undefined"
+        @submit.prevent="save"
+      >
         <fieldset class="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4" :disabled="!canManage || saving">
           <div>
             <label for="customer-name" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name</label>
@@ -219,9 +258,11 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import { AlertCircle, RotateCw, Search, UserPlus, Users, X } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import PagerBar from "../components/PagerBar.vue";
+import HealthReadings from "../components/customers/HealthReadings.vue";
 import { csrfFetch } from "../lib/csrf.js";
 import { readError } from "../lib/api.js";
 import { showPhone } from "../lib/phone.js";
@@ -231,6 +272,7 @@ import { usePermissions } from "../composables/usePermissions.js";
 const { hasPermission } = usePermissions();
 const canView = hasPermission("customer:view");
 const canManage = hasPermission("customer:manage");
+const canViewHealth = hasPermission("healthcheck:view");
 const { confirm } = useConfirm();
 
 const customers = ref([]);
@@ -252,6 +294,37 @@ const nameInput = ref(null);
 const panel = ref(null);
 const panelOpen = computed(() => !!form.value);
 
+// The panel's tabs. Health readings (healthcheck:view) are loaded the first time their tab is
+// opened for a customer and kept while the panel shows that customer.
+const TABS = [
+  { id: "details", label: "Details" },
+  { id: "health", label: "Health readings" },
+];
+const tab = ref("details");
+const healthOpened = ref(false);
+const healthReadings = ref(null);
+// The customer as saved, for the readings' messages: not the Details form, whose name may be
+// half-typed.
+const savedName = ref("");
+const healthCustomer = computed(() => ({ id: form.value?.id, name: savedName.value }));
+
+function openTab(id) {
+  tab.value = id;
+  if (id === "health") healthOpened.value = true;
+}
+
+// Left and Right move focus between the two tabs; Enter or Space opens the focused one. Opening
+// is kept to a deliberate press because opening Health readings is recorded as a view.
+function moveTab(event) {
+  const other = event.target.id === "customer-tab-details" ? "health" : "details";
+  document.getElementById(`customer-tab-${other}`)?.focus();
+}
+
+function resetTabs() {
+  tab.value = "details";
+  healthOpened.value = false;
+}
+
 // What the person can type, compared with how it was when the panel opened, so leaving the panel
 // can ask before throwing typing away.
 const editable = (f) =>
@@ -260,7 +333,17 @@ let openedAs = "";
 const dirty = computed(() => !!form.value && editable(form.value) !== openedAs);
 
 // true when it is fine to replace or close the panel.
+// correctionSaving says, and shows, that a health reading correction is still being saved, during
+// which the panel must not close (its reply would be lost).
+function correctionSaving() {
+  if (!healthReadings.value?.saving) return false;
+  showNotice("Wait for the correction to finish saving.", true);
+  return true;
+}
+
 async function canLeavePanel() {
+  if (correctionSaving()) return false;
+  if (healthReadings.value && !(await healthReadings.value.canLeaveCorrection())) return false;
   if (!dirty.value) return true;
   return (
     (await confirm({
@@ -355,6 +438,8 @@ async function open(c) {
   if (saving.value || (form.value && form.value.id === c.id)) return;
   if (!(await canLeavePanel())) return;
   formError.value = "";
+  resetTabs();
+  savedName.value = c.name;
   form.value = formFrom(c);
   openedAs = editable(form.value);
   showPanel();
@@ -368,6 +453,7 @@ async function startNew() {
   }
   if (!(await canLeavePanel())) return;
   formError.value = "";
+  resetTabs();
   form.value = {
     id: 0, version: 0, name: "", phone: "", email: "", notes: "",
     contact_consent: false, consent_updated_at: null, active: true,
@@ -384,7 +470,21 @@ async function closeClicked() {
 function closePanel() {
   form.value = null;
   formError.value = "";
+  resetTabs();
 }
+
+// Leaving the page asks first when the panel holds unsaved typing (details or a correction).
+onBeforeRouteLeave(() => canLeavePanel());
+
+// A reload or a closed tab can't be asked through the app's dialog; the browser asks instead.
+function warnBeforeUnload(e) {
+  if (dirty.value || healthReadings.value?.dirty || healthReadings.value?.saving) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+}
+onMounted(() => window.addEventListener("beforeunload", warnBeforeUnload));
+onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnload));
 
 async function save() {
   if (saving.value || !canManage) return;
@@ -393,6 +493,10 @@ async function save() {
     formError.value = "Enter the customer's name.";
     return;
   }
+  // A saved edit closes the panel, which would throw away a correction started on the other tab.
+  if (correctionSaving()) return;
+  if (healthReadings.value && !(await healthReadings.value.canLeaveCorrection())) return;
+  if (form.value !== f) return;
   const body = {
     version: f.version,
     name: f.name,
@@ -435,6 +539,7 @@ async function refreshOpenCustomer(message) {
     const r = await fetch(`/customers/${id}`);
     if (r.ok && form.value?.id === id) {
       const latest = await r.json();
+      savedName.value = latest.name;
       form.value = {
         ...form.value,
         version: latest.version,
@@ -451,7 +556,7 @@ async function refreshOpenCustomer(message) {
 
 function toggleActive() {
   const f = form.value;
-  if (!f?.id || saving.value) return;
+  if (!f?.id || saving.value || correctionSaving()) return;
   const stopping = f.active;
   return confirm({
     title: stopping ? "Deactivate customer?" : "Reactivate customer?",
@@ -459,7 +564,7 @@ function toggleActive() {
       (stopping
         ? "They will no longer show in the list or be found at the till. Their record and phone number are kept."
         : "They will show in the list again.") +
-      (dirty.value ? " The changes you have typed in the panel will not be saved." : ""),
+      (dirty.value || healthReadings.value?.dirty ? " The changes you have typed in the panel will not be saved." : ""),
     detail: f.name,
     tone: "warning",
     confirmLabel: stopping ? "Deactivate" : "Reactivate",

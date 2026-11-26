@@ -48,13 +48,17 @@ func TestSeedFillsAnEmptyDatabaseOnceOnly(t *testing.T) {
 	}
 	for query, want := range map[string]int{
 		`SELECT COUNT(*) FROM users`: 3,
-		`SELECT COUNT(*) FROM purchase_order WHERE status = 'pending_approval'`: 1,
-		`SELECT COUNT(*) FROM stock_flag WHERE status = 'open'`:                 1,
-		`SELECT COUNT(*) FROM stock_adjustment`:                                 1,
-		`SELECT COUNT(*) FROM returns`:                                          1,
-		`SELECT COUNT(*) FROM customer WHERE phone LIKE '+234%'`:                5,
-		`SELECT COUNT(*) FROM customer WHERE NOT contact_consent`:               2,
-		`SELECT COUNT(*) FROM sales WHERE customer_id IS NOT NULL`:              5,
+		`SELECT COUNT(*) FROM purchase_order WHERE status = 'pending_approval'`:        1,
+		`SELECT COUNT(*) FROM stock_flag WHERE status = 'open'`:                        1,
+		`SELECT COUNT(*) FROM stock_adjustment`:                                        1,
+		`SELECT COUNT(*) FROM returns`:                                                 1,
+		`SELECT COUNT(*) FROM customer WHERE phone LIKE '+234%'`:                       5,
+		`SELECT COUNT(*) FROM customer WHERE NOT contact_consent`:                      2,
+		`SELECT COUNT(*) FROM sales WHERE customer_id IS NOT NULL`:                     5,
+		`SELECT COUNT(*) FROM customer WHERE health_consent`:                           2,
+		`SELECT COUNT(*) FROM health_check`:                                            7,
+		`SELECT COUNT(*) FROM health_check WHERE version > 1`:                          1,
+		`SELECT COUNT(*) FROM health_check WHERE taken_at < now() - interval '7 days'`: 5,
 	} {
 		var got int
 		if err := db.Get(&got, query); err != nil || got != want {

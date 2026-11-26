@@ -8,6 +8,52 @@ const IMAGES = "/static/img/whats-new/";
 
 export const releases = [
   {
+    id: "v0.6.0",
+    title: "What's new in v0.6.0",
+    slides: [
+      {
+        id: "health-check",
+        title: "Record blood pressure and glucose",
+        text: "Open Health checks, choose the customer or a walk-in, enter the reading and print a slip for them. A customer's readings are kept only if they agree; a walk-in's are printed and not kept.",
+        image: IMAGES + "v0.6.0-health-check.png",
+        alt: "The Health checks screen with a customer chosen, a blood pressure and a fasting glucose entered",
+        permissions: ["healthcheck:record"],
+      },
+      {
+        id: "health-slip",
+        title: "A printed slip instead of a handwritten note",
+        text: "The slip comes out of the receipt printer with the readings, the date and who took them. It never says whether a number is high or low; that is the pharmacist's call.",
+        image: IMAGES + "v0.6.0-health-slip.png",
+        alt: "A printed health check slip with a blood pressure, pulse and fasting glucose",
+        permissions: ["healthcheck:record"],
+      },
+      {
+        id: "health-history",
+        title: "Look back on a customer's readings",
+        text: "Managers open a customer and choose Health readings to see every saved reading, newest first. Reprint one as a marked copy, or correct a wrong number with a reason.",
+        image: IMAGES + "v0.6.0-health-history.png",
+        alt: "A customer's health readings, newest first, each with Reprint and Correct buttons",
+        permissions: ["healthcheck:view"],
+      },
+      {
+        id: "customers",
+        title: "Keep a list of customers",
+        text: "Customers holds the people you serve often: name, phone, email, notes and whether they agreed to be contacted. A phone number belongs to one customer.",
+        image: IMAGES + "v0.6.0-customers.png",
+        alt: "The Customers list with one customer's details open",
+        permissions: ["customer:view"],
+      },
+      {
+        id: "customer-at-till",
+        title: "Put the customer on the sale",
+        text: "At the till, choose Add customer and search by phone or name. The receipt shows their name, and Sales History shows who bought what.",
+        image: IMAGES + "v0.6.0-customer-at-till.png",
+        alt: "The current sale at the till with a customer attached",
+        permissions: ["customer:view"],
+      },
+    ],
+  },
+  {
     id: "v0.3.0",
     title: "What's new in v0.3.0",
     slides: [
