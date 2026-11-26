@@ -111,9 +111,10 @@
       </div>
 
       <!-- Live updates refused: the session has ended -->
-      <div v-if="liveStopped" class="flex items-start gap-2 mb-4 rounded-lg border border-border bg-destructive/5 px-3 py-2.5 text-sm text-foreground" role="alert">
+      <div v-if="liveProblem" class="flex items-start gap-2 mb-4 rounded-lg border border-border bg-destructive/5 px-3 py-2.5 text-sm text-foreground" role="alert">
         <AlertCircle :size="16" class="text-destructive shrink-0 mt-0.5" />
-        <p>Live updates stopped because you were signed out. Counts from other people won't appear until you <a :href="signInHref" class="font-medium underline">sign in again</a>.</p>
+        <p v-if="liveProblem === 'signed_out'">Live updates stopped because you were signed out. Counts from other people won't appear until you <a :href="signInHref" class="font-medium underline">sign in again</a>.</p>
+        <p v-else>Live updates aren't connecting, so counts from other people won't appear here. Your own counts still save. If this doesn't clear, tell whoever runs the server.</p>
       </div>
 
       <!-- Sticky Search -->
@@ -308,8 +309,13 @@ const filterVariancesOnly = ref(false);
 let websocket = null;
 let reconnectTimer = null;
 let reconnectDelay = 3000;
+// Connects in a row that closed without opening while still signed in: a refused handshake
+// (for example a proxy that rewrites Host, so the origin check says 403) looks like this.
+let failedConnects = 0;
 let pageClosed = false;
-const liveStopped = ref(false);
+// "" while live updates work, "signed_out" once the session has ended (retrying stops), and
+// "unavailable" after repeated failed connects while signed in (retrying continues).
+const liveProblem = ref("");
 // Loading this count's address sends a signed-out browser to sign in and back to the count.
 const signInHref = computed(() => `/app/stock-taking/${countingId.value}`);
 let updateTimers = new Map();
@@ -470,8 +476,9 @@ function closeStockTaking() {
   filterVariancesOnly.value = false;
   stopTimeAgoTimer();
   closeWebSocket();
-  liveStopped.value = false;
+  liveProblem.value = "";
   reconnectDelay = 3000;
+  failedConnects = 0;
 }
 
 // === Counting ===
@@ -576,7 +583,6 @@ async function completeStockTaking() {
 function initWebSocket(id) {
   closeWebSocket();
   if (pageClosed) return;
-  liveStopped.value = false;
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${protocol}//${window.location.host}/ws?stockTakingId=${id}`;
   let ws;
@@ -586,7 +592,13 @@ function initWebSocket(id) {
     return;
   }
   websocket = ws;
-  ws.onopen = () => { reconnectDelay = 3000; };
+  let opened = false;
+  ws.onopen = () => {
+    opened = true;
+    reconnectDelay = 3000;
+    failedConnects = 0;
+    liveProblem.value = "";
+  };
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
@@ -612,9 +624,11 @@ function initWebSocket(id) {
     // The user may have left the count, or the page, while the check was answered.
     if (pageClosed || countingId.value !== id || websocket !== null) return;
     if (out) {
-      liveStopped.value = true;
+      liveProblem.value = "signed_out";
       return;
     }
+    failedConnects = opened ? 0 : failedConnects + 1;
+    if (failedConnects >= 3) liveProblem.value = "unavailable";
     reconnectTimer = setTimeout(() => initWebSocket(id), reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 2, 60000);
   };

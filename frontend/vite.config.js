@@ -53,14 +53,21 @@ export default defineConfig({
         changeOrigin: true,
       },
       // Live stock-taking updates. The server accepts a socket only from its own origin, and
-      // changeOrigin rewrites Host but not Origin, so the dev page's Origin is rewritten too.
+      // changeOrigin rewrites Host but not Origin, so the dev page's own Origin is rewritten too.
+      // Any other Origin passes through unchanged for the server to refuse: rewriting every one
+      // would let another site open the socket with the developer's session.
       "/ws": {
         target: "http://localhost:8000",
         changeOrigin: true,
         ws: true,
         configure: (proxy) => {
-          proxy.on("proxyReqWs", (proxyReq) => {
-            proxyReq.setHeader("Origin", "http://localhost:8000");
+          proxy.on("proxyReqWs", (proxyReq, req) => {
+            const origin = req.headers.origin;
+            let ownPage = false;
+            try {
+              ownPage = Boolean(origin) && new URL(origin).host === req.headers.host;
+            } catch {}
+            if (ownPage) proxyReq.setHeader("Origin", "http://localhost:8000");
           });
         },
       },
