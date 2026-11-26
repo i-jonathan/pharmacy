@@ -73,6 +73,7 @@ const (
 
 	AuditActionReceiptReprinted    = "receipt_reprinted"
 	AuditActionSaleCustomerChanged = "customer_changed"
+	AuditActionSaleOversold        = "oversold"
 )
 
 // Stock flag statuses (stock_flag.status).

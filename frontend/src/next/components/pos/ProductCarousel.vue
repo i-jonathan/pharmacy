@@ -11,7 +11,7 @@
           :key="product.id"
           class="snap-start shrink-0 basis-[min(72%,17rem)] sm:basis-[calc(50%-0.375rem)] xl:basis-[calc(25%-0.5625rem)]"
         >
-          <ProductCard :product="product" @add="$emit('add-item', product)" />
+          <ProductCard :product="product" :disabled="!canAdd(product)" @add="$emit('add-item', product)" />
         </div>
       </div>
     </div>
@@ -44,6 +44,8 @@ import ProductCard from "./ProductCard.vue";
 const props = defineProps({
   items: { type: Array, default: () => [] },
   slidesPerView: { type: Number, default: 4 },
+  // Whether a product may go into the cart (one showing no stock only for a user who may oversell).
+  canAdd: { type: Function, default: () => true },
 });
 
 defineEmits(["add-item"]);

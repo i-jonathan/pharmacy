@@ -23,7 +23,8 @@
         v-if="frequentlySold.length"
         :items="frequentlySold"
         :slides-per-view="4"
-        @add-item="onAddItem($event, null, null)"
+        :can-add="canAdd"
+        @add-item="canAdd($event) && onAddItem($event, null, null)"
       />
       <div v-else class="text-sm text-muted-foreground text-center py-4">
         No products available
@@ -68,7 +69,7 @@
               :key="product.id"
               class="cursor-pointer hover:bg-accent/50"
               :class="{ 'opacity-60': product.stock <= 0 }"
-              @click="product.stock > 0 && onAddItem(product, null, null)"
+              @click="canAdd(product) && onAddItem(product, null, null)"
             >
               <TableCell>
                 <div class="text-sm font-medium">{{ product.name }}</div>
@@ -82,8 +83,8 @@
                   variant="outline"
                   size="icon"
                   class="h-7 w-7"
-                  :disabled="product.stock <= 0"
-                  @click.stop="product.stock > 0 && onPlusClick($event, product)"
+                  :disabled="!canAdd(product)"
+                  @click.stop="canAdd(product) && onPlusClick($event, product)"
                 >
                   <Plus :size="14" />
                 </Button>
@@ -136,7 +137,15 @@ import {
 } from "@/components/ui/table";
 import ProductCarousel from "./ProductCarousel.vue";
 
-const emit = defineEmits(["add-item", "search-ref"]);
+const props = defineProps({
+  // A user who may oversell can add a product showing no stock; the sale then asks them to confirm.
+  canOversell: { type: Boolean, default: false },
+});
+const emit = defineEmits(["add-item", "search-ref", "products-loaded"]);
+
+function canAdd(product) {
+  return product.stock > 0 || props.canOversell;
+}
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
@@ -173,6 +182,7 @@ async function loadProducts() {
       price: p.default_price / 100,
       priceId: p.default_price_id,
     }));
+    emit("products-loaded", allProducts.value);
     if (topResp.ok) topSelling.value = await topResp.json();
   } catch (e) {
     productError.value = e.message || "Check your connection and try again.";
@@ -190,7 +200,17 @@ async function refreshProducts() {
   }
 }
 
-defineExpose({ refreshProducts });
+// Lowers the loaded stock by what a completed sale took (product id → stock units), so the list,
+// the cart hints and the 0-stock rule follow this till's sales without reading the whole list again.
+// Stock changed elsewhere shows on refresh, or when the server refuses a sale for stock.
+function takeStock(taken) {
+  for (const product of allProducts.value) {
+    const units = taken.get(Number(product.id));
+    if (units) product.stock = (Number(product.stock) || 0) - units;
+  }
+}
+
+defineExpose({ refreshProducts, takeStock });
 
 onMounted(async () => {
   emit("search-ref", searchInput.value);

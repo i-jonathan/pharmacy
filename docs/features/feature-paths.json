@@ -12,8 +12,7 @@
     "frontend/src/next/lib/phone.js",
     "backend/db/migrations/*sales_customer*",
     "backend/db/migrations/*sale_customer*",
-    "backend/service/sale_customer*",
-    "backend/adapter/http/router/sales_test.go"
+    "backend/service/sale_customer*"
   ],
   "health-checks": [
     "frontend/src/next/views/HealthChecks.vue",

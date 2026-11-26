@@ -75,6 +75,15 @@ func (f *fixture) product(t *testing.T, name string) int {
 	return res.ID
 }
 
+// stocked creates a product with stock to sell.
+func (f *fixture) stocked(t *testing.T, name string, quantity int) int {
+	t.Helper()
+	id := f.product(t, name)
+	f.db.MustExec(`INSERT INTO stock_movement (product_id, quantity, reference_id, movement_type)
+		VALUES ($1, $2, 0, 'IN_MANUAL_ADJUSTMENT')`, id, quantity)
+	return id
+}
+
 func (f *fixture) order(
 	t *testing.T,
 	supplier string,

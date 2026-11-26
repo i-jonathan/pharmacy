@@ -7,7 +7,9 @@
     >
       <ProductPanel
         ref="productPanel"
+        :can-oversell="pos.canOversell.value"
         @add-item="handleAddItem"
+        @products-loaded="pos.syncStock"
         @search-ref="pos.setSearchRef"
       />
     </div>
@@ -32,6 +34,7 @@
         :processing="processing"
         :action-error="actionError"
         :action-message="actionMessage"
+        :stock-shortfalls="pos.stockShortfalls.value"
         @remove="handleRemoveItem"
         @update-qty="pos.updateQty"
         @update-discount="pos.updateDiscount"
@@ -211,10 +214,17 @@ async function runAction(action, successMessage) {
     mobilePane.value = "cart";
     // The sale was saved on an earlier try (its reply was lost): this cart is that sale, so end it
     // here, and Sales History shows what was saved.
-    if (e.code === "already_saved") pos.clearCart();
+    // The till didn't see that save, so its loaded stock doesn't include it: read the list again.
+    if (e.code === "already_saved") {
+      pos.clearCart();
+      productPanel.value?.refreshProducts();
+    }
     // A price changed since the product list was loaded, so adding the line again from that list
     // would bring the old price back: read the list again first.
     if (e.code === "price_changed") productPanel.value?.refreshProducts();
+    // Stock moved since the list was loaded (or the cart takes more than it showed): read it
+    // again, so the cart's "Only N in stock" hints are today's.
+    if (e.code === "insufficient_stock") productPanel.value?.refreshProducts();
     // The server knows the customer was deactivated since they were picked (or a resumed held sale
     // had not read them yet): show it on the customer, with Reactivate, and stop Complete.
     // The till's own wording replaces the server's ("ask a manager"), which no longer applies now
@@ -269,10 +279,58 @@ pos.setShortcutActions({
   hold: () => canHold.value && handleHold(),
 });
 
+// Completes the sale and returns { saved, reloaded }. A refusal for stock is the server's, from the
+// stock as it is now: a user with sale:oversell may confirm selling anyway (same retry key, so it is
+// still one sale); anyone else, or a manager who goes back, sees the refusal on the cart (whose
+// handler reads the product list again). After a resend the list is read again here, once the
+// resend has finished, since the refusal showed it was wrong; `reloaded` then tells the caller not
+// to lower it as well.
+async function saveSale() {
+  try {
+    return { saved: await pos.completeSale(), reloaded: false };
+  } catch (e) {
+    if (e.code !== "insufficient_stock" || !pos.canOversell.value) throw e;
+    // The resend in flight or last made. The dialog can close while it is still sending (another
+    // dialog, such as the one on leaving the POS, replaces it), so its result, not the first
+    // refusal, is what the till reports.
+    let resend = null;
+    await confirm({
+      title: "Sell more than is in stock?",
+      message: e.message,
+      detail: "Stock will go below zero, and a stock flag will be raised so someone counts it.",
+      confirmLabel: "Sell anyway",
+      busyLabel: "Completing sale…",
+      cancelLabel: "Back to the cart",
+      run: async () => {
+        resend = pos.completeSale({ allowOversell: true });
+        await resend;
+      },
+    });
+    // Without a resend, the manager went back: the stock refusal stands. Otherwise the resend's
+    // result is the answer: the saved sale, or its own refusal (a deactivated customer, a changed
+    // price, a sale already saved), which the till must act on rather than the stock refusal.
+    if (!resend) throw e;
+    try {
+      return { saved: await resend, reloaded: true };
+    } finally {
+      productPanel.value?.refreshProducts();
+    }
+  }
+}
+
+// After a sale the loaded stock is lowered by what it took (read before the cart is cleared): that
+// stock drives the cart's "Only N units in stock" hints and which products can be added. A list
+// read again after the sale already has it.
+function takeSoldStock(taken, reloaded) {
+  if (!reloaded) productPanel.value?.takeStock(taken);
+}
+
 async function handleComplete() {
   await runAction(async () => {
-    await pos.completeSale();
+    const { reloaded } = await saveSale();
+    const taken = pos.stockTaken();
     pos.clearCart();
+    takeSoldStock(taken, reloaded);
     await returnToSearch();
   }, "Sale completed.");
 }
@@ -280,7 +338,8 @@ async function handleComplete() {
 async function handleCompleteAndPrint() {
   let printed = true;
   await runAction(async () => {
-    const saved = await pos.completeSale();
+    const { saved, reloaded } = await saveSale();
+    const taken = pos.stockTaken();
     try {
       await pos.printReceipt(saved?.receipt_number || "");
     } catch {
@@ -288,6 +347,7 @@ async function handleCompleteAndPrint() {
       printed = false;
     }
     pos.clearCart();
+    takeSoldStock(taken, reloaded);
     await returnToSearch();
   }, () => (printed ? "Sale completed. Receipt sent to print." : "Sale completed."));
   if (!printed) {

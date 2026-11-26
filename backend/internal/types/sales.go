@@ -36,6 +36,9 @@ type Sale struct {
 	Total             float64       `json:"total"`
 	Items             []SaleItem    `json:"items"`
 	Payments          []SalePayment `json:"payments"`
+	// AllowOversell is sent after a refusal for stock, by a user with sale:oversell who confirmed
+	// selling more than the system shows in stock.
+	AllowOversell bool `json:"allow_oversell"`
 }
 
 type SaleItemResponse struct {

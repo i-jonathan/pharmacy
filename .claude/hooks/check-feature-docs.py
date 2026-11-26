@@ -4,7 +4,9 @@
 For each feature in docs/features/feature-paths.json whose code changed on this branch, the
 branch must also change docs/features/<slug>/, or carry a commit trailer
 `Feature-Docs-Unchanged: <slug>[, <slug>...]` recording that the owner checked the docs are
-still accurate. Otherwise the PR is denied with instructions. Any failure of the hook itself
+still accurate. Otherwise the PR is denied with instructions. Go test files (`_test.go`) don't
+count as a change to a feature: a test-only change (a shared fixture, setup another feature now
+needs) doesn't alter what the docs describe, and a behaviour change always touches code too. Any failure of the hook itself
 lets the command through, so a broken hook never blocks work.
 """
 import fnmatch
@@ -61,6 +63,7 @@ def main():
     head = os.environ.get("FEATURE_DOCS_HEAD", "HEAD")
     merge_base = os.environ.get("FEATURE_DOCS_BASE") or git(root, "merge-base", ref, head).strip()
     changed = git(root, "diff", "--name-only", f"{merge_base}..{head}").split()
+    code_changed = [p for p in changed if not p.endswith("_test.go")]
     messages = git(root, "log", "--format=%B", f"{merge_base}..{head}")
 
     unchanged_ok = set()
@@ -69,7 +72,9 @@ def main():
 
     stale = []
     for slug, patterns in mapping.items():
-        code_hits = [p for p in changed if any(fnmatch.fnmatch(p, pat) for pat in patterns)]
+        code_hits = [
+            p for p in code_changed if any(fnmatch.fnmatch(p, pat) for pat in patterns)
+        ]
         if not code_hits:
             continue
         docs_touched = any(p.startswith(f"docs/features/{slug}/") for p in changed)
