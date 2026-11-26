@@ -54,7 +54,7 @@ func (s *saleService) lockSaleProducts(
 // units is a count of stock units for a message: "1 unit", "10 units". Stock is kept in the
 // smallest unit sold, so a pack line takes several.
 func units(n int) string {
-	if n == 1 || n == -1 {
+	if n == 1 {
 		return fmt.Sprintf("%d unit", n)
 	}
 	return fmt.Sprintf("%d units", n)
@@ -120,8 +120,8 @@ func (s *saleService) recordOversell(
 	}
 	for _, p := range oversold {
 		note := fmt.Sprintf(
-			"Sold %s with %d in stock (receipt %s). Count it and correct the stock.",
-			units(p.Sold), p.StockBefore, receipt,
+			"Sold %s with %s in stock (receipt %s). Count it and correct the stock.",
+			units(p.Sold), units(p.StockBefore), receipt,
 		)
 		if err := s.repo.OpenSaleStockFlagTx(ctx, tx, p.ProductID, userID, note); err != nil {
 			log.Println(err)

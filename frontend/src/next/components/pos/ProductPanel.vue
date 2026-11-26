@@ -200,7 +200,17 @@ async function refreshProducts() {
   }
 }
 
-defineExpose({ refreshProducts });
+// Lowers the loaded stock by what a completed sale took (product id → stock units), so the list,
+// the cart hints and the 0-stock rule follow this till's sales without reading the whole list again.
+// Stock changed elsewhere shows on refresh, or when the server refuses a sale for stock.
+function takeStock(taken) {
+  for (const product of allProducts.value) {
+    const units = taken.get(Number(product.id));
+    if (units) product.stock = (Number(product.stock) || 0) - units;
+  }
+}
+
+defineExpose({ refreshProducts, takeStock });
 
 onMounted(async () => {
   emit("search-ref", searchInput.value);

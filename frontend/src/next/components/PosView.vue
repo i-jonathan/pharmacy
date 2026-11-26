@@ -307,17 +307,18 @@ async function saveSale() {
   }
 }
 
-// After a sale the product list is read again: its stock drives the cart's "Only N in stock" hints
-// and which products can be added, and this sale (or another till) has just changed it.
-function refreshStockAfterSale() {
-  productPanel.value?.refreshProducts();
+// After a sale the loaded stock is lowered by what it took (read before the cart is cleared): that
+// stock drives the cart's "Only N units in stock" hints and which products can be added.
+function takeSoldStock(taken) {
+  productPanel.value?.takeStock(taken);
 }
 
 async function handleComplete() {
   await runAction(async () => {
     await saveSale();
+    const taken = pos.stockTaken();
     pos.clearCart();
-    refreshStockAfterSale();
+    takeSoldStock(taken);
     await returnToSearch();
   }, "Sale completed.");
 }
@@ -326,6 +327,7 @@ async function handleCompleteAndPrint() {
   let printed = true;
   await runAction(async () => {
     const saved = await saveSale();
+    const taken = pos.stockTaken();
     try {
       await pos.printReceipt(saved?.receipt_number || "");
     } catch {
@@ -333,7 +335,7 @@ async function handleCompleteAndPrint() {
       printed = false;
     }
     pos.clearCart();
-    refreshStockAfterSale();
+    takeSoldStock(taken);
     await returnToSearch();
   }, () => (printed ? "Sale completed. Receipt sent to print." : "Sale completed."));
   if (!printed) {

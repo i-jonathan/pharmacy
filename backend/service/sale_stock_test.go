@@ -156,7 +156,7 @@ func TestAPermittedOversellSavesWithAnAuditEntryAndAFlag(t *testing.T) {
 	}
 	f := repo.saleFlags[0]
 	if f.productID != 1 || f.userID != 4 ||
-		!strings.Contains(f.note, "Sold 13 units with 5 in stock") ||
+		!strings.Contains(f.note, "Sold 13 units with 5 units in stock") ||
 		!strings.Contains(f.note, repo.sales[0].ReceiptNumber) {
 		t.Fatalf("stock flag: %+v (receipt %s)", f, repo.sales[0].ReceiptNumber)
 	}

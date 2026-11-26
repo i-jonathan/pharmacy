@@ -74,7 +74,7 @@ func TestASaleCannotTakeStockBelowZeroUnlessAManagerOversells(t *testing.T) {
 		Scan(&atFlag, &note); err != nil {
 		t.Fatal(err)
 	}
-	if atFlag != -1 || note != "Sold 3 units with 2 in stock (receipt "+receipt+
+	if atFlag != -1 || note != "Sold 3 units with 2 units in stock (receipt "+receipt+
 		"). Count it and correct the stock." {
 		t.Fatalf("flag stock %d, note %q", atFlag, note)
 	}
@@ -93,7 +93,7 @@ func TestASaleCannotTakeStockBelowZeroUnlessAManagerOversells(t *testing.T) {
 		t.Fatal(err)
 	}
 	if atFlag != -1 || !strings.Contains(note, "receipt "+receipt+")") ||
-		!strings.Contains(note, "Sold 3 units with -1 in stock (receipt "+again+")") {
+		!strings.Contains(note, "Sold 3 units with -1 units in stock (receipt "+again+")") {
 		t.Fatalf("flag stock %d, note %q", atFlag, note)
 	}
 

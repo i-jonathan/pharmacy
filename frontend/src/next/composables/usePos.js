@@ -162,14 +162,23 @@ export function usePos() {
 
   // For each cart line, the stock shown for its product when the cart takes more than that (its
   // lines summed: a pack and singles of one product), else null. Only a hint: the server decides.
-  const stockShortfalls = computed(() => {
+  // What the cart takes from each product, in stock units (product id → units). Lines use the same
+  // fallbacks as completeSale (a held sale may carry price_id and quantity).
+  function stockTaken() {
     const taking = new Map();
     for (const item of cart) {
       const id = Number(item.id ?? item.product_id);
-      const option = (item.priceOptions || []).find((o) => Number(o.id) === Number(item.priceId));
-      const perUnit = option?.quantityPerUnit > 0 ? option.quantityPerUnit : 1;
-      taking.set(id, (taking.get(id) || 0) + (Number(item.qty) || 0) * perUnit);
+      const priceId = Number(item.priceId ?? item.price_id);
+      const option = (item.priceOptions || item.price_options || []).find((o) => Number(o.id) === priceId);
+      const perUnit = Number(option?.quantityPerUnit ?? option?.quantity_per_unit) || 1;
+      const qty = Math.trunc(Number(item.qty ?? item.quantity) || 0);
+      taking.set(id, (taking.get(id) || 0) + qty * perUnit);
     }
+    return taking;
+  }
+
+  const stockShortfalls = computed(() => {
+    const taking = stockTaken();
     return cart.map((item) => {
       const stock = item.stock ?? null;
       if (stock === null) return null;
@@ -549,6 +558,7 @@ export function usePos() {
     completeSale,
     canOversell,
     stockShortfalls,
+    stockTaken,
     syncStock,
     printReceipt,
     fetchHeldTransactions,
