@@ -476,6 +476,16 @@ function closePanel() {
 // Leaving the page asks first when the panel holds unsaved typing (details or a correction).
 onBeforeRouteLeave(() => canLeavePanel());
 
+// A reload or a closed tab can't be asked through the app's dialog; the browser asks instead.
+function warnBeforeUnload(e) {
+  if (dirty.value || healthReadings.value?.dirty || healthReadings.value?.saving) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+}
+onMounted(() => window.addEventListener("beforeunload", warnBeforeUnload));
+onBeforeUnmount(() => window.removeEventListener("beforeunload", warnBeforeUnload));
+
 async function save() {
   if (saving.value || !canManage) return;
   const f = form.value;

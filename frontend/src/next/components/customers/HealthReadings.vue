@@ -157,11 +157,11 @@
             <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
               <p class="text-xs text-muted-foreground">Taken by {{ r.taken_by }}</p>
               <div class="flex gap-1.5">
-                <Button size="sm" variant="outline" class="h-7 gap-1.5 text-xs" :disabled="printingId !== null || saving" @click="reprint(r)">
+                <Button size="sm" variant="outline" class="h-7 gap-1.5 text-xs" :disabled="printingId !== null || saving || loading" @click="reprint(r)">
                   <Printer :size="13" />
                   {{ printingId === r.id ? "Printing…" : "Reprint" }}
                 </Button>
-                <Button v-if="canCorrect" size="sm" variant="outline" class="h-7 gap-1.5 text-xs" :disabled="saving" @click="startCorrection(r)">
+                <Button v-if="canCorrect" size="sm" variant="outline" class="h-7 gap-1.5 text-xs" :disabled="saving || loading" @click="startCorrection(r)">
                   <Pencil :size="13" />
                   Correct
                 </Button>
@@ -266,6 +266,8 @@ async function load() {
     const body = await r.json();
     if (mine !== loadCount) return;
     readings.value = body.data || [];
+    // A correction open on a reading that is no longer listed has nothing to show it.
+    if (editing.value && !readings.value.some((r) => r.id === editing.value.id)) editing.value = null;
     total.value = body.total_count || 0;
     perPage.value = body.per_page || 20;
   } catch (e) {
@@ -278,7 +280,12 @@ async function load() {
 }
 
 async function goToPage(next) {
-  if (next === page.value || !(await canLeaveCorrection())) return;
+  if (next === page.value) return;
+  if (saving.value) {
+    showNotice("Wait for the correction to finish saving.", true);
+    return;
+  }
+  if (!(await canLeaveCorrection())) return;
   editing.value = null;
   page.value = next;
   load();
@@ -474,6 +481,10 @@ async function saveCorrection() {
         showNotice("Reading corrected. The list was reloaded to show it.");
         return;
       }
+      // A reload still on its way was read before this save: drop it, or it would put the old
+      // version back.
+      loadCount++;
+      loading.value = false;
       readings.value = readings.value.map((x) => (x.id === saved.id ? saved : x));
       editing.value = null;
       showNotice("Reading corrected.");

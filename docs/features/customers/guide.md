@@ -46,7 +46,7 @@ Type in **Search by name or phone**. Letters search names. Numbers search phone 
 
 When you change **Agreed to be contacted by the pharmacy**, the panel shows the date it last changed. Untick it if a customer asks not to be contacted.
 
-If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click. Leaving the page asks the same.
+If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click. Moving to another screen asks the same; reloading the page or closing the tab makes the browser ask whether to leave.
 
 ### See a customer's health readings
 
@@ -112,7 +112,7 @@ Use this for someone who should no longer be on the list, for example a duplicat
 - Every add, change, deactivation and reactivation is recorded with who did it and when. Whether a customer agreed to be contacted is recorded each time it changes.
 - A sale with a customer shows that customer in Sales History, and the receipt (and every reprint) prints **Customer: <name>**. A walk-in sale prints no customer line.
 - Only people who may see customers see the customer on Sales History and reprints.
-- Every change of the customer on a saved sale is recorded with who did it, when, the reason, the receipt number, and which customer it was and became. Nobody can see that record on a screen yet (T-127).
+- Every change of the customer on a saved sale is recorded with who did it, when, the reason, the receipt number, and which customer it was and became. It shows under the sale in Sales History (see "See who changed a sale's customer").
 
 ## Rules and limits
 
@@ -163,4 +163,4 @@ Use this for someone who should no longer be on the list, for example a duplicat
 ## Related
 
 - [Health checks](../health-checks/guide.md): blood pressure and glucose readings kept for customers who agree.
-- Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121), see who changed a sale's customer (T-127).
+- Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121).

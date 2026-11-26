@@ -262,3 +262,18 @@ Third review (`/code-review high`, six; all fixed):
 - The saved name is refreshed when the customer is reloaded after a 409.
 - A demoseed comment points at `seedHealthChecks`.
 Three checks changed to the new behaviour and three added; all 57 pass.
+
+Fourth review (`/code-review high`, five; all fixed):
+- Correct and Reprint are off while the list is loading, and a correction open on a reading that a
+  new page no longer lists is closed (it had left Refresh disabled with no form shown).
+- A saved correction drops any list reload still on its way, so a reload read before the save
+  can't put the old version back (and with Correct off during a reload, the next correction can't
+  start on a stale row).
+- Reloading the page or closing the tab with unsaved details or a correction makes the browser ask
+  (`beforeunload`), as Health checks and Stock Adjustments do; the Customers guide says so.
+- Previous/Next while a correction saves says to wait instead of doing nothing.
+- The Customers guide's "nobody can see that record yet (T-127)" and its "Planned next: T-127"
+  are gone; T-127 shipped.
+Four more browser checks; all 61 pass. The stale-reload race itself was not reproduced in the
+browser: the checks cover the two guards that close it (buttons off while loading, reload dropped
+on save).
