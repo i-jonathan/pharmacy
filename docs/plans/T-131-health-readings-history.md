@@ -232,3 +232,33 @@ new (demoseed, capture script, pictures, entry).
 - The tabs work from the keyboard (Left/Right; only the selected tab is in the Tab order).
 Eight more browser checks for these; all 46 pass. `go test ./...` with `PHARMACY_TEST_DSN` passes.
 `make check-go-format` and `check-go-lines` flag only files this branch does not touch.
+
+Second review on the PR (`/code-review high`, seven; all addressed):
+- A 502/503/504 or non-JSON 5xx on a correction counts as "may have saved", like a dropped
+  connection, so a resend that gets 409 `changed` is not blamed on someone else; a 200 whose body
+  is cut off reloads the list and says the reading was corrected; the reprint's reply is read
+  safely.
+- Deactivate/Reactivate and Save changes while a correction is saving say "Wait for the
+  correction to finish saving." instead of closing the panel or doing nothing.
+- (Reversed in the third review, below: closing a discarded correction at once lost it when the
+  panel then stayed open.)
+- The readings' messages use the customer's saved name, not a half-typed one on Details.
+- The Health readings tab names its panel (`aria-controls`) only once the panel exists.
+- demoseed says its audit entries keep the seed time (`audit_log` is append-only, so they can't be
+  back-dated).
+- `capture.mjs` says the slip step prints a walk-in's reading.
+Eight more browser checks; all 54 pass.
+
+Third review (`/code-review high`, six; all fixed):
+- Agreeing to discard a correction only answers the question; the form closes when the panel
+  really closes. A details save that then fails, or "Keep editing" on the details question, keeps
+  the correction.
+- Closing a correction whose save may have landed reloads the list, so the next correction isn't
+  told someone else changed the reading.
+- Any 5xx on a correction counts as "may have saved" (the app's own 500 can follow a commit whose
+  acknowledgement was lost).
+- Left/Right only move focus between the tabs; Enter or Space opens one, so an arrow key never
+  records a health history view.
+- The saved name is refreshed when the customer is reloaded after a 409.
+- A demoseed comment points at `seedHealthChecks`.
+Three checks changed to the new behaviour and three added; all 57 pass.

@@ -72,7 +72,7 @@ const releases = {
       await shot(page, "health-check");
       await ctx.close();
     },
-    async () => { // The slip: a saved reading, printed (the print is caught and shown as a page)
+    async () => { // The slip: a walk-in's reading (nothing saved), printed; the print is caught and shown as a page
       const { ctx, page } = await as("tunde");
       await page.addInitScript(() => {
         window.print = () => { window.top.__slip = document.documentElement.outerHTML; };

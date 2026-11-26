@@ -302,7 +302,13 @@ async function reprint(reading) {
       showNotice(sentence((await readError(r, "Could not reprint the reading.")).message), true);
       return;
     }
-    const saved = await r.json();
+    let saved;
+    try {
+      saved = await r.json();
+    } catch {
+      showNotice("The reading did not arrive in full, so nothing was printed. Try again.", true);
+      return;
+    }
     try {
       await printHealthSlip(slipFromSaved(saved, { at: new Date() }));
       showNotice("Copy sent to print.");
@@ -353,7 +359,9 @@ function sentReadings(b) {
   ]);
 }
 
-// canLeaveCorrection is true when it is fine to close the open correction form.
+// canLeaveCorrection is true when it is fine to close the open correction form. It only asks:
+// the caller closes the form once it really goes ahead (the panel may still stay open, for
+// example when a details save then fails, and then the correction must still be there).
 async function canLeaveCorrection() {
   if (saving.value) return false;
   if (!dirty.value) return true;
@@ -369,18 +377,26 @@ async function canLeaveCorrection() {
   );
 }
 
+// closeCorrection closes the form. One whose save may have landed (lost reply) reloads the list,
+// so the next correction starts from what is saved and isn't told someone else changed it.
+function closeCorrection() {
+  const e = editing.value;
+  editing.value = null;
+  formError.value = "";
+  if (e?.mayHaveSaved) load();
+}
+
 async function startCorrection(r) {
   if (editing.value?.id === r.id) return;
   if (!(await canLeaveCorrection())) return;
-  formError.value = "";
+  closeCorrection();
   editing.value = formFrom(r);
   openedAs = editable(editing.value);
 }
 
 async function cancelCorrection() {
   if (!(await canLeaveCorrection())) return;
-  editing.value = null;
-  formError.value = "";
+  closeCorrection();
 }
 
 function composeReason({ reasonPreset: preset, reasonDetail }) {
@@ -424,6 +440,12 @@ async function saveCorrection() {
   saving.value = true;
   formError.value = "";
   try {
+    // A reply that may hide a save: safe to send again, since if the first one landed the version
+    // has moved and the server answers 409 changed, which is then read as this person's own save.
+    const lost = () => {
+      e.mayHaveSaved = true;
+      formError.value = "Could not reach the server, so the correction may or may not be saved. Press Save correction again; it can't be saved twice.";
+    };
     let r;
     try {
       r = await csrfFetch(`/health-checks/${e.id}`, {
@@ -432,13 +454,26 @@ async function saveCorrection() {
         body: JSON.stringify(body),
       });
     } catch {
-      // Safe to send again: if the first one landed, the version has moved and the server says so.
-      e.mayHaveSaved = true;
-      formError.value = "Could not reach the server. Press Save correction again; it can't be saved twice.";
+      lost();
+      return;
+    }
+    // No 5xx says the correction failed: a proxy may have given up while it committed, and the
+    // app's own 500 can come from a commit whose acknowledgement was lost.
+    if (r.status >= 500) {
+      lost();
       return;
     }
     if (r.ok) {
-      const saved = await r.json();
+      let saved;
+      try {
+        saved = await r.json();
+      } catch {
+        // Saved, but the reply was cut off: show what is saved now.
+        editing.value = null;
+        await load();
+        showNotice("Reading corrected. The list was reloaded to show it.");
+        return;
+      }
       readings.value = readings.value.map((x) => (x.id === saved.id ? saved : x));
       editing.value = null;
       showNotice("Reading corrected.");

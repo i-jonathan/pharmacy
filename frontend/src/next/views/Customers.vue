@@ -138,7 +138,7 @@
           role="tab"
           :aria-selected="tab === t.id"
           :tabindex="tab === t.id ? 0 : -1"
-          :aria-controls="`customer-tabpanel-${t.id}`"
+          :aria-controls="t.id === 'details' || healthOpened ? `customer-tabpanel-${t.id}` : undefined"
           class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
           :class="tab === t.id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'"
           @click="openTab(t.id)"
@@ -157,7 +157,7 @@
         :key="form.id"
         role="tabpanel"
         aria-labelledby="customer-tab-health"
-        :customer="form"
+        :customer="healthCustomer"
       />
 
       <form
@@ -303,17 +303,21 @@ const TABS = [
 const tab = ref("details");
 const healthOpened = ref(false);
 const healthReadings = ref(null);
+// The customer as saved, for the readings' messages: not the Details form, whose name may be
+// half-typed.
+const savedName = ref("");
+const healthCustomer = computed(() => ({ id: form.value?.id, name: savedName.value }));
 
 function openTab(id) {
   tab.value = id;
   if (id === "health") healthOpened.value = true;
 }
 
-// Left and Right move between the two tabs, as a tab list does.
-function moveTab() {
-  const next = tab.value === "details" ? "health" : "details";
-  openTab(next);
-  nextTick(() => document.getElementById(`customer-tab-${next}`)?.focus());
+// Left and Right move focus between the two tabs; Enter or Space opens the focused one. Opening
+// is kept to a deliberate press because opening Health readings is recorded as a view.
+function moveTab(event) {
+  const other = event.target.id === "customer-tab-details" ? "health" : "details";
+  document.getElementById(`customer-tab-${other}`)?.focus();
 }
 
 function resetTabs() {
@@ -329,11 +333,16 @@ let openedAs = "";
 const dirty = computed(() => !!form.value && editable(form.value) !== openedAs);
 
 // true when it is fine to replace or close the panel.
+// correctionSaving says, and shows, that a health reading correction is still being saved, during
+// which the panel must not close (its reply would be lost).
+function correctionSaving() {
+  if (!healthReadings.value?.saving) return false;
+  showNotice("Wait for the correction to finish saving.", true);
+  return true;
+}
+
 async function canLeavePanel() {
-  if (healthReadings.value?.saving) {
-    showNotice("Wait for the correction to finish saving.", true);
-    return false;
-  }
+  if (correctionSaving()) return false;
   if (healthReadings.value && !(await healthReadings.value.canLeaveCorrection())) return false;
   if (!dirty.value) return true;
   return (
@@ -430,6 +439,7 @@ async function open(c) {
   if (!(await canLeavePanel())) return;
   formError.value = "";
   resetTabs();
+  savedName.value = c.name;
   form.value = formFrom(c);
   openedAs = editable(form.value);
   showPanel();
@@ -474,6 +484,7 @@ async function save() {
     return;
   }
   // A saved edit closes the panel, which would throw away a correction started on the other tab.
+  if (correctionSaving()) return;
   if (healthReadings.value && !(await healthReadings.value.canLeaveCorrection())) return;
   if (form.value !== f) return;
   const body = {
@@ -518,6 +529,7 @@ async function refreshOpenCustomer(message) {
     const r = await fetch(`/customers/${id}`);
     if (r.ok && form.value?.id === id) {
       const latest = await r.json();
+      savedName.value = latest.name;
       form.value = {
         ...form.value,
         version: latest.version,
@@ -534,7 +546,7 @@ async function refreshOpenCustomer(message) {
 
 function toggleActive() {
   const f = form.value;
-  if (!f?.id || saving.value) return;
+  if (!f?.id || saving.value || correctionSaving()) return;
   const stopping = f.active;
   return confirm({
     title: stopping ? "Deactivate customer?" : "Reactivate customer?",

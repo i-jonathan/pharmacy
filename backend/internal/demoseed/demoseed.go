@@ -90,7 +90,7 @@ func glucose(v float64, unit, context string) types.HealthReadings {
 }
 
 // healthReadings are the made-up readings of the two customers who agreed to have them kept. The
-// third one is corrected afterwards (see Run).
+// third one is corrected afterwards (see seedHealthChecks).
 var healthReadings = []demoReading{
 	{0, 63, bp(142, 91, 78)},
 	{0, 49, bp(138, 88, 74)},
@@ -363,7 +363,8 @@ func Run(db *sqlx.DB) (Summary, error) {
 }
 
 // seedHealthChecks records the demo readings at the till, has the manager correct one typed
-// wrong, then moves each back to the day it was taken (the service always stamps now).
+// wrong, then moves each back to the day it was taken (the service always stamps now). Their
+// audit entries keep the time the seed ran: audit_log is append-only.
 func seedHealthChecks(
 	db *sqlx.DB, store repository.PharmacyRepository, customerIDs []int, cashier, manager int,
 ) error {
