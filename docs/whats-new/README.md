@@ -61,8 +61,10 @@ Pictures are real screens of the app running on made-up data, light mode, 1100×
 
    ```sh
    mkdir /tmp/shots && cd /tmp/shots && npm init -y && npm i playwright-core
-   CHROMIUM=/path/to/chromium node <repo>/docs/whats-new/capture.mjs <repo>/backend/template/static/img/whats-new v0.4.0
+   CHROMIUM=/path/to/chromium node <repo>/docs/whats-new/capture.mjs <repo>/backend/template/static/img/whats-new v0.6.0
    ```
+
+   The last argument picks the release; its slides are listed under `releases` in the script.
 
    Any Chromium or Chrome works; Playwright's own (`npx playwright install chromium`) is fine.
 
@@ -71,6 +73,16 @@ Pictures are real screens of the app running on made-up data, light mode, 1100×
 
 `capture.mjs` signs in as the right user for each slide and drives the screen into the state shown.
 When a screen changes, update the step for its slide there.
+
+## The v0.6.0 pictures
+
+| Slide | User | Screen and state |
+|---|---|---|
+| `health-check` | `tunde` | Health checks → Adaeze Obi picked; 126/82, pulse 71, glucose 5.6 mmol/L fasting |
+| `health-slip` | `tunde` | The same reading for a walk-in "Mr Okon", printed; the slip caught from the print and shown at 1.5× |
+| `health-history` | `amaka` | Customers → Adaeze Obi → Health readings (`demoseed` gives her six readings, one corrected) |
+| `customers` | `amaka` | Customers → Chinedu Okafor open |
+| `customer-at-till` | `tunde` | Point of Sale → Paracetamol added → Cart → Add customer → Adaeze Obi |
 
 ## The v0.3.0 pictures
 
