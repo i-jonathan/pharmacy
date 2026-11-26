@@ -35,8 +35,26 @@ func dialLiveCount(
 	query, cookie, origin string,
 ) (*gws.Conn, int) {
 	t.Helper()
+	return dial(t, srv, query, "", cookie, origin)
+}
+
+// dialLiveCountAs dials stock taking 1 with the given Host header ("" for the server's own).
+func dialLiveCountAs(
+	t *testing.T,
+	srv *httptest.Server,
+	host, cookie, origin string,
+) (*gws.Conn, int) {
+	t.Helper()
+	return dial(t, srv, "stockTakingId=1", host, cookie, origin)
+}
+
+func dial(t *testing.T, srv *httptest.Server, query, host, cookie, origin string) (*gws.Conn, int) {
+	t.Helper()
 	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws?" + query
 	header := http.Header{}
+	if host != "" {
+		header.Set("Host", host)
+	}
 	if cookie != "" {
 		header.Set("Cookie", cookie)
 	}
@@ -101,13 +119,18 @@ func TestLiveCountSocketDeliversUpdatesToASignedInUser(t *testing.T) {
 }
 
 // Once the socket trusts the session cookie, another site the cashier visits must not be able to
-// open it with that cookie, even when the shop's server is on localhost.
+// open it with that cookie, even when the shop's server is on localhost (the old check let any
+// origin in when the Host named localhost).
 func TestLiveCountSocketRefusesAnotherOrigin(t *testing.T) {
 	srv, _ := liveCountServer(t)
-	for _, origin := range []string{"https://evil.example", "http://localhost:5173"} {
-		conn, status := dialLiveCount(t, srv, "stockTakingId=1", signedInCookie(t), origin)
-		if conn != nil || status != http.StatusForbidden {
-			t.Fatalf("origin %s should be refused with 403, got %d", origin, status)
+	port := srv.URL[strings.LastIndex(srv.URL, ":")+1:]
+	for _, host := range []string{"", "localhost:" + port} {
+		for _, origin := range []string{"https://evil.example", "http://localhost:5173"} {
+			conn, status := dialLiveCountAs(t, srv, host, signedInCookie(t), origin)
+			if conn != nil || status != http.StatusForbidden {
+				t.Fatalf("host %q origin %s should be refused with 403, got %d", host, origin,
+					status)
+			}
 		}
 	}
 }

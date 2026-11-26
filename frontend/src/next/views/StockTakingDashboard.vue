@@ -110,6 +110,12 @@
         </div>
       </div>
 
+      <!-- Live updates refused: the session has ended -->
+      <div v-if="liveStopped" class="flex items-start gap-2 mb-4 rounded-lg border border-border bg-destructive/5 px-3 py-2.5 text-sm text-foreground" role="alert">
+        <AlertCircle :size="16" class="text-destructive shrink-0 mt-0.5" />
+        <p>Live updates stopped because you were signed out. Counts from other people won't appear until you <a :href="signInHref" class="font-medium underline">sign in again</a>.</p>
+      </div>
+
       <!-- Sticky Search -->
       <div class="sticky top-0 z-20 bg-card -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 border-b border-border" style="position:sticky;top:0;">
         <div class="relative">
@@ -300,6 +306,12 @@ const completeStockPermission = ref(false);
 const searchQuery = ref("");
 const filterVariancesOnly = ref(false);
 let websocket = null;
+let reconnectTimer = null;
+let reconnectDelay = 3000;
+let pageClosed = false;
+const liveStopped = ref(false);
+// Loading this count's address sends a signed-out browser to sign in and back to the count.
+const signInHref = computed(() => `/app/stock-taking/${countingId.value}`);
 let updateTimers = new Map();
 let timeAgoTimer = null;
 const timeTick = ref(0);
@@ -458,6 +470,8 @@ function closeStockTaking() {
   filterVariancesOnly.value = false;
   stopTimeAgoTimer();
   closeWebSocket();
+  liveStopped.value = false;
+  reconnectDelay = 3000;
 }
 
 // === Counting ===
@@ -555,43 +569,74 @@ async function completeStockTaking() {
 }
 
 // === WebSocket ===
+// The socket closes when the network drops, the server restarts, or the session ends (the server
+// refuses a signed-out handshake). The browser can't tell these apart, so after a close the page
+// asks the server whether it is still signed in: if not it stops and says so; otherwise it
+// reconnects, waiting longer after each failure (up to a minute).
 function initWebSocket(id) {
   closeWebSocket();
+  if (pageClosed) return;
+  liveStopped.value = false;
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${protocol}//${window.location.host}/ws?stockTakingId=${id}`;
+  let ws;
   try {
-    websocket = new WebSocket(wsUrl);
-    websocket.onopen = () => {};
-    websocket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "stock_item_update") {
-          const server = msg.data;
-          const local = rawItems.find(i => i.product_id === server.product_id);
-          if (local) {
-            Object.assign(local, server);
-            rebuildItems();
-          }
-        } else if (msg.type === "stock_taking_complete") {
-          countingStatus.value = "Completed";
-          closeWebSocket();
+    ws = new WebSocket(wsUrl);
+  } catch {
+    return;
+  }
+  websocket = ws;
+  ws.onopen = () => { reconnectDelay = 3000; };
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "stock_item_update") {
+        const server = msg.data;
+        const local = rawItems.find(i => i.product_id === server.product_id);
+        if (local) {
+          Object.assign(local, server);
+          rebuildItems();
         }
-      } catch {}
-    };
-    websocket.onclose = () => {
-      if (countingStatus.value !== "Completed") {
-        setTimeout(() => initWebSocket(id), 3000);
+      } else if (msg.type === "stock_taking_complete") {
+        countingStatus.value = "Completed";
+        closeWebSocket();
       }
-    };
-    websocket.onerror = () => {};
-  } catch {}
+    } catch {}
+  };
+  ws.onclose = async () => {
+    // A socket this page closed on purpose (or replaced) must not reconnect.
+    if (websocket !== ws) return;
+    websocket = null;
+    if (countingStatus.value === "Completed") return;
+    const out = await signedOut();
+    // The user may have left the count, or the page, while the check was answered.
+    if (pageClosed || countingId.value !== id || websocket !== null) return;
+    if (out) {
+      liveStopped.value = true;
+      return;
+    }
+    reconnectTimer = setTimeout(() => initWebSocket(id), reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 60000);
+  };
+}
+
+// signedOut asks a light endpoint whether the session still works; a network error is not a
+// sign-out (the reconnect will try again).
+async function signedOut() {
+  try {
+    const res = await fetch(`${API}/api/permissions/me`, { headers: { Accept: "application/json" } });
+    return res.status === 401;
+  } catch {
+    return false;
+  }
 }
 
 function closeWebSocket() {
-  if (websocket) {
-    websocket.close();
-    websocket = null;
-  }
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  const ws = websocket;
+  websocket = null;
+  if (ws) ws.close();
 }
 
 // === Formatting ===
@@ -651,6 +696,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  pageClosed = true;
   stopTimeAgoTimer();
   closeWebSocket();
   for (const t of updateTimers.values()) clearTimeout(t);

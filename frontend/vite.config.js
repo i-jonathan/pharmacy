@@ -52,6 +52,18 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      // Live stock-taking updates. The server accepts a socket only from its own origin, and
+      // changeOrigin rewrites Host but not Origin, so the dev page's Origin is rewritten too.
+      "/ws": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        ws: true,
+        configure: (proxy) => {
+          proxy.on("proxyReqWs", (proxyReq) => {
+            proxyReq.setHeader("Origin", "http://localhost:8000");
+          });
+        },
+      },
     },
   },
 });

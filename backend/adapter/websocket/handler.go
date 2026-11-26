@@ -10,15 +10,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// sessionEnds is when the session that opened a socket stops working; a var so tests can bring
+// it forward.
+var sessionEnds = config.SessionExpiry
+
 // upgrader leaves CheckOrigin nil, so gorilla's default applies: the Origin's host must equal the
 // request's Host. The socket is authenticated by the session cookie, which the browser sends from
 // any site, so this is what stops another page the cashier opens from reading live counts
 // (cross-site WebSocket hijacking). A handshake without an Origin is not from a browser and still
 // needs the session.
-// sessionEnds is when the session that opened a socket stops working; a var so tests can bring
-// it forward.
-var sessionEnds = config.SessionExpiry
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,

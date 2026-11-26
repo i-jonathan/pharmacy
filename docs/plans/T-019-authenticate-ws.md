@@ -103,6 +103,12 @@ frontend). Nobody has to sign in again.
 
 ## Changes after approval
 - After the first code review the owner moved the client retry fix (step 4) into this ticket.
+- Found while doing step 4 and fixed with it, because it is the same handler: `closeWebSocket()`
+  closed the socket and its `onclose` then scheduled a reconnect, so leaving a count reopened its
+  socket 3 s later. Each socket now checks it is still the page's current one, and the page stops
+  reconnecting once it is closed.
+- Second code review: the regression test now also dials with `Host: localhost:<port>`, confirmed
+  to fail when the old localhost rule is put back; the sign-in link points at the count itself.
 
 ## Commits
 Style: logical groups (owner's choice). Commit points:
