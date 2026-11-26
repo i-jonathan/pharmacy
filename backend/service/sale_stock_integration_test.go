@@ -3,6 +3,7 @@ package service_test
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"pharmacy/httperror"
@@ -78,12 +79,22 @@ func TestASaleCannotTakeStockBelowZeroUnlessAManagerOversells(t *testing.T) {
 		t.Fatalf("flag stock %d, note %q", atFlag, note)
 	}
 
-	// A second oversell by the same manager keeps the one open flag and still saves.
-	if _, err := sales.CreateSale(manager, sellThree("again", true)); err != nil {
+	// A second oversell by the same manager saves, and adds its note to the one open flag rather
+	// than being lost; the flag's stock at flagging stays as it was.
+	again, err := sales.CreateSale(manager, sellThree("again", true))
+	if err != nil {
 		t.Fatalf("a second oversell failed on the open flag: %v", err)
 	}
 	if n := f.count(t, `SELECT COUNT(*) FROM stock_flag WHERE product_id = $1`, pid); n != 1 {
 		t.Fatalf("want one flag, got %d", n)
+	}
+	if err := f.db.QueryRow(`SELECT stock_at_flag, note FROM stock_flag WHERE product_id = $1`,
+		pid).Scan(&atFlag, &note); err != nil {
+		t.Fatal(err)
+	}
+	if atFlag != -1 || !strings.Contains(note, "receipt "+receipt+")") ||
+		!strings.Contains(note, "Sold 3 with -1 in stock (receipt "+again+")") {
+		t.Fatalf("flag stock %d, note %q", atFlag, note)
 	}
 
 	// A retry of a saved sale is answered as saved, whatever the stock now.

@@ -23,8 +23,9 @@ type oversoldProduct struct {
 	Sold        int    `json:"sold"`
 }
 
-// checkSaleStock locks the sale's products in id order (as stock adjustments and receiving do),
-// reads their stock, and refuses a sale that takes any of them below zero: 409
+// checkSaleStock locks the sale's products in id order with LockProductStockTx (as stock
+// adjustments do; receiving updates product rows in the same order, so neither waits on the other
+// in a cycle), reads their stock, and refuses a sale that takes any of them below zero: 409
 // `insufficient_stock`, or 403 when the user asked to oversell without sale:oversell. A permitted
 // oversell returns the products it takes below zero. One product can be on several lines (single
 // and pack prices), so what each line takes is summed per product.
@@ -78,7 +79,7 @@ func (s *saleService) checkSaleStock(
 
 // recordOversell writes the audit entry for a permitted oversell and opens a stock flag, raised
 // by the seller, on each product it took below zero, so someone counts it. A flag this user
-// already has open on the product is left as it is.
+// already has open on the product gets the note added instead.
 func (s *saleService) recordOversell(
 	ctx context.Context, tx *sqlx.Tx, userID, saleID int, receipt string,
 	oversold []oversoldProduct,

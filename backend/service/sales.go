@@ -77,18 +77,23 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 		}
 	}
 
-	// A new sale may not take stock below zero unless the user may oversell and said so. The
-	// products are locked first, so a sale and a stock adjustment can't both pass on the same stock.
+	// A new sale's customer must be active, and the sale may not take stock below zero unless the
+	// user may oversell and said so. The customer comes first, so a manager isn't asked to confirm
+	// an oversell only to be refused for the customer next. The products are locked, so a sale and
+	// a stock adjustment can't both pass on the same stock.
 	var oversold []oversoldProduct
 	if !keyUsed {
-		oversold, err = s.checkSaleStock(ctx, tx, priced.items, saleParams.AllowOversell)
+		err = s.checkSaleCustomer(ctx, tx, saleParams.CustomerID)
+		if err == nil {
+			oversold, err = s.checkSaleStock(ctx, tx, priced.items, saleParams.AllowOversell)
+		}
 		if err != nil {
 			// As after a pricing refusal: a twin of this request may have saved the sale (and
 			// taken the stock) while this one waited for the lock. Say the sale was saved instead.
 			stockErr := err
 			if keyUsed, err = s.saleKeyUsed(ctx, tx, idempotencyKey); !keyUsed {
 				if err != nil {
-					log.Println("re-checking the sale key after a stock refusal:", err)
+					log.Println("re-checking the sale key after a customer or stock refusal:", err)
 				}
 				return "", stockErr
 			}
@@ -137,27 +142,6 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 			)
 		}
 		return saved.ReceiptNumber, nil
-	}
-
-	// Only a new sale is checked: a retry of a saved sale must still be answered with that sale,
-	// whatever has happened to its customer since.
-	if saleParams.CustomerID > 0 {
-		customer, err := s.repo.GetCustomerRefTx(ctx, tx, saleParams.CustomerID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", badRequest("customer was not found")
-		}
-		if err != nil {
-			log.Println(err)
-			return "", httperror.ServerError("failed to check the customer", err)
-		}
-		if !customer.Active {
-			refusal := httperror.Conflict(
-				"this customer has been deactivated; remove them from the sale, or ask a manager to reactivate them",
-				errors.New("customer is deactivated"),
-			)
-			refusal.Reason = "customer_inactive"
-			return "", refusal
-		}
 	}
 
 	saleItems := priced.items
@@ -968,5 +952,31 @@ func (s *saleService) ReturnItems(ctx context.Context, returnParams types.Return
 		return httperror.ServerError("failed to commit transaction", err)
 	}
 	committed = true
+	return nil
+}
+
+// checkSaleCustomer refuses a new sale to an unknown (400) or deactivated (409 customer_inactive)
+// customer. A walk-in (0) passes. Only a new sale is checked: a retry of a saved sale must still be
+// answered with that sale, whatever has happened to its customer since.
+func (s *saleService) checkSaleCustomer(ctx context.Context, tx *sqlx.Tx, customerID int) error {
+	if customerID <= 0 {
+		return nil
+	}
+	customer, err := s.repo.GetCustomerRefTx(ctx, tx, customerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return badRequest("customer was not found")
+	}
+	if err != nil {
+		log.Println(err)
+		return httperror.ServerError("failed to check the customer", err)
+	}
+	if !customer.Active {
+		refusal := httperror.Conflict(
+			"this customer has been deactivated; remove them from the sale, or ask a manager to reactivate them",
+			errors.New("customer is deactivated"),
+		)
+		refusal.Reason = "customer_inactive"
+		return refusal
+	}
 	return nil
 }

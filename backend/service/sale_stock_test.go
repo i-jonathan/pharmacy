@@ -185,3 +185,22 @@ func TestARetryOfASavedSaleIsNotCheckedForStock(t *testing.T) {
 		t.Fatalf("a retry locked %v", repo.locked)
 	}
 }
+
+// A deactivated customer is reported before a stock shortage, so a manager isn't asked to confirm
+// an oversell only to be refused for the customer next.
+func TestADeactivatedCustomerIsReportedBeforeAStockShortage(t *testing.T) {
+	gone := types.Customer{ID: 5, Name: "Ada Obi", Active: false}
+	repo := newPricingRepo()
+	repo.customers = map[int]types.Customer{5: gone}
+	repo.stock = map[int]int{1: 0}
+	sale := packAndSingles()
+	sale.CustomerID = 5
+	_, err := NewSaleService(repo).CreateSale(
+		contextWith(constant.ViewCustomersPermissionKey, constant.OversellPermissionKey), sale,
+	)
+	wantRefusal(t, err, http.StatusConflict, "customer_inactive")
+	if len(repo.locked) != 0 {
+		t.Fatalf("stock was checked before the customer: %v", repo.locked)
+	}
+	wantNothingSaved(t, repo)
+}

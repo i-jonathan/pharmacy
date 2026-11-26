@@ -308,10 +308,17 @@ async function saveSale() {
   }
 }
 
+// After a sale the product list is read again: its stock drives the cart's "Only N in stock" hints
+// and which products can be added, and this sale (or another till) has just changed it.
+function refreshStockAfterSale() {
+  productPanel.value?.refreshProducts();
+}
+
 async function handleComplete() {
   await runAction(async () => {
     await saveSale();
     pos.clearCart();
+    refreshStockAfterSale();
     await returnToSearch();
   }, "Sale completed.");
 }
@@ -327,6 +334,7 @@ async function handleCompleteAndPrint() {
       printed = false;
     }
     pos.clearCart();
+    refreshStockAfterSale();
     await returnToSearch();
   }, () => (printed ? "Sale completed. Receipt sent to print." : "Sale completed."));
   if (!printed) {
