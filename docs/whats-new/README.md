@@ -83,6 +83,7 @@ When a screen changes, update the step for its slide there.
 | `health-history` | `amaka` | Customers → Adaeze Obi → Health readings (`demoseed` gives her six readings, one corrected) |
 | `customers` | `amaka` | Customers → Chinedu Okafor open |
 | `customer-at-till` | `tunde` | Point of Sale → Paracetamol added → Cart → Add customer → Adaeze Obi |
+| `sell-anyway` | `amaka` | Point of Sale → Digital Thermometer (14 in stock) × 16, paid in cash → Complete sale → the Sell anyway question, not answered |
 
 ## The v0.3.0 pictures
 
