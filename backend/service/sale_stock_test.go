@@ -24,6 +24,7 @@ func (r *customerSaleRepo) LockProductStockTx(
 	_ context.Context, _ *sqlx.Tx, ids []int,
 ) ([]types.ProductStock, error) {
 	r.locked = append(r.locked, ids)
+	r.events = append(r.events, "lock")
 	out := make([]types.ProductStock, len(ids))
 	for i, id := range ids {
 		stock := 1_000_000
@@ -84,7 +85,8 @@ func TestASaleBeyondStockIsRefused(t *testing.T) {
 	repo.stock = map[int]int{1: 12} // the two lines take 13
 	err := createSale(t, repo, packAndSingles())
 	refusal := wantRefusal(t, err, http.StatusConflict, "insufficient_stock")
-	if !strings.Contains(refusal.Message, "Paracetamol 500mg (12 in stock, selling 13)") {
+	want := "Paracetamol 500mg (12 units in stock, selling 13 units)"
+	if !strings.Contains(refusal.Message, want) {
 		t.Fatalf("message should name the product and the numbers: %q", refusal.Message)
 	}
 	wantNothingSaved(t, repo)
@@ -154,7 +156,7 @@ func TestAPermittedOversellSavesWithAnAuditEntryAndAFlag(t *testing.T) {
 	}
 	f := repo.saleFlags[0]
 	if f.productID != 1 || f.userID != 4 ||
-		!strings.Contains(f.note, "Sold 13 with 5 in stock") ||
+		!strings.Contains(f.note, "Sold 13 units with 5 in stock") ||
 		!strings.Contains(f.note, repo.sales[0].ReceiptNumber) {
 		t.Fatalf("stock flag: %+v (receipt %s)", f, repo.sales[0].ReceiptNumber)
 	}
@@ -198,9 +200,36 @@ func TestADeactivatedCustomerIsReportedBeforeAStockShortage(t *testing.T) {
 	_, err := NewSaleService(repo).CreateSale(
 		contextWith(constant.ViewCustomersPermissionKey, constant.OversellPermissionKey), sale,
 	)
+	// The products are locked first (prices are read under the lock), but the customer is refused
+	// before the stock is compared.
 	wantRefusal(t, err, http.StatusConflict, "customer_inactive")
-	if len(repo.locked) != 0 {
-		t.Fatalf("stock was checked before the customer: %v", repo.locked)
-	}
 	wantNothingSaved(t, repo)
+}
+
+// Prices are read under the product lock, so a product edit holding it (which may change or delete
+// a price) commits before this sale is priced, not between pricing and saving.
+func TestASaleIsPricedUnderTheProductLock(t *testing.T) {
+	repo := newPricingRepo()
+	if err := createSale(t, repo, packAndSingles()); err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.events) == 0 || repo.events[0] != "lock" {
+		t.Fatalf("want the lock before any price is read, got %v", repo.events)
+	}
+	if !reflect.DeepEqual(repo.locked, [][]int{{1}}) {
+		t.Fatalf("want product 1 locked once, got %v", repo.locked)
+	}
+}
+
+func TestOneUnitIsNotCalledUnits(t *testing.T) {
+	repo := newPricingRepo()
+	repo.stock = map[int]int{1: 1}
+	sale := packAndSingles()
+	sale.Items = sale.Items[:1] // one pack of 10
+	sale.Subtotal, sale.Total = 900, 900
+	sale.Payments[0].Amount = 900
+	refusal := wantRefusal(t, createSale(t, repo, sale), http.StatusConflict, "insufficient_stock")
+	if !strings.Contains(refusal.Message, "(1 unit in stock, selling 10 units)") {
+		t.Fatalf("message: %q", refusal.Message)
+	}
 }

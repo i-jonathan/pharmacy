@@ -59,7 +59,7 @@
               <div class="truncate text-xs font-medium leading-4">{{ item.name }}</div>
               <div v-if="item.manufacturer" class="truncate text-[10px] leading-3 text-muted-foreground">{{ item.manufacturer }}</div>
               <div v-if="stockShortfalls[index] != null" class="truncate text-[10px] font-medium leading-3 text-amber-700 dark:text-amber-400">
-                Only {{ stockShortfalls[index] }} in stock
+                Only {{ stockShortfalls[index] }} {{ stockShortfalls[index] === 1 ? 'unit' : 'units' }} in stock
               </div>
             </TableCell>
             <TableCell

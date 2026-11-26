@@ -1,7 +1,10 @@
 <template>
   <div
     class="flex h-full min-h-[6.5rem] flex-col rounded-md border border-border bg-card p-3 transition-colors"
-    :class="disabled ? 'opacity-60' : 'hover:border-primary/35 hover:bg-primary/[0.025] cursor-pointer'"
+    :class="[
+      product.stock > 0 ? '' : 'opacity-60',
+      disabled ? '' : 'hover:border-primary/35 hover:bg-primary/[0.025] cursor-pointer',
+    ]"
     :aria-disabled="disabled"
     @click="!disabled && $emit('add')"
   >

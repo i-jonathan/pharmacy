@@ -45,6 +45,7 @@ func newPricingRepo() *pricingRepo {
 }
 
 func (r *pricingRepo) FetchPriceByID(_ context.Context, id int) (model.ProductPrice, error) {
+	r.events = append(r.events, "price")
 	p, ok := r.prices[id]
 	if !ok {
 		return model.ProductPrice{}, sql.ErrNoRows

@@ -33,6 +33,7 @@ type customerSaleRepo struct {
 	// for the stock check: stock by product (nil is plenty of everything)
 	stock     map[int]int
 	locked    [][]int
+	events    []string // "lock" and "price", in the order they happened
 	audits    []types.AuditEntry
 	saleFlags []saleFlag
 

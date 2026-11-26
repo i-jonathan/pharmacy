@@ -60,9 +60,19 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 		return "", httperror.Forbidden("you are not allowed to attach customers to a sale", nil)
 	}
 
-	// The server prices a new sale; what the till sent is only a check against it.
-	var priced pricedSale
+	// The server prices a new sale; what the till sent is only a check against it. Its products are
+	// locked first (as stock adjustments and product edits lock them), so the prices and the stock
+	// are read after any edit or adjustment of them has committed, and none can slip in before this
+	// sale is saved.
+	var (
+		priced pricedSale
+		stock  []types.ProductStock
+	)
 	if !keyUsed {
+		stock, err = s.lockSaleProducts(ctx, tx, saleParams.Items)
+		if err != nil {
+			return "", err
+		}
 		priced, err = s.priceSale(ctx, tx, saleParams)
 		if err != nil {
 			// A twin of this request may have saved the sale while this one was pricing it, and a
@@ -79,17 +89,16 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 
 	// A new sale's customer must be active, and the sale may not take stock below zero unless the
 	// user may oversell and said so. The customer comes first, so a manager isn't asked to confirm
-	// an oversell only to be refused for the customer next. The products are locked, so a sale and
-	// a stock adjustment can't both pass on the same stock.
+	// an oversell only to be refused for the customer next.
 	var oversold []oversoldProduct
 	if !keyUsed {
 		err = s.checkSaleCustomer(ctx, tx, saleParams.CustomerID)
 		if err == nil {
-			oversold, err = s.checkSaleStock(ctx, tx, priced.items, saleParams.AllowOversell)
+			oversold, err = checkSaleStock(ctx, stock, priced.items, saleParams.AllowOversell)
 		}
 		if err != nil {
 			// As after a pricing refusal: a twin of this request may have saved the sale (and
-			// taken the stock) while this one waited for the lock. Say the sale was saved instead.
+			// taken the stock) before this one got the lock. Say the sale was saved instead.
 			stockErr := err
 			if keyUsed, err = s.saleKeyUsed(ctx, tx, idempotencyKey); !keyUsed {
 				if err != nil {

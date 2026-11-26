@@ -283,9 +283,11 @@ async function saveSale() {
     return await pos.completeSale();
   } catch (e) {
     if (e.code !== "insufficient_stock" || !pos.canOversell.value) throw e;
-    let saved = null;
-    let resendError = null;
-    const answer = await confirm({
+    // The resend in flight or last made. The dialog can close while it is still sending (another
+    // dialog, such as the one on leaving the POS, replaces it), so its result, not the first
+    // refusal, is what the till reports.
+    let resend = null;
+    await confirm({
       title: "Sell more than is in stock?",
       message: e.message,
       detail: "Stock will go below zero, and a stock flag will be raised so someone counts it.",
@@ -293,18 +295,15 @@ async function saveSale() {
       busyLabel: "Completing sale…",
       cancelLabel: "Back to the cart",
       run: async () => {
-        try {
-          saved = await pos.completeSale({ allowOversell: true });
-        } catch (err) {
-          resendError = err;
-          throw err;
-        }
+        resend = pos.completeSale({ allowOversell: true });
+        await resend;
       },
     });
-    // Back to the cart after a failed resend: its refusal (a deactivated customer, a changed price,
-    // a sale already saved) is the one the till must act on, not the stock refusal before it.
-    if (answer !== true) throw resendError || e;
-    return saved;
+    // Without a resend, the manager went back: the stock refusal stands. Otherwise the resend's
+    // result is the answer: the saved sale, or its own refusal (a deactivated customer, a changed
+    // price, a sale already saved), which the till must act on rather than the stock refusal.
+    if (!resend) throw e;
+    return await resend;
   }
 }
 
