@@ -51,6 +51,13 @@ export const releases = [
         alt: "The current sale at the till with a customer attached",
         permissions: ["customer:view"],
       },
+      {
+        id: "sell-anyway",
+        title: "When the till says not enough stock",
+        text: "A sale can't take more than the system shows in stock, and the till says how many units there are. A manager can choose Sell anyway; a stock flag then asks someone to count the product.",
+        image: IMAGES + "v0.6.0-sell-anyway.png",
+        alt: "The Sell anyway question at the till: 14 units of Digital Thermometer in stock, selling 16",
+      },
     ],
   },
   {

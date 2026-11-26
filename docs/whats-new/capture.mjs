@@ -129,6 +129,31 @@ const releases = {
       await shot(page, "customer-at-till");
       await ctx.close();
     },
+    async () => { // The till: a manager is asked to sell more than is in stock
+      const { ctx, page } = await as("amaka");
+      await open(page, "/app/pos");
+      await page.getByPlaceholder("Search or scan barcode…").fill("Thermometer");
+      await page.waitForTimeout(700);
+      await page.locator("tbody tr", { hasText: "Digital Thermometer" }).getByRole("button").click();
+      await page.waitForTimeout(400);
+      await page.getByRole("button", { name: /^Cart/ }).click();
+      await page.waitForTimeout(400);
+      // demoseed leaves 14 in stock: 16 shows the cart's hint and gets the refusal.
+      await page.getByLabel("Quantity of Digital Thermometer").fill("16");
+      await page.waitForTimeout(300);
+      const total = await page.evaluate(async () => {
+        const { items } = await (await fetch("/inventory/item-list")).json();
+        const product = items.find((p) => p.name === "Digital Thermometer");
+        return String((product.default_price / 100) * 16);
+      });
+      await page.getByLabel("Cash payment amount").fill(total);
+      await page.waitForTimeout(300);
+      await page.getByRole("button", { name: "Complete sale (F5)" }).click();
+      await page.getByRole("alertdialog").waitFor();
+      await page.waitForTimeout(4000); // the "added to cart" toast goes
+      await shot(page, "sell-anyway");
+      await ctx.close();
+    },
   ],
   "v0.3.0": [
   async () => { // Stock Adjustments: the manager adjusts from a flag
