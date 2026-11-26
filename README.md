@@ -227,6 +227,8 @@ make run
 
 The server listens on **port 8000**.
 
+Running it for a shop (behind nginx or another reverse proxy, HTTPS, what must be set): see [docs/deployment.md](docs/deployment.md).
+
 ### Makefile targets
 
 | Command                     | Description                                   |
