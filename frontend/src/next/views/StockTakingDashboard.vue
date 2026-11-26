@@ -312,6 +312,9 @@ let reconnectDelay = 3000;
 // Connects in a row that closed without opening while still signed in: a refused handshake
 // (for example a proxy that rewrites Host, so the origin check says 403) looks like this.
 let failedConnects = 0;
+// Whether this count's socket has opened before: a later open is a reconnect, and anything sent
+// while it was down is re-read.
+let connectedOnce = false;
 let pageClosed = false;
 // "" while live updates work, "signed_out" once the session has ended (retrying stops), and
 // "unavailable" after repeated failed connects while signed in (retrying continues).
@@ -479,6 +482,7 @@ function closeStockTaking() {
   liveProblem.value = "";
   reconnectDelay = 3000;
   failedConnects = 0;
+  connectedOnce = false;
 }
 
 // === Counting ===
@@ -523,7 +527,10 @@ function toggleVarianceFilter() {
 function queueUpdate(item) {
   const pid = item.product_id;
   if (updateTimers.has(pid)) clearTimeout(updateTimers.get(pid));
-  updateTimers.set(pid, setTimeout(() => sendUpdate(item), 800));
+  updateTimers.set(pid, setTimeout(() => {
+    updateTimers.delete(pid);
+    sendUpdate(item);
+  }, 800));
 }
 
 async function sendUpdate(item) {
@@ -598,6 +605,8 @@ function initWebSocket(id) {
     reconnectDelay = 3000;
     failedConnects = 0;
     liveProblem.value = "";
+    if (connectedOnce) refreshCounts(id);
+    connectedOnce = true;
   };
   ws.onmessage = (event) => {
     try {
@@ -632,6 +641,25 @@ function initWebSocket(id) {
     reconnectTimer = setTimeout(() => initWebSocket(id), reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 2, 60000);
   };
+}
+
+// refreshCounts re-reads the count after a reconnect: updates and the completion sent while the
+// socket was down never arrive otherwise. A row with a save still waiting keeps what was typed.
+async function refreshCounts(id) {
+  try {
+    const res = await fetch(`${API}/stock-taking/api/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (pageClosed || countingId.value !== id) return;
+    const byProduct = new Map((data.items || []).map(i => [i.product_id, i]));
+    for (const local of rawItems) {
+      const server = byProduct.get(local.product_id);
+      if (server && !updateTimers.has(local.product_id)) Object.assign(local, server);
+    }
+    rebuildItems();
+    countingStatus.value = data.stock_taking_data.status;
+    if (countingStatus.value === "Completed") closeWebSocket();
+  } catch {}
 }
 
 // signedOut asks a light endpoint whether the session still works; a network error is not a

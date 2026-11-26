@@ -107,6 +107,12 @@ frontend). Nobody has to sign in again.
   closed the socket and its `onclose` then scheduled a reconnect, so leaving a count reopened its
   socket 3 s later. Each socket now checks it is still the page's current one, and the page stops
   reconnecting once it is closed.
+- Third code review, owner's choice: when the socket reopens after a drop, the page re-reads the
+  count (status and items) so counts saved, and a completion sent, while it was offline appear. The
+  back-off made that gap up to 60 s. Rows with a save still waiting to go keep the typed value. Also
+  from that review: the dev proxy rewrites only its own page's Origin, and the page says when live
+  updates keep failing to connect while signed in. The other existing bugs it found became T-146,
+  T-147 and a note on T-024.
 - Second code review: the regression test now also dials with `Host: localhost:<port>`, confirmed
   to fail when the old localhost rule is put back; the sign-in link points at the count itself.
 
