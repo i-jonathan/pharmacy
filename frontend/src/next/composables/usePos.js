@@ -38,6 +38,8 @@ export function usePos() {
   const hiddenCustomer = ref(null);
   const holdReference = ref(null);
   const saleIdempotencyKey = ref(createIdempotencyKey());
+  // sale:oversell lets a user complete a sale that takes stock below zero, after confirming.
+  const canOversell = computed(() => hasPermission("sale:oversell"));
   const amountTendered = ref(0);
 
   // --- Computed ---
@@ -79,19 +81,27 @@ export function usePos() {
     const seen = new Set();
     // Look up the actual name for this price option
     let name = "Base";
+    let quantityPerUnit = 1;
     if (product.price_options && Array.isArray(product.price_options)) {
       const matching = product.price_options.find((o) => o.id === priceId);
       if (matching && matching.name) name = matching.name;
+      if (matching?.quantity_per_unit > 0) quantityPerUnit = matching.quantity_per_unit;
     }
     // Always include the selected/default price as an option
-    options.push({ id: priceId, name, price: price, selling_price: price * 100 });
+    options.push({ id: priceId, name, price: price, selling_price: price * 100, quantityPerUnit });
     seen.add(priceId);
     // Add API-provided price options if any
     if (product.price_options && Array.isArray(product.price_options)) {
       for (const o of product.price_options) {
         const optPrice = o.selling_price / 100;
         if (!seen.has(o.id)) {
-          options.push({ id: o.id, name: o.name || "Variant", price: optPrice, selling_price: o.selling_price });
+          options.push({
+            id: o.id,
+            name: o.name || "Variant",
+            price: optPrice,
+            selling_price: o.selling_price,
+            quantityPerUnit: o.quantity_per_unit > 0 ? o.quantity_per_unit : 1,
+          });
           seen.add(o.id);
         }
       }
@@ -121,9 +131,51 @@ export function usePos() {
         priceOptions: buildPriceOptions(product, pprice, pid),
         qty: 1,
         discount: 0,
+        stock: stockOf(product),
       });
     }
   }
+
+  // The stock the product list showed, in stock units, or null when the till doesn't know it (a
+  // held sale resumed before the list loaded).
+  function stockOf(product) {
+    const stock = Number(product?.stock);
+    return product?.stock === undefined || product?.stock === null || !Number.isFinite(stock) ? null : stock;
+  }
+
+  // Copies the stock and pack sizes of a freshly loaded product list onto the cart's lines (a sale
+  // held before pack sizes were kept has none).
+  let lastProducts = [];
+  function syncStock(products = lastProducts) {
+    lastProducts = products;
+    const byId = new Map(products.map((p) => [Number(p.id), p]));
+    for (const item of cart) {
+      const product = byId.get(Number(item.id ?? item.product_id));
+      if (!product) continue;
+      item.stock = stockOf(product);
+      for (const option of item.priceOptions || []) {
+        const listed = (product.price_options || []).find((o) => Number(o.id) === Number(option.id));
+        if (listed?.quantity_per_unit > 0) option.quantityPerUnit = listed.quantity_per_unit;
+      }
+    }
+  }
+
+  // For each cart line, the stock shown for its product when the cart takes more than that (its
+  // lines summed: a pack and singles of one product), else null. Only a hint: the server decides.
+  const stockShortfalls = computed(() => {
+    const taking = new Map();
+    for (const item of cart) {
+      const id = Number(item.id ?? item.product_id);
+      const option = (item.priceOptions || []).find((o) => Number(o.id) === Number(item.priceId));
+      const perUnit = option?.quantityPerUnit > 0 ? option.quantityPerUnit : 1;
+      taking.set(id, (taking.get(id) || 0) + (Number(item.qty) || 0) * perUnit);
+    }
+    return cart.map((item) => {
+      const stock = item.stock ?? null;
+      if (stock === null) return null;
+      return taking.get(Number(item.id ?? item.product_id)) > stock ? Math.max(0, stock) : null;
+    });
+  });
 
   function removeItem(index) {
     cart.splice(index, 1);
@@ -203,7 +255,9 @@ export function usePos() {
     return resp.json();
   }
 
-  async function completeSale() {
+  // allowOversell is sent only after a refusal for stock, by a user with sale:oversell who
+  // confirmed selling more than is in stock.
+  async function completeSale({ allowOversell = false } = {}) {
     const hasMissingPriceID = cart.some((item) => {
       const options = item.priceOptions || item.price_options || [];
       const itemPriceID = Number(item.priceId ?? item.price_id);
@@ -262,6 +316,7 @@ export function usePos() {
     };
 
     if (customer.value?.id) payload.customer_id = customer.value.id;
+    if (allowOversell) payload.allow_oversell = true;
     if (holdReference.value) {
       payload.held_sale_reference = holdReference.value;
     }
@@ -357,8 +412,11 @@ export function usePos() {
     if (payload.cart && Array.isArray(payload.cart)) {
       payload.cart.forEach((item) => {
         // A sale held before amounts were rounded may carry a fraction of a kobo.
-        cart.push({ ...item, discount: toWholeKobo(item.discount) });
+        // The stock saved with a held sale may be days old: unknown until the list is read again.
+        cart.push({ ...item, discount: toWholeKobo(item.discount), stock: null });
       });
+      // The product list may already be loaded.
+      syncStock();
     }
     if (payload.payments) {
       Object.keys(payments).forEach((k) => {
@@ -489,6 +547,9 @@ export function usePos() {
     clearCart,
     holdCart,
     completeSale,
+    canOversell,
+    stockShortfalls,
+    syncStock,
     printReceipt,
     fetchHeldTransactions,
     deleteHeldTransaction,
