@@ -15,6 +15,18 @@
     "backend/service/sale_customer*",
     "backend/adapter/http/router/sales_test.go"
   ],
+  "health-checks": [
+    "frontend/src/next/views/HealthChecks.vue",
+    "frontend/src/next/components/customers/HealthReadings.vue",
+    "frontend/src/next/lib/healthSlip.js",
+    "frontend/src/next/lib/healthReadings.js",
+    "backend/service/health_checks*.go",
+    "backend/repository/health_checks.go",
+    "backend/adapter/http/controller/health_checks.go",
+    "backend/adapter/http/router/health_checks*.go",
+    "backend/internal/types/health_check.go",
+    "backend/db/migrations/*health_checks*"
+  ],
   "purchase-orders": [
     "frontend/src/next/views/PurchaseOrders.vue",
     "frontend/src/next/composables/usePendingPurchaseOrders.js",

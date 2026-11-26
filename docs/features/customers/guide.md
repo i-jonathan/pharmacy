@@ -46,7 +46,11 @@ Type in **Search by name or phone**. Letters search names. Numbers search phone 
 
 When you change **Agreed to be contacted by the pharmacy**, the panel shows the date it last changed. Untick it if a customer asks not to be contacted.
 
-If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click.
+If you have typed changes and then open another customer, choose **Add customer** or close the panel, the page asks **Discard your changes?** so typing is not lost by a stray click. Leaving the page asks the same.
+
+### See a customer's health readings
+
+Managers and admins see a **Health readings** tab beside **Details** in the panel, with the customer's saved blood pressure and glucose readings, and can reprint or correct them there. See the [Health checks guide](../health-checks/guide.md).
 
 ### Put a customer on a sale
 
@@ -154,8 +158,9 @@ Use this for someone who should no longer be on the list, for example a duplicat
 
 **I picked the wrong customer and already completed the sale.** Open the sale in Sales History and choose **Change** beside the customer. See "Change or remove the customer on a saved sale". A cashier can do this within 24 hours of the sale; an older sale needs a manager.
 
-**Can I see who changed a customer on a sale?** Not on a screen yet (T-127). It is recorded.
+**Can I see who changed a customer on a sale?** Yes, if you can see customers: open the sale in Sales History. See "See who changed a sale's customer".
 
 ## Related
 
+- [Health checks](../health-checks/guide.md): blood pressure and glucose readings kept for customers who agree.
 - Planned next: purchase history and totals (T-119), import and merge duplicates (T-120), erase or anonymize on request (T-121), see who changed a sale's customer (T-127).
