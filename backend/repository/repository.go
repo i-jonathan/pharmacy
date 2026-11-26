@@ -97,7 +97,7 @@ type StockAdjustmentRepository interface {
 		ctx context.Context, tx *sqlx.Tx, flag types.StockFlagRequest, userID int,
 	) (int, error)
 	OpenSaleStockFlagTx(
-		ctx context.Context, tx *sqlx.Tx, productID, userID int, note string,
+		ctx context.Context, tx *sqlx.Tx, productID, userID int, note string, maxNote int,
 	) error
 	ListOpenStockFlags(ctx context.Context) ([]types.StockFlag, error)
 	CountOpenStockFlags(ctx context.Context) (int, error)

@@ -123,7 +123,8 @@ func (s *saleService) recordOversell(
 			"Sold %s with %s in stock (receipt %s). Count it and correct the stock.",
 			units(p.Sold), units(p.StockBefore), receipt,
 		)
-		if err := s.repo.OpenSaleStockFlagTx(ctx, tx, p.ProductID, userID, note); err != nil {
+		err := s.repo.OpenSaleStockFlagTx(ctx, tx, p.ProductID, userID, note, maxStockNote)
+		if err != nil {
 			log.Println(err)
 			return httperror.ServerError("failed to flag the oversold stock", err)
 		}

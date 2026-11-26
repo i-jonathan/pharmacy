@@ -214,7 +214,11 @@ async function runAction(action, successMessage) {
     mobilePane.value = "cart";
     // The sale was saved on an earlier try (its reply was lost): this cart is that sale, so end it
     // here, and Sales History shows what was saved.
-    if (e.code === "already_saved") pos.clearCart();
+    // The till didn't see that save, so its loaded stock doesn't include it: read the list again.
+    if (e.code === "already_saved") {
+      pos.clearCart();
+      productPanel.value?.refreshProducts();
+    }
     // A price changed since the product list was loaded, so adding the line again from that list
     // would bring the old price back: read the list again first.
     if (e.code === "price_changed") productPanel.value?.refreshProducts();
@@ -275,12 +279,15 @@ pos.setShortcutActions({
   hold: () => canHold.value && handleHold(),
 });
 
-// Completes the sale. A refusal for stock is the server's, from the stock as it is now: a user with
-// sale:oversell may confirm selling anyway (same retry key, so it is still one sale); anyone else,
-// or a manager who goes back, sees the refusal on the cart.
+// Completes the sale and returns { saved, reloaded }. A refusal for stock is the server's, from the
+// stock as it is now: a user with sale:oversell may confirm selling anyway (same retry key, so it is
+// still one sale); anyone else, or a manager who goes back, sees the refusal on the cart (whose
+// handler reads the product list again). After a resend the list is read again here, once the
+// resend has finished, since the refusal showed it was wrong; `reloaded` then tells the caller not
+// to lower it as well.
 async function saveSale() {
   try {
-    return await pos.completeSale();
+    return { saved: await pos.completeSale(), reloaded: false };
   } catch (e) {
     if (e.code !== "insufficient_stock" || !pos.canOversell.value) throw e;
     // The resend in flight or last made. The dialog can close while it is still sending (another
@@ -303,22 +310,27 @@ async function saveSale() {
     // result is the answer: the saved sale, or its own refusal (a deactivated customer, a changed
     // price, a sale already saved), which the till must act on rather than the stock refusal.
     if (!resend) throw e;
-    return await resend;
+    try {
+      return { saved: await resend, reloaded: true };
+    } finally {
+      productPanel.value?.refreshProducts();
+    }
   }
 }
 
 // After a sale the loaded stock is lowered by what it took (read before the cart is cleared): that
-// stock drives the cart's "Only N units in stock" hints and which products can be added.
-function takeSoldStock(taken) {
-  productPanel.value?.takeStock(taken);
+// stock drives the cart's "Only N units in stock" hints and which products can be added. A list
+// read again after the sale already has it.
+function takeSoldStock(taken, reloaded) {
+  if (!reloaded) productPanel.value?.takeStock(taken);
 }
 
 async function handleComplete() {
   await runAction(async () => {
-    await saveSale();
+    const { reloaded } = await saveSale();
     const taken = pos.stockTaken();
     pos.clearCart();
-    takeSoldStock(taken);
+    takeSoldStock(taken, reloaded);
     await returnToSearch();
   }, "Sale completed.");
 }
@@ -326,7 +338,7 @@ async function handleComplete() {
 async function handleCompleteAndPrint() {
   let printed = true;
   await runAction(async () => {
-    const saved = await saveSale();
+    const { saved, reloaded } = await saveSale();
     const taken = pos.stockTaken();
     try {
       await pos.printReceipt(saved?.receipt_number || "");
@@ -335,7 +347,7 @@ async function handleCompleteAndPrint() {
       printed = false;
     }
     pos.clearCart();
-    takeSoldStock(taken);
+    takeSoldStock(taken, reloaded);
     await returnToSearch();
   }, () => (printed ? "Sale completed. Receipt sent to print." : "Sale completed."));
   if (!printed) {

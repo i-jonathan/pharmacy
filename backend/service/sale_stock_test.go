@@ -44,7 +44,7 @@ func (r *customerSaleRepo) InsertAuditLogTx(
 }
 
 func (r *customerSaleRepo) OpenSaleStockFlagTx(
-	_ context.Context, _ *sqlx.Tx, productID, userID int, note string,
+	_ context.Context, _ *sqlx.Tx, productID, userID int, note string, _ int,
 ) error {
 	r.saleFlags = append(r.saleFlags, saleFlag{productID, userID, note})
 	return nil

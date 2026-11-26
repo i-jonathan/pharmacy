@@ -1,10 +1,12 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"pharmacy/httperror"
 	"pharmacy/internal/constant"
@@ -80,7 +82,10 @@ func TestASaleCannotTakeStockBelowZeroUnlessAManagerOversells(t *testing.T) {
 	}
 
 	// A second oversell by the same manager saves, and adds its note to the one open flag rather
-	// than being lost; the flag's stock at flagging stays as it was.
+	// than being lost; the flag's stock at flagging stays as it was, and it moves to the top of the
+	// open flags (newest first).
+	f.db.MustExec(`UPDATE stock_flag SET created_at = NOW() - INTERVAL '7 days'
+		WHERE product_id = $1`, pid)
 	again, err := sales.CreateSale(manager, sellThree("again", true))
 	if err != nil {
 		t.Fatalf("a second oversell failed on the open flag: %v", err)
@@ -95,6 +100,26 @@ func TestASaleCannotTakeStockBelowZeroUnlessAManagerOversells(t *testing.T) {
 	if atFlag != -1 || !strings.Contains(note, "receipt "+receipt+")") ||
 		!strings.Contains(note, "Sold 3 units with -1 units in stock (receipt "+again+")") {
 		t.Fatalf("flag stock %d, note %q", atFlag, note)
+	}
+	if n := f.count(t, `SELECT COUNT(*) FROM stock_flag WHERE product_id = $1
+		AND created_at > NOW() - INTERVAL '1 minute'`, pid); n != 1 {
+		t.Fatal("a flag a sale added to should move to the top of the open flags")
+	}
+
+	// Its note stays within the limit other notes keep to, keeping the newest text: every oversell
+	// is also in the audit log.
+	f.db.MustExec(`UPDATE stock_flag SET note = repeat('x', 500) WHERE product_id = $1`, pid)
+	third, err := sales.CreateSale(manager, sellThree("third", true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.QueryRow(`SELECT note FROM stock_flag WHERE product_id = $1`, pid).
+		Scan(&note); err != nil {
+		t.Fatal(err)
+	}
+	if n := len([]rune(note)); n > 500 || !strings.HasPrefix(note, "…") ||
+		!strings.HasSuffix(note, "(receipt "+third+"). Count it and correct the stock.") {
+		t.Fatalf("capped note (%d characters): %q", n, note)
 	}
 
 	// A retry of a saved sale is answered as saved, whatever the stock now.
@@ -117,5 +142,58 @@ func TestTheOversellPermissionIsSeededToManagersAndAdmins(t *testing.T) {
 	}
 	if len(roles) != 2 || roles[0] != "Admin" || roles[1] != "Manager" {
 		t.Fatalf("roles with Sale/Oversell: %v", roles)
+	}
+}
+
+// A new sale takes the same product lock as stock adjustments, so a sale of a product being
+// adjusted waits for the adjustment, then reads the stock it left.
+func TestASaleWaitsForAnAdjustmentOfItsProduct(t *testing.T) {
+	f := newFixture(t)
+	store := repository.NewStore(f.db)
+	sales := service.NewSaleService(store)
+	pid := f.stocked(t, "Panadol", 5)
+	var priceID int
+	err := f.db.Get(&priceID, `SELECT id FROM product_price WHERE product_id = $1`, pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// An adjustment holds the product's lock.
+	ctx := context.Background()
+	tx, err := store.BeginTx(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.RollbackTx(tx)
+	if _, err := store.LockProductStockTx(ctx, tx, []int{pid}); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := sales.CreateSale(asUser(), types.Sale{
+			CashierID: f.uid, IdempotencyKey: "waits", Subtotal: 150, Total: 150,
+			Items: []types.SaleItem{
+				{ProductID: pid, Quantity: 1, PriceID: priceID, UnitPrice: 150, Total: 150},
+			},
+			Payments: []types.SalePayment{{Amount: 150, PaymentMethod: "Cash"}},
+		})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("the sale did not wait for the adjustment's lock (err %v)", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	// The adjustment ends; the sale goes ahead.
+	store.RollbackTx(tx)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the sale still waited after the adjustment ended")
 	}
 }

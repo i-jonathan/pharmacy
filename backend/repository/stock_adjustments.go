@@ -16,8 +16,10 @@ import (
 // ErrAlreadyFlagged is returned when someone flags a product they already have an open flag on.
 var ErrAlreadyFlagged = errors.New("product already flagged by this user")
 
-// FOR NO KEY UPDATE queues adjustments of a product behind each other without blocking the
-// foreign-key checks (FOR KEY SHARE) that sales, receipts and flags take on the product row.
+// FOR NO KEY UPDATE queues the adjustments and new sales of a product behind each other (both take
+// this lock: a sale through lockSaleProducts, before it is priced), and behind product edits and
+// receipts, which update the row. It does not block the foreign-key checks (FOR KEY SHARE) that
+// inserting a stock movement, a sale line or a flag takes on the product row.
 const lockProductsQuery = `
 	SELECT id FROM product WHERE id = ANY($1) ORDER BY id FOR NO KEY UPDATE`
 
@@ -210,21 +212,29 @@ func (r *repo) CreateStockFlagTx(
 
 // openSaleStockFlagQuery adds the note to the open flag this user already has on the product
 // rather than inserting a second one (a unique violation would abort the sale's transaction).
-// That flag keeps its count and stock_at_flag, which describe its own count.
+// That flag keeps its count and stock_at_flag, which describe its own count, but moves to the top
+// of the open flags (listed newest first), and its note keeps to the limit ($4 characters) by
+// dropping the oldest text: every oversell is also in the audit log.
 var openSaleStockFlagQuery = `
 	INSERT INTO stock_flag (product_id, note, flagged_by_id, stock_at_flag)
 	VALUES ($1, $2, $3, ` + fmt.Sprintf(productStockSQL, "$1") + `)
 	ON CONFLICT (product_id, flagged_by_id) WHERE status = 'open'
-	DO UPDATE SET note = stock_flag.note || E'\n' || EXCLUDED.note
+	DO UPDATE SET
+		note = CASE
+			WHEN char_length(stock_flag.note || E'\n' || EXCLUDED.note) <= $4::int
+				THEN stock_flag.note || E'\n' || EXCLUDED.note
+			ELSE '…' || right(stock_flag.note || E'\n' || EXCLUDED.note, $4::int - 1)
+		END,
+		created_at = NOW()
 `
 
 // OpenSaleStockFlagTx opens a flag for a product a sale took below zero, or adds the note to the
-// seller's open flag on it. It runs after the sale's movements, so a new flag's stock_at_flag is
-// the stock the sale left.
+// seller's open flag on it, keeping that note to maxNote characters. It runs after the sale's
+// movements, so a new flag's stock_at_flag is the stock the sale left.
 func (r *repo) OpenSaleStockFlagTx(
-	ctx context.Context, tx *sqlx.Tx, productID, userID int, note string,
+	ctx context.Context, tx *sqlx.Tx, productID, userID int, note string, maxNote int,
 ) error {
-	_, err := tx.ExecContext(ctx, openSaleStockFlagQuery, productID, note, userID)
+	_, err := tx.ExecContext(ctx, openSaleStockFlagQuery, productID, note, userID, maxNote)
 	return err
 }
 

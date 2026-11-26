@@ -381,13 +381,16 @@ func TestAUsedRetryKeyIsOnlyARetryOfTheSameSave(t *testing.T) {
 	}
 }
 
-func TestAnAdjustmentLockDoesNotBlockSalesOfTheProduct(t *testing.T) {
+// The product lock that adjustments and new sales take queues them behind each other, but not the
+// foreign-key checks of rows that only reference the product (a stock movement, a sale line, a
+// flag, a receipt batch).
+func TestAProductLockDoesNotBlockRowsThatReferenceTheProduct(t *testing.T) {
 	f := newFixture(t)
 	product := f.product(t, "Amoxil")
 	store := repository.NewStore(f.db)
 	ctx := context.Background()
 
-	// An adjustment holds its product lock.
+	// An adjustment (or a sale) holds its product lock.
 	tx, err := store.BeginTx(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -397,8 +400,8 @@ func TestAnAdjustmentLockDoesNotBlockSalesOfTheProduct(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A sale's stock movement references the product (a foreign-key check on its row); it must not
-	// wait for the adjustment to finish.
+	// A stock movement references the product (a foreign-key check on its row); it must not wait
+	// for the lock's transaction to finish.
 	done := make(chan error, 1)
 	go func() {
 		_, err := f.db.Exec(`INSERT INTO stock_movement (product_id, reference_id, movement_type,
@@ -411,7 +414,7 @@ func TestAnAdjustmentLockDoesNotBlockSalesOfTheProduct(t *testing.T) {
 			t.Fatal(err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("a sale's movement waited on the adjustment's product lock")
+		t.Fatal("a stock movement waited on the product lock")
 	}
 }
 
