@@ -148,6 +148,7 @@ import CustomerPicker from "../components/pos/CustomerPicker.vue";
 import { csrfFetch } from "../lib/csrf.js";
 import { newRetryKey, readError } from "../lib/api.js";
 import { GLUCOSE_CONTEXTS, printHealthSlip, slipFromSaved } from "../lib/healthSlip.js";
+import { readingsFrom } from "../lib/healthReadings.js";
 import { usePermissions, useUser } from "../composables/usePermissions.js";
 import { useConfirm } from "../composables/useConfirm.js";
 
@@ -228,68 +229,13 @@ function clearForm() {
   retryKey = newRetryKey();
 }
 
-// The same ranges and rules as the server, so a typo is caught before anything is sent. They are
-// typo guards, not clinical limits; no message here says a number is good or bad.
-const RANGES = {
-  systolic: [50, 300],
-  diastolic: [30, 200],
-  pulse: [20, 250],
-  "mmol/L": [1, 50],
-  "mg/dL": [20, 900],
-};
-
-// whole reads a whole number; anything else (120.5, 12O) is "not a whole number", which is
-// said as such rather than as a range.
-function whole(text) {
-  const t = String(text).trim();
-  return /^\d+$/.test(t) ? Number(t) : null;
-}
-
-function inRange(value, [min, max]) {
-  return value !== null && value >= min && value <= max;
-}
-
 // readings returns what to send, or throws an Error with a message for the person.
 function readings() {
-  const out = {
-    systolic: null, diastolic: null, pulse: null,
-    glucose: null, glucose_unit: "", glucose_context: "",
-  };
-  if (!bpOn.value && !glucoseOn.value) throw new Error("Tick blood pressure, blood glucose, or both.");
-  if (bpOn.value) {
-    const sys = whole(systolic.value);
-    const dia = whole(diastolic.value);
-    if (!String(systolic.value).trim() || !String(diastolic.value).trim()) {
-      throw new Error("Enter both blood pressure numbers.");
-    }
-    if (sys === null || dia === null) throw new Error("Enter the blood pressure as whole numbers.");
-    if (!inRange(sys, RANGES.systolic)) throw new Error("The top number must be between 50 and 300. Check it.");
-    if (!inRange(dia, RANGES.diastolic)) throw new Error("The bottom number must be between 30 and 200. Check it.");
-    if (sys <= dia) throw new Error("The top number must be higher than the bottom one.");
-    out.systolic = sys;
-    out.diastolic = dia;
-    if (String(pulse.value).trim()) {
-      const p = whole(pulse.value);
-      if (p === null) throw new Error("Enter the pulse as a whole number.");
-      if (!inRange(p, RANGES.pulse)) throw new Error("The pulse must be between 20 and 250. Check it.");
-      out.pulse = p;
-    }
-  }
-  if (glucoseOn.value) {
-    const text = String(glucose.value).trim();
-    if (!text) throw new Error("Enter the glucose reading.");
-    if (!/^\d+(\.\d)?$/.test(text)) throw new Error("Enter the glucose as a number with at most one decimal place.");
-    const value = Number(text);
-    const range = RANGES[glucoseUnit.value];
-    if (!inRange(value, range)) {
-      throw new Error(`Glucose in ${glucoseUnit.value} must be between ${range[0]} and ${range[1]}. Check the reading and the unit.`);
-    }
-    if (!glucoseContext.value) throw new Error("Choose when the glucose was taken.");
-    out.glucose = value;
-    out.glucose_unit = glucoseUnit.value;
-    out.glucose_context = glucoseContext.value;
-  }
-  return out;
+  return readingsFrom({
+    bpOn: bpOn.value, systolic: systolic.value, diastolic: diastolic.value, pulse: pulse.value,
+    glucoseOn: glucoseOn.value, glucose: glucose.value, glucoseUnit: glucoseUnit.value,
+    glucoseContext: glucoseContext.value,
+  });
 }
 
 function slipFromForm(values, name, walkIn) {
