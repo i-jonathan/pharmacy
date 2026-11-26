@@ -129,14 +129,13 @@ func main() {
 		middleware.Logging,
 	)
 
-	// Create a new router for WebSocket endpoint that bypasses middleware
-	wsRouter := http.NewServeMux()
-	wsRouter.HandleFunc("/ws", wsHub.HandleWebSocket)
+	// /ws skips the stack (Logging's writer cannot hijack the upgrade) but still needs a session.
+	wsRouter := router.InitWebSocketRouter(wsHub)
 
 	// Apply middleware to main router
 	mainHandler := middlewareStack(r)
 
-	// Combine main router (with middleware) and WebSocket router (without middleware)
+	// Combine main router (with middleware) and WebSocket router (with its own session check)
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ws" {
 			wsRouter.ServeHTTP(w, r)

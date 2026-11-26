@@ -110,6 +110,13 @@
         </div>
       </div>
 
+      <!-- Live updates refused: the session has ended -->
+      <div v-if="liveProblem" class="flex items-start gap-2 mb-4 rounded-lg border border-border bg-destructive/5 px-3 py-2.5 text-sm text-foreground" role="alert">
+        <AlertCircle :size="16" class="text-destructive shrink-0 mt-0.5" />
+        <p v-if="liveProblem === 'signed_out'">Live updates stopped because you were signed out. Counts from other people won't appear until you <a :href="signInHref" class="font-medium underline">sign in again</a>.</p>
+        <p v-else>Live updates aren't connecting, so counts from other people won't appear here. Your own counts still save. If this doesn't clear, tell whoever runs the server.</p>
+      </div>
+
       <!-- Sticky Search -->
       <div class="sticky top-0 z-20 bg-card -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 border-b border-border" style="position:sticky;top:0;">
         <div class="relative">
@@ -300,6 +307,20 @@ const completeStockPermission = ref(false);
 const searchQuery = ref("");
 const filterVariancesOnly = ref(false);
 let websocket = null;
+let reconnectTimer = null;
+let reconnectDelay = 3000;
+// Connects in a row that closed without opening while still signed in: a refused handshake
+// (for example a proxy that rewrites Host, so the origin check says 403) looks like this.
+let failedConnects = 0;
+// Whether this count's socket has opened before: a later open is a reconnect, and anything sent
+// while it was down is re-read.
+let connectedOnce = false;
+let pageClosed = false;
+// "" while live updates work, "signed_out" once the session has ended (retrying stops), and
+// "unavailable" after repeated failed connects while signed in (retrying continues).
+const liveProblem = ref("");
+// Loading this count's address sends a signed-out browser to sign in and back to the count.
+const signInHref = computed(() => `/app/stock-taking/${countingId.value}`);
 let updateTimers = new Map();
 let timeAgoTimer = null;
 const timeTick = ref(0);
@@ -458,6 +479,10 @@ function closeStockTaking() {
   filterVariancesOnly.value = false;
   stopTimeAgoTimer();
   closeWebSocket();
+  liveProblem.value = "";
+  reconnectDelay = 3000;
+  failedConnects = 0;
+  connectedOnce = false;
 }
 
 // === Counting ===
@@ -502,7 +527,10 @@ function toggleVarianceFilter() {
 function queueUpdate(item) {
   const pid = item.product_id;
   if (updateTimers.has(pid)) clearTimeout(updateTimers.get(pid));
-  updateTimers.set(pid, setTimeout(() => sendUpdate(item), 800));
+  updateTimers.set(pid, setTimeout(() => {
+    updateTimers.delete(pid);
+    sendUpdate(item);
+  }, 800));
 }
 
 async function sendUpdate(item) {
@@ -555,43 +583,102 @@ async function completeStockTaking() {
 }
 
 // === WebSocket ===
+// The socket closes when the network drops, the server restarts, or the session ends (the server
+// refuses a signed-out handshake). The browser can't tell these apart, so after a close the page
+// asks the server whether it is still signed in: if not it stops and says so; otherwise it
+// reconnects, waiting longer after each failure (up to a minute).
 function initWebSocket(id) {
   closeWebSocket();
+  if (pageClosed) return;
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${protocol}//${window.location.host}/ws?stockTakingId=${id}`;
+  let ws;
   try {
-    websocket = new WebSocket(wsUrl);
-    websocket.onopen = () => {};
-    websocket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "stock_item_update") {
-          const server = msg.data;
-          const local = rawItems.find(i => i.product_id === server.product_id);
-          if (local) {
-            Object.assign(local, server);
-            rebuildItems();
-          }
-        } else if (msg.type === "stock_taking_complete") {
-          countingStatus.value = "Completed";
-          closeWebSocket();
+    ws = new WebSocket(wsUrl);
+  } catch {
+    return;
+  }
+  websocket = ws;
+  let opened = false;
+  ws.onopen = () => {
+    opened = true;
+    reconnectDelay = 3000;
+    failedConnects = 0;
+    liveProblem.value = "";
+    if (connectedOnce) refreshCounts(id);
+    connectedOnce = true;
+  };
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "stock_item_update") {
+        const server = msg.data;
+        const local = rawItems.find(i => i.product_id === server.product_id);
+        if (local) {
+          Object.assign(local, server);
+          rebuildItems();
         }
-      } catch {}
-    };
-    websocket.onclose = () => {
-      if (countingStatus.value !== "Completed") {
-        setTimeout(() => initWebSocket(id), 3000);
+      } else if (msg.type === "stock_taking_complete") {
+        countingStatus.value = "Completed";
+        closeWebSocket();
       }
-    };
-    websocket.onerror = () => {};
+    } catch {}
+  };
+  ws.onclose = async () => {
+    // A socket this page closed on purpose (or replaced) must not reconnect.
+    if (websocket !== ws) return;
+    websocket = null;
+    if (countingStatus.value === "Completed") return;
+    const out = await signedOut();
+    // The user may have left the count, or the page, while the check was answered.
+    if (pageClosed || countingId.value !== id || websocket !== null) return;
+    if (out) {
+      liveProblem.value = "signed_out";
+      return;
+    }
+    failedConnects = opened ? 0 : failedConnects + 1;
+    if (failedConnects >= 3) liveProblem.value = "unavailable";
+    reconnectTimer = setTimeout(() => initWebSocket(id), reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 60000);
+  };
+}
+
+// refreshCounts re-reads the count after a reconnect: updates and the completion sent while the
+// socket was down never arrive otherwise. A row with a save still waiting keeps what was typed.
+async function refreshCounts(id) {
+  try {
+    const res = await fetch(`${API}/stock-taking/api/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (pageClosed || countingId.value !== id) return;
+    const byProduct = new Map((data.items || []).map(i => [i.product_id, i]));
+    for (const local of rawItems) {
+      const server = byProduct.get(local.product_id);
+      if (server && !updateTimers.has(local.product_id)) Object.assign(local, server);
+    }
+    rebuildItems();
+    countingStatus.value = data.stock_taking_data.status;
+    if (countingStatus.value === "Completed") closeWebSocket();
   } catch {}
 }
 
-function closeWebSocket() {
-  if (websocket) {
-    websocket.close();
-    websocket = null;
+// signedOut asks a light endpoint whether the session still works; a network error is not a
+// sign-out (the reconnect will try again).
+async function signedOut() {
+  try {
+    const res = await fetch(`${API}/api/permissions/me`, { headers: { Accept: "application/json" } });
+    return res.status === 401;
+  } catch {
+    return false;
   }
+}
+
+function closeWebSocket() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  const ws = websocket;
+  websocket = null;
+  if (ws) ws.close();
 }
 
 // === Formatting ===
@@ -651,6 +738,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  pageClosed = true;
   stopTimeAgoTimer();
   closeWebSocket();
   for (const t of updateTimers.values()) clearTimeout(t);

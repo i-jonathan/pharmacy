@@ -3,43 +3,25 @@ package websocket
 import (
 	"log"
 	"net/http"
+	"pharmacy/config"
 	"strconv"
-	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+// sessionEnds is when the session that opened a socket stops working; a var so tests can bring
+// it forward.
+var sessionEnds = config.SessionExpiry
+
+// upgrader leaves CheckOrigin nil, so gorilla's default applies: the Origin's host must equal the
+// request's Host. The socket is authenticated by the session cookie, which the browser sends from
+// any site, so this is what stops another page the cashier opens from reading live counts
+// (cross-site WebSocket hijacking). A handshake without an Origin is not from a browser and still
+// needs the session.
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// Allow connections from same origin and localhost (dev and prod)
-		origin := r.Header.Get("Origin")
-		host := r.Host
-
-		// Allow empty origin (direct connections)
-		if origin == "" {
-			return true
-		}
-
-		// Allow same origin
-		if origin == host || origin == "http://"+host || origin == "https://"+host {
-			return true
-		}
-
-		// Allow all localhost connections (dev and prod)
-		if strings.Contains(host, "localhost") || strings.Contains(host, "127.0.0.1") {
-			return true
-		}
-
-		// Allow connections from localhost origins (different ports)
-		if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") ||
-			strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "https://127.0.0.1") {
-			return true
-		}
-
-		return false
-	},
 }
 
 // HandleWebSocket handles WebSocket connections for stock taking
@@ -53,8 +35,8 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stockTakingID, err := strconv.Atoi(stockTakingIDStr)
-	if err != nil {
-		log.Printf("Invalid stockTakingId parameter: %v", err)
+	if err != nil || stockTakingID <= 0 {
+		log.Printf("Invalid stockTakingId parameter: %q", stockTakingIDStr)
 		http.Error(w, "Invalid stockTakingId parameter", http.StatusBadRequest)
 		return
 	}
@@ -76,9 +58,21 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	client.hub.register <- client
 
+	// The cookie that let this handshake in stops working at the session's end; close the socket
+	// then too, so it cannot keep streaming counts to a signed-out page. The page's reconnect
+	// then meets the session check.
+	ends := time.AfterFunc(time.Until(sessionEnds(time.Now())), func() {
+		closing := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "session ended")
+		conn.WriteControl(websocket.CloseMessage, closing, time.Now().Add(time.Second))
+		conn.Close()
+	})
+
 	// Start goroutines for reading and writing
 	go client.WritePump()
-	go client.ReadPump()
+	go func() {
+		client.ReadPump()
+		ends.Stop()
+	}()
 
 	log.Printf("WebSocket connection established for stock taking %d", stockTakingID)
 }
