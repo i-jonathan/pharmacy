@@ -16,7 +16,7 @@ func TestTheServerPricesTheSaleAgainstTheDatabase(t *testing.T) {
 	sales := service.NewSaleService(repository.NewStore(f.db))
 	ctx := asUser()
 
-	pid := f.product(t, "Panadol") // sells at ₦150.00
+	pid := f.stocked(t, "Panadol", 100) // sells at ₦150.00
 	var priceID int
 	err := f.db.Get(&priceID, `SELECT id FROM product_price WHERE product_id = $1`, pid)
 	if err != nil {

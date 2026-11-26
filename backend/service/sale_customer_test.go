@@ -30,6 +30,12 @@ type customerSaleRepo struct {
 	commits     int
 	rollbacks   int
 
+	// for the stock check: stock by product (nil is plenty of everything)
+	stock     map[int]int
+	locked    [][]int
+	audits    []types.AuditEntry
+	saleFlags []saleFlag
+
 	// for the history
 	saleRows     []model.Sale
 	namesAsked   [][]int

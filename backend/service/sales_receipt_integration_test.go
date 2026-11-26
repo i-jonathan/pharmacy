@@ -18,7 +18,7 @@ func TestReceiptNumberAndReprintAgainstTheDatabase(t *testing.T) {
 	ctx := asUser()
 
 	// A product with no manufacturer must not break the history that lists its sales.
-	pid := f.product(t, "Panadol")
+	pid := f.stocked(t, "Panadol", 100)
 	f.db.MustExec(`UPDATE product SET manufacturer = NULL WHERE id = $1`, pid)
 	var priceID int
 	err := f.db.Get(&priceID, `SELECT id FROM product_price WHERE product_id = $1`, pid)

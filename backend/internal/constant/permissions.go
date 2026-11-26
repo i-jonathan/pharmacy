@@ -26,6 +26,10 @@ const ManageCustomersPermissionKey = "customer:manage"
 // than 24 hours old (managers and admins). Anyone with customer:manage may do it for newer sales.
 const ChangeOldSaleCustomerPermissionKey = "sale:changeoldcustomer"
 
+// OversellPermissionKey lets a user complete a sale that takes a product's stock below zero
+// (managers by default). Every oversell is audited and opens a stock flag.
+const OversellPermissionKey = "sale:oversell"
+
 // RecordHealthCheckPermissionKey lets a user record a blood pressure or glucose reading and print
 // its slip (cashiers, managers, admins). ViewHealthChecksPermissionKey lets a user see a
 // customer's saved readings and reprint one, and CorrectHealthCheckPermissionKey lets them

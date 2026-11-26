@@ -77,6 +77,25 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 		}
 	}
 
+	// A new sale may not take stock below zero unless the user may oversell and said so. The
+	// products are locked first, so a sale and a stock adjustment can't both pass on the same stock.
+	var oversold []oversoldProduct
+	if !keyUsed {
+		oversold, err = s.checkSaleStock(ctx, tx, priced.items, saleParams.AllowOversell)
+		if err != nil {
+			// As after a pricing refusal: a twin of this request may have saved the sale (and
+			// taken the stock) while this one waited for the lock. Say the sale was saved instead.
+			stockErr := err
+			if keyUsed, err = s.saleKeyUsed(ctx, tx, idempotencyKey); !keyUsed {
+				if err != nil {
+					log.Println("re-checking the sale key after a stock refusal:", err)
+				}
+				return "", stockErr
+			}
+			oversold = nil
+		}
+	}
+
 	sale := model.Sale{
 		Status:         constant.CompleteSaleStatus,
 		CashierID:      saleParams.CashierID,
@@ -175,6 +194,13 @@ func (s *saleService) CreateSale(ctx context.Context, saleParams types.Sale) (st
 	if err != nil {
 		log.Println(err)
 		return "", httperror.ServerError("Failed to bulk create stock movements", err)
+	}
+
+	if len(oversold) > 0 {
+		if err := s.recordOversell(ctx, tx, saleParams.CashierID, saleID, sale.ReceiptNumber,
+			oversold); err != nil {
+			return "", err
+		}
 	}
 
 	// Delete held sale tx

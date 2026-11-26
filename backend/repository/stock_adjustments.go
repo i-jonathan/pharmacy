@@ -208,6 +208,23 @@ func (r *repo) CreateStockFlagTx(
 	return id, mapForeignKeyError(err)
 }
 
+// openSaleStockFlagQuery skips the insert when this user already has an open flag on the product:
+// a unique violation would abort the sale's transaction, and that flag is already waiting.
+var openSaleStockFlagQuery = `
+	INSERT INTO stock_flag (product_id, note, flagged_by_id, stock_at_flag)
+	VALUES ($1, $2, $3, ` + fmt.Sprintf(productStockSQL, "$1") + `)
+	ON CONFLICT (product_id, flagged_by_id) WHERE status = 'open' DO NOTHING
+`
+
+// OpenSaleStockFlagTx opens a flag for a product a sale took below zero. It runs after the sale's
+// movements, so the flag's stock_at_flag is the stock the sale left.
+func (r *repo) OpenSaleStockFlagTx(
+	ctx context.Context, tx *sqlx.Tx, productID, userID int, note string,
+) error {
+	_, err := tx.ExecContext(ctx, openSaleStockFlagQuery, productID, note, userID)
+	return err
+}
+
 // stockFlagColumns sums stock for the flagged products only, not every product through
 // inventory_view.
 var stockFlagColumns = `

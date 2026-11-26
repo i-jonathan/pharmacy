@@ -16,7 +16,7 @@ func TestSalesHistoryListsCustomerChangesAgainstTheDatabase(t *testing.T) {
 	store := repository.NewStore(f.db)
 	customers := service.NewCustomerService(store)
 	sales := service.NewSaleService(store)
-	product := f.product(t, "Amoxil")
+	product := f.stocked(t, "Amoxil", 100)
 	var priceID int
 	if err := f.db.Get(
 		&priceID, `SELECT id FROM product_price WHERE product_id = $1`, product,
